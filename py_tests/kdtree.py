@@ -33,7 +33,7 @@ class KDTree:
 
     def search_in_distance(self, inp, r):
         """
-        find points with in a distance r
+        find points within a distance r
         """
 
         index = self.tree.query_ball_point(inp, r)
