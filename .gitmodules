@@ -1,0 +1,3 @@
+[submodule "mplambda"]
+	path = mplambda
+	url = https://github.com/BerkeleyAutomation/mplambda/

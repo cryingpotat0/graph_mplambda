@@ -172,11 +172,11 @@ if __name__ == "__main__":
                 "ulim": [100, 100],
                 "obstacles": [
                         #([0, 0], [70, 70]), # border
-                        ([15, 15], [40, 40]), # (bottom_left, top_right)
-                        #([20, 60], [60, 70]), # (bottom_left, top_right)
+                        #([15, 15], [40, 40]), # (bottom_left, top_right)
+                        ([20, 60], [60, 70]), # (bottom_left, top_right)
                     ]
                 },
-            num_lambdas=4
+            num_lambdas=9
             )
     coordinator.init_lambdas()
     while True:
