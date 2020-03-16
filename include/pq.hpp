@@ -24,7 +24,7 @@ class RabbitMQMessageQueue: public GenericMessageQueue {
   amqp_connection_state_t conn;
 
   template <typename T>
-    inline std::string ToString(T tX) {
+    inline std::string ToString(T &tX) {
       std::ostringstream oStream;
       oStream << tX;
       return oStream.str();
@@ -47,7 +47,7 @@ class RabbitMQMessageQueue: public GenericMessageQueue {
 
 
     amqp_queue_declare_ok_t *r = amqp_queue_declare(
-        conn, 1, amqp_empty_bytes, 0, 0, 0, 1, amqp_empty_table);
+        conn, 1, amqp_cstring_bytes(routingkey), 0, 0, 0, 1, amqp_empty_table);
     die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
     amqp_bytes_t queuename;
     queuename = amqp_bytes_malloc_dup(r->queue);
@@ -119,15 +119,15 @@ class RabbitMQMessageQueue: public GenericMessageQueue {
   }
 
   template<class T>
-    void put(T message) {
+    void put(T& message) {
       std::string message_body = ToString<T>(message);
-      amqp_basic_properties_t props;
-      props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
-      props.content_type = amqp_cstring_bytes("text/plain");
-      props.delivery_mode = 2;// persistent delivery mode 
+      //amqp_basic_properties_t props;
+      //props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
+      //props.content_type = amqp_cstring_bytes("text/plain");
+      //props.delivery_mode = 2;// persistent delivery mode 
       int response = amqp_basic_publish(conn, 1, amqp_cstring_bytes(exchange),
           amqp_cstring_bytes(routingkey), 0, 0,
-          &props, amqp_cstring_bytes(message_body.c_str()));
+          NULL, amqp_cstring_bytes(message_body.c_str()));
       if (response < 0) {
         JI_LOG(ERROR) << "Error sending message: " << message_body; //TODO: truncate message
       } else {

@@ -25,7 +25,8 @@ endif()
 find_package(OpenMP REQUIRED)
 find_package(Assimp REQUIRED)
 find_package(Threads)
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Eigen3 3.3 REQUIRED )
+find_package(PNG REQUIRED)
 
 if (OPENMP_FOUND)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -33,9 +34,15 @@ if (OPENMP_FOUND)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
+include_directories(include ../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS} ${RABBITMQ_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
+
 add_executable(mpl_coordinator src/coordinator.cpp )
-include_directories(include ../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS} ${RABBITMQ_INCLUDE_DIRS} /usr/local/include)
-target_link_libraries(mpl_coordinator PUBLIC ${RABBITMQ_LIBRARIES})
+target_link_libraries(mpl_coordinator PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${RABBITMQ_LIBRARIES} ${PNG_LIBRARIES})
+
+add_executable(mpl_lambda_fixed_graph src/demo/lambda_fixed_graph.cpp )
+target_link_libraries(mpl_lambda_fixed_graph PUBLIC Eigen3::Eigen ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${RABBITMQ_LIBRARIES} ${PNG_LIBRARIES})
+
 #if (${APPLE})
 #  #add_executable(mpl_coordinator src/mpl_coordinator.cpp src/mpl/write_queue.cpp)
 #  add_executable(mpl_coordinator src/coordinator.cpp )
@@ -75,8 +82,8 @@ target_link_libraries(mpl_coordinator PUBLIC ${RABBITMQ_LIBRARIES})
 #link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
 #include_directories(include ../../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS})
 #
-#file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources/AUTOLAB.dae
-#     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/resources)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources/png_planning_input.png
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/resources)
 #file(GLOB SE3RSRC
 #     "resources/se3/Twistycool*.dae" "resources/se3/alpha*.dae"
 #     "resources/se3/Apartment*.dae" "resources/se3/cubicles*.dae"
