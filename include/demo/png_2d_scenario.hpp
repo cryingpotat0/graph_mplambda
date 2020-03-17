@@ -78,14 +78,15 @@ namespace mpl::demo
 
         using Space = unc::robotics::nigh::metric::L2Space<Scalar, 2>;
         using State = typename Space::Type;
-        using Bounds = Eigen::Matrix<Scalar, 2, 1>;
+        using Bound = Eigen::Matrix<Scalar, 2, 1>;
         using Distance = typename Space::Distance;
 
     private:
         const int width_;
         const int height_;
         Space space_;
-        Bounds bounds_;
+        Bound min_;
+        Bound max_;
         State goal_;
         std::vector<bool> isObstacle_;
 
@@ -98,8 +99,9 @@ namespace mpl::demo
         )
             : width_(width),
               height_(height),
-              //bounds_(makeBounds()),
-              //goal_(1e-6, goalState),
+              min_(makeMinBound()),
+              max_(makeMaxBound()),
+              goal_(goalState),
               isObstacle_(isObstacle)
         {
         }
@@ -124,9 +126,14 @@ namespace mpl::demo
             return space_;
         }
 
-        const Bounds &bounds() const
+        const Bound &min() const
         {
-            return bounds_;
+            return min_;
+        }
+
+        const Bound &max() const
+        {
+            return max_;
         }
 
         const State &goal() const
@@ -152,12 +159,19 @@ namespace mpl::demo
         //    return q;
         //}
     private:
-        Bounds makeBounds()
+        Bound makeMinBound()
         {
-            Eigen::Matrix<Scalar, 2, 1> min, max;
+            Eigen::Matrix<Scalar, 2, 1> min;
             min.fill(0);
+            //max << width_, height_;
+            return min;
+        }
+
+        Bound makeMaxBound()
+        {
+            Eigen::Matrix<Scalar, 2, 1> max;
             max << width_, height_;
-            return Bounds(min, max);
+            return max;
         }
 
         bool validSegment(const State &a, const State &b) const
