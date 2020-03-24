@@ -13,6 +13,9 @@
 #include <vector>
 #include <prm_planner.hpp>
 #include <subspace.hpp>
+#include <util.hpp>
+#include <chrono>
+
 
 namespace mpl::demo {
     template <class Comm, class Scenario, class Planner, class Scalar>
@@ -25,21 +28,21 @@ namespace mpl::demo {
     private:
 
         int lambda_id;
-        const int samples_per_run = 1000;
+        const int samples_per_run = 15000;
         const int max_incoming_vertices = 1000;
         Comm graph_comm;
         Comm vertex_comm;
         Scenario scenario;
         Planner planner;
-        Subspace_t local_subspace;
+        Subspace_t const local_subspace;
         Subspace_t global_subspace;
-        std::vector<State> validSamples;
+        std::unordered_map<Subspace_t, std::vector<State>> samples_to_send;
 
         LocalLambdaFixedGraph();
 
         static void trackValidSamples(State validSample, void* lambda) {
             auto localLambdaFixedGraph = static_cast<LocalLambdaFixedGraph *>(lambda);
-            localLambdaFixedGraph->validSamples.push_back(validSample);
+            localLambdaFixedGraph->samples_to_send[localLambdaFixedGraph->local_subspace].push_back(validSample);
         }
 
     public:
@@ -63,16 +66,30 @@ namespace mpl::demo {
         }
 
         void do_work() {
-          std::unordered_map<Subspace_t, std::vector<State>> samples_to_send = planner.plan(samples_per_run);
-          for (auto& [subspace, states_to_send] : samples_to_send) {
-            vertex_comm.set_destination(subspace);
-            vertex_comm.put_all(states_to_send);
-          }
+//          std::unordered_map<Subspace_t, std::vector<State>> samples_to_send = planner.plan(samples_per_run);
+            auto start = std::chrono::high_resolution_clock::now();
+            planner.plan(samples_per_run);
+            auto stop = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+            JI_LOG(INFO) << "Time to sample " << samples_per_run << " points is " << duration;
+
+
+
+            for (auto& [subspace, states_to_send] : samples_to_send) {
+                vertex_comm.set_destination(mpl::util::ToCString(subspace));
+                vertex_comm.put_all(states_to_send);
+            }
 //          Graph graph_diff = planner.get_graph_diff();
 //          graph_comm.put(graph_diff); // send the graph back to the robot for djikstras and multi query, alternatively can try and do djikstras in a distributed fashion
 
-          std::vector<State> new_states = vertex_comm[local_subspace].get(max_incoming_vertices);
-          planner.add_states(new_states);
+//            vertex_comm.set_destination(mpl::util::ToCString(local_subspace));
+//            std::vector<State> new_states = vertex_comm.get(max_incoming_vertices);
+//            planner.add_states(new_states);
+        }
+
+        decltype(auto) graph() {
+            return planner.graph();
         }
     };
 

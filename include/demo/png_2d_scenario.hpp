@@ -89,6 +89,7 @@ namespace mpl::demo
         Bound max_;
         State goal_;
         std::vector<bool> isObstacle_;
+        static constexpr Scalar PI = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620L;
 
     public:
         PNG2dScenario(
@@ -106,7 +107,11 @@ namespace mpl::demo
         {
         }
 
-        bool valid(const State &q) const
+        const Distance maxSteering() const {
+            return std::numeric_limits<Distance>::infinity();
+        }
+
+        bool isValid(const State &q) const
         {
             int x = (int) (q[0] + 0.5);
             int y = (int) (q[1] + 0.5);
@@ -114,9 +119,9 @@ namespace mpl::demo
             return !isObstacle_[width_ * y + x];
         }
 
-        bool link(const State &a, const State &b) const
+        bool isValid(const State &a, const State &b) const
         {
-            if(!valid(a) || !valid(b))
+            if(!isValid(a) || !isValid(b))
                 return false;
             return validSegment(a, b);
         }
@@ -151,13 +156,21 @@ namespace mpl::demo
             return height_;
         }
 
-        //template <class RNG>
-        //State randomSample(RNG& rng) {
-        //    State q;
-        //    randomize(std::get<Eigen::Quaternion<Scalar>>(q), rng);
-        //    randomize(std::get<Eigen::Matrix<Scalar,3,1>>(q), rng, min_, max_);
-        //    return q;
-        //}
+        static State scale(const State& q) {
+            return q;
+        }
+
+        template <class RNG>
+        State randomSample(RNG& rng) {
+            State q;
+            randomize(q, rng, min_, max_);
+            return q;
+        }
+
+        Scalar prmRadius() {
+            return 2 * pow((width_ / 100. * height_ / 100. * 1. / PI) * (3.0 / 2.0), 0.5);
+        }
+
     private:
         Bound makeMinBound()
         {
@@ -182,7 +195,7 @@ namespace mpl::demo
             Scalar tolerance = 1;
             if (distSquared < tolerance * tolerance)
                 return true;
-            if (!valid(mid))
+            if (!isValid(mid))
                 return false;
             if (!validSegment(a, mid)) // check the left half
                 return false;

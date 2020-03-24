@@ -37,7 +37,7 @@ endif()
 link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
 include_directories(include ../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS} ${RABBITMQ_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
 
-add_executable(mpl_coordinator src/coordinator.cpp )
+add_executable(mpl_coordinator src/coordinator.cpp include/util.hpp include/demo/app_options.hpp)
 target_link_libraries(mpl_coordinator PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${RABBITMQ_LIBRARIES} ${PNG_LIBRARIES})
 
 add_executable(mpl_lambda_fixed_graph src/demo/lambda_fixed_graph.cpp )

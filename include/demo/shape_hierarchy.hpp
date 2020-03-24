@@ -125,9 +125,11 @@ namespace shape
         addEdge(file, x1, y1, x2, y2, width, color);
     }
 
-    inline void addVisitedEdge(std::ofstream &file, double x1, double y1, double x2, double y2, double width = 1.0)
+    inline void addVisitedEdge(std::ofstream &file, double x1, double y1, double x2, double y2, double width = 3.0)
     {
         addEdge(file, x1, y1, x2, y2, width, Color(125, 125, 125));
+//        addEdge(file, x1, y1, x2, y2, width, Color(255, 0, 0));
+
     }
 
     inline void addState(std::ofstream &file, double x, double y, double r, char c)
