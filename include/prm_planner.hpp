@@ -5,6 +5,9 @@
 #include <vector>
 #include <random>
 #include <nigh/auto_strategy.hpp>
+#include <string>
+#include <boost/algorithm/string.hpp>
+#include <iostream>
 
 namespace mpl {
     template <class Scenario, class Scalar>
@@ -20,83 +23,64 @@ namespace mpl {
         using Concurrency = unc::robotics::nigh::Concurrent;
         using NNStrategy = unc::robotics::nigh::auto_strategy_t<Space, Concurrency>;
 
-        struct Vertex { State state; };
-        struct Edge { Distance distance; };
-
     public:
-        using Graph = UndirectedGraph<Vertex, Edge>;
-        using VertexWithRef = typename Graph::VertexWithRef;
+        using Vertex_t = Vertex<State>;
+        using Edge_t = Edge<typename Vertex_t::ID, Distance>;
+        using Graph = UndirectedGraph<Vertex_t, Edge_t>;
         using Subspace_t = typename mpl::Subspace<Bound, State, Scalar>;
 
     private:
 
         struct KeyFn {
-            const State& operator() (const VertexWithRef& v) const {
-                return v.vertex.state; // TODO: is this copying unnecessarily. Add scenario scale here.
+            const State& operator() (const Vertex_t& v) const {
+                return v.state(); // TODO: Add scenario scale here.
             }
         };
 
         Scenario scenario;
-        void* lambda; // TODO: extremely hacky, have to resolve the circular dependence here
+        void* lambda; // TODO: extremely hacky, have to resolve the circular dependence here. Implement template fix later.
         Graph graph_;
-        std::vector<void (*) (State, void*)> validSampleCallbacks;
-        unc::robotics::nigh::Nigh<VertexWithRef, Space, KeyFn, Concurrency, NNStrategy> nn;
+        std::vector<void (*) (Vertex_t, void*)> validSampleCallbacks;
+        unc::robotics::nigh::Nigh<Vertex_t, Space, KeyFn, Concurrency, NNStrategy> nn;
         Distance maxDistance;
-        int num_samples_;
+        uint64_t num_samples_;
+        std::vector<Vertex_t> new_vertices;
+        std::vector<Edge_t> new_edges;
+        std::uint64_t lambda_id_; // To create vertex IDs that work across computers
         RNG rng;
         Scalar rPRM;
 
         void addRandomSample() {
             State s = scenario.randomSample(rng);
-            if (!scenario.isValid(s)) return;
-            Vertex v{s};
-            std::vector<std::pair<VertexWithRef, Scalar>> nbh;
-            auto k = std::numeric_limits<std::size_t>::max();
-
-            // add to graph
-            auto v_with_ref = graph_.addVertex(v);
-            // add to nearest neighbor structure
-            nn.insert(v_with_ref);
-            // add valid edges
-            nn.nearest(nbh, Scenario::scale(v_with_ref.vertex.state), k, rPRM);
-            for(auto &[other, dist] : nbh) {
-                // Other ones must be valid and in the graph by definition
-                if (scenario.isValid(v_with_ref.vertex.state, other.vertex.state)) {
-                    Edge e{dist};
-                    graph_.addEdge(v_with_ref.vertex_ref, other.vertex_ref, e);
-                }
-            }
-            for (auto fn : validSampleCallbacks) {
-                fn(s, lambda);
-            }
+            addSample(s);
         }
 
     public:
 
-        explicit PRMPlanner(Scenario scenario_, void* lambda_)
+        explicit PRMPlanner(Scenario scenario_, void* lambda_, std::uint64_t lambda_id)
                 : scenario(scenario_),
                   lambda(lambda_),
                   maxDistance(scenario_.maxSteering()),
-                  rPRM(scenario_.prmRadius())
+                  rPRM(scenario_.prmRadius()),
+                  lambda_id_(lambda_id),
+                  num_samples_(0)
         {}
 
-        explicit PRMPlanner(Scenario scenario_, void* lambda_, Graph existing_graph)
-                : scenario(scenario_),
-                  lambda(lambda_),
-                  graph_(existing_graph),
-                  maxDistance(scenario_.maxSteering()),
-                  rPRM(scenario_.prmRadius())
-        {}
+//        explicit PRMPlanner(Scenario scenario_, void* lambda_, Graph existing_graph)
+//                : scenario(scenario_),
+//                  lambda(lambda_),
+//                  graph_(existing_graph),
+//                  maxDistance(scenario_.maxSteering()),
+//                  rPRM(scenario_.prmRadius())
+//        {}
 
-        void addValidSampleCallback(void (*f)(State, void*)) {
+        void addValidSampleCallback(void (*f)(Vertex_t, void*)) {
             validSampleCallbacks.push_back(f);
         }
 
         void plan(int num_samples) {
             for(int i=0; i < num_samples; ++i) {
-                ++num_samples_;
                 addRandomSample();
-
                 // TODO: rPRM update in loop
             }
         }
@@ -109,10 +93,53 @@ namespace mpl {
             // TODO
         }
 
-        decltype(auto) graph() {
-            return graph_.graph();
+        void clearVertices() {
+            new_vertices.clear();
         }
 
+        void clearEdges() {
+            new_edges.clear();
+        }
+
+        const std::vector<Vertex_t>& getNewVertices() {
+            return new_vertices;
+        }
+
+        const std::vector<Vertex_t>& getNewEdges() {
+            return new_edges;
+        }
+
+        const Graph& getGraph() const {
+            return graph_;
+        }
+
+        void addSample(State& s) {
+            if (!scenario.isValid(s)) return;
+            std::string id = std::to_string(lambda_id_) + "_" + std::to_string(num_samples_);
+            Vertex_t v{id, s};
+            std::vector<std::pair<Vertex_t, Scalar>> nbh;
+            auto k = std::numeric_limits<std::size_t>::max();
+
+            // add to graph
+//            graph_.addVertex(v);
+            // add to nearest neighbor structure
+            new_vertices.push_back(v);
+            nn.insert(v);
+            // add valid edges
+            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
+            for(auto &[other, dist] : nbh) {
+                // Other ones must be valid and in the graph by definition
+                if (scenario.isValid(v.state(), other.state())) {
+                    Edge_t e{dist, v.id_, other.id_};
+//                    graph_.addEdge(e);
+                    new_edges.push_back(std::move(e));
+                }
+            }
+            for (auto fn : validSampleCallbacks) {
+                fn(v, lambda);
+            }
+            ++num_samples_;
+        }
     };
 }
 

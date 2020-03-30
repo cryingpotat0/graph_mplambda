@@ -42,7 +42,7 @@ class RabbitMQMessageQueue: public GenericMessageQueue {
 
 
         amqp_queue_declare_ok_t *r = amqp_queue_declare(
-                conn, 1, amqp_cstring_bytes(routingkey), 0, 0, 0, 1, amqp_empty_table);
+                conn, 1, amqp_cstring_bytes(routingkey), 0, 0, 0, 0, amqp_empty_table);
         die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
         amqp_bytes_t queuename;
         queuename = amqp_bytes_malloc_dup(r->queue);
@@ -113,12 +113,28 @@ public:
         initializeChannel();
     }
 
+
+    RabbitMQMessageQueue(std::string hostname_and_port, char const * routingkey) {
+
+        this->routingkey = routingkey;
+        auto colon_position = hostname_and_port.find(":");
+        hostname = hostname_and_port.substr(0, colon_position).c_str();
+        port = stoi(hostname_and_port.substr(colon_position + 1, 4));
+
+//        this->hostname = hostname;
+//        this->port = port;
+        initializeChannel();
+    }
+
+    void poll() { } // Not needed for this kind of communicator
+    void flush() { } // Not needed for this kind of communicator
+
     void set_destination(char const * routingkey_) {
         routingkey = routingkey_;
 
         // Make sure the queue exists for gets
         amqp_queue_declare_ok_t *r = amqp_queue_declare(
-                conn, 1, amqp_cstring_bytes(routingkey), 0, 0, 0, 1, amqp_empty_table);
+                conn, 1, amqp_cstring_bytes(routingkey), 0, 0, 0, 0, amqp_empty_table);
         die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
         amqp_bytes_t queuename;
         queuename = amqp_bytes_malloc_dup(r->queue);
@@ -138,24 +154,18 @@ public:
     }
 
     template<class T>
-    void put_all(T messages) {
-        for (auto m : messages) {
-            put(m);
-        }
-    }
-
-    template<class T>
-    std::vector<T> get(int max_num_messages) {
+    std::vector<T> get(std::string routingkey_, int max_num_messages) {
         std::vector<T> ret;
         for(int i=0; i < max_num_messages; ++i) {
-            ret.emplace_back(get<T>());
+            ret.emplace_back(get<T>(routingkey_));
         }
         return ret;
     }
 
     template<class T>
-    void put(T& message) {
-        std::string message_body = mpl::util::ToString<T>(message);
+    void put(T& message, std::string routingkey_) {
+        set_destination(routingkey_.c_str());
+        std::string message_body = message.serialize();
         //amqp_basic_properties_t props;
         //props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
         //props.content_type = amqp_cstring_bytes("text/plain");
@@ -170,51 +180,117 @@ public:
         }
     }
 
-    template<class T>
-    T get() {
+    void put_raw(std::string message, std::string routingkey_) {
+        set_destination(routingkey_.c_str());
+        std::string message_body = message;
+        //amqp_basic_properties_t props;
+        //props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
+        //props.content_type = amqp_cstring_bytes("text/plain");
+        //props.delivery_mode = 2;// persistent delivery mode
+        int response = amqp_basic_publish(conn, 1, amqp_cstring_bytes(exchange),
+                                          amqp_cstring_bytes(routingkey), 0, 0,
+                                          NULL, amqp_cstring_bytes(message_body.c_str()));
+        if (response < 0) {
+            JI_LOG(ERROR) << "Error sending message: " << message_body; //TODO: truncate message
+        } else {
+            JI_LOG(INFO) << "Succesfully sent message: " << message_body << " to routingkey " << routingkey; //TODO: truncate message
+        }
+    }
+
+    std::string get_raw(std::string routingkey_) {
+        set_destination(routingkey_.c_str());
         amqp_rpc_reply_t res;
         amqp_envelope_t envelope;
 
         amqp_maybe_release_buffers(conn);
+        timeval consume_timeout;
+        consume_timeout.tv_sec = 0.9;
+        consume_timeout.tv_usec = 0;
+//        consume_timeout.tv_sec = 0.2;
 
-        res = amqp_consume_message(conn, &envelope, NULL, 0);
+        res = amqp_consume_message(conn, &envelope, &consume_timeout, 0);
+
+        if (AMQP_RESPONSE_NORMAL != res.reply_type) {
+            JI_LOG(ERROR) << "Abnormal response from queue";
+            return "";
+        }
+
+        std::string ret_string((char const *)envelope.message.body.bytes, envelope.message.body.len);
+
+        amqp_destroy_envelope(&envelope);
+        return ret_string;
+
+    }
+
+    template<class T>
+    T get(std::string routingkey_) {
+        set_destination(routingkey_.c_str());
+        amqp_rpc_reply_t res;
+        amqp_envelope_t envelope;
+
+        amqp_maybe_release_buffers(conn);
+        const timeval consume_timeout{static_cast<__darwin_time_t>(0.2)};
+//        consume_timeout.tv_sec = 0.2;
+
+        res = amqp_consume_message(conn, &envelope, &consume_timeout, 0);
 
         if (AMQP_RESPONSE_NORMAL != res.reply_type) {
             JI_LOG(ERROR) << "Abnormal response from queue";
             return T();
         }
 
-        //printf("Delivery %u, exchange %.*s routingkey %.*s\n",
-        //    (unsigned)envelope.delivery_tag, (int)envelope.exchange.len,
-        //    (char *)envelope.exchange.bytes, (int)envelope.routing_key.len,
-        //    (char *)envelope.routing_key.bytes);
-
-        //if (envelope.message.properties._flags & AMQP_BASIC_CONTENT_TYPE_FLAG) {
-        //  printf("Content-type: %.*s\n",
-        //      (int)envelope.message.properties.content_type.len,
-        //      (char *)envelope.message.properties.content_type.bytes);
-        //}
-        //printf("----\n");
-
-        //amqp_dump(envelope.message.body.bytes, envelope.message.body.len);
-        //T ret_obj(envelope.message.body.)
         std::string ret_string((char const *)envelope.message.body.bytes, envelope.message.body.len);
 
         amqp_destroy_envelope(&envelope);
-        return T(ret_string);
-
+        return T::deserialize(ret_string);
     }
 
+//    template<class T>
+//    T get() {
+//        amqp_rpc_reply_t res;
+//        amqp_envelope_t envelope;
+//
+//        amqp_maybe_release_buffers(conn);
+//
+//        res = amqp_consume_message(conn, &envelope, NULL, 0);
+//
+//        if (AMQP_RESPONSE_NORMAL != res.reply_type) {
+//            JI_LOG(ERROR) << "Abnormal response from queue";
+//            return T();
+//        }
+//
+//        //printf("Delivery %u, exchange %.*s routingkey %.*s\n",
+//        //    (unsigned)envelope.delivery_tag, (int)envelope.exchange.len,
+//        //    (char *)envelope.exchange.bytes, (int)envelope.routing_key.len,
+//        //    (char *)envelope.routing_key.bytes);
+//
+//        //if (envelope.message.properties._flags & AMQP_BASIC_CONTENT_TYPE_FLAG) {
+//        //  printf("Content-type: %.*s\n",
+//        //      (int)envelope.message.properties.content_type.len,
+//        //      (char *)envelope.message.properties.content_type.bytes);
+//        //}
+//        //printf("----\n");
+//
+//        //amqp_dump(envelope.message.body.bytes, envelope.message.body.len);
+//        //T ret_obj(envelope.message.body.)
+//        std::string ret_string((char const *)envelope.message.body.bytes, envelope.message.body.len);
+//
+//        amqp_destroy_envelope(&envelope);
+//        return T(ret_string);
+//
+//    }
+
     ~RabbitMQMessageQueue() {
-        die_on_amqp_error(amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS),
-                          "Closing channel");
-        die_on_amqp_error(amqp_connection_close(conn, AMQP_REPLY_SUCCESS),
-                          "Closing connection");
-        int response = amqp_destroy_connection(conn);
-        if (response < 0) {
-            JI_LOG(ERROR) << "Error destroying connection";
-            exit(1);
-        }
+        // This causes errors, omit for now and allow garbage collection to take care
+//        die_on_amqp_error(amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS),
+//                          "Closing channel");
+//        die_on_amqp_error(amqp_connection_close(conn, AMQP_REPLY_SUCCESS),
+//                          "Closing connection");
+//        int response = amqp_destroy_connection(conn);
+//        if (response < 0) {
+//            JI_LOG(ERROR) << "Error destroying connection";
+//            exit(1);
+//        }
     }
 
 };

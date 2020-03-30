@@ -95,13 +95,15 @@ namespace mpl::demo
         PNG2dScenario(
             const int width,
             const int height,
+            State min,
+            State max,
             State goalState,
             std::vector<bool> &isObstacle
         )
             : width_(width),
               height_(height),
-              min_(makeMinBound()),
-              max_(makeMaxBound()),
+              min_(min),
+              max_(max),
               goal_(goalState),
               isObstacle_(isObstacle)
         {

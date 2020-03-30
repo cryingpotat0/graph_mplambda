@@ -30,6 +30,17 @@ namespace mpl::demo {
     };
 
     template <>
+    struct OptionParser<const char *> {
+        static const char * parse(const std::string& name, const char *arg, char **endp)
+        {
+            if (!*arg)
+                throw std::invalid_argument(name + " is required");
+
+            return arg;
+        }
+    };
+
+    template <>
     struct OptionParser<double> {
         static double parse(const std::string& name, const char *arg, char **endp)
         {
@@ -135,10 +146,13 @@ namespace mpl::demo {
         static constexpr unsigned long MAX_JOBS = 1000;
 
         std::string scenario_;
-        std::string algorithm_ = "prm";
-        std::string coordinator_ = "localhost:5672";
+        std::string algorithm_;
+        std::string coordinator_;
+        std::string communicator_;
+        std::string lambdaType_;
         unsigned long jobs_{4};
 
+        std::uint64_t num_samples_;
         std::uint64_t problemId_;
         std::uint64_t lambdaId_;
 
@@ -166,12 +180,15 @@ namespace mpl::demo {
             std::cerr << "Usage: " << argv0 << R"( [options]
                 Options:
                   -S, --scenario=(png|se3|fetch)    Set the scenario to run
-                  -a, --algorithm=(prm) Set the algorithm to run
+                  -a, --algorithm=(prm_fixed_graph|prm_variable_graph) Set the algorithm to run
                   -c, --coordinator=HOST:PORT   Specify the coordinator's host.  Port is optional.
                   -C, --communicator=(rmq) Specify the coordinator's host.  Port is optional.
                   -j, --jobs=COUNT              Specify the number of simultaneous lambdas to run
                   -I, --problem-id=ID           (this is for internal use only)
                   -t, --time-limit=TIME         Specify the time limit of each lambda in seconds
+                  -n, --num-samples=N           Number of samples per lambda before communication
+                  -l, --lambda_id=L_ID          Lambda ID
+                  -L, --lambda_type=(local|aws) Lambda Type
                   -e, --env=MESH                The environment mesh to use (valid for se3 and fetch)
                   -E, --env-frame=X,Y,theta     The translation and rotation to apply to the environment (fetch only)
                   -r, --robot=MESH              The robot's mesh (se3 only)
@@ -201,6 +218,7 @@ namespace mpl::demo {
                     { "scenario", required_argument, NULL, 'S' },
                     { "algorithm", required_argument, NULL, 'a' },
                     { "coordinator", required_argument, NULL, 'c' },
+                    { "communicator", required_argument, NULL, 'C' },
                     { "jobs", required_argument, NULL, 'j' },
                     { "env", required_argument, NULL, 'e' },
                     { "env-frame", required_argument, NULL, 'E' },
@@ -208,8 +226,13 @@ namespace mpl::demo {
                     { "goal", required_argument, NULL, 'g' },
                     { "goal-radius", required_argument, NULL, 'G' },
                     { "start", required_argument, NULL, 's' },
+                    { "lambda_id", required_argument, NULL, 'l' },
+                    { "lambda_type", required_argument, NULL, 'L' },
                     { "min", required_argument, NULL, 'm' },
                     { "max", required_argument, NULL, 'M' },
+                    { "global_min", required_argument, NULL, 'o' },
+                    { "global_max", required_argument, NULL, 'O' },
+                    { "num_samples", required_argument, NULL, 'n' },
                     { "problem-id", required_argument, NULL, 'I' },
                     { "time-limit", required_argument, NULL, 't' },
                     { "check-resolution", required_argument, NULL, 'd' },
@@ -218,7 +241,7 @@ namespace mpl::demo {
                     { NULL, 0, NULL, 0 }
             };
 
-            for (int ch ; (ch = getopt_long(argc, argv, "S:a:c:j:e:E:r:g:G:s:m:M:I:t:d:f", longopts, NULL)) != -1 ; ) {
+            for (int ch ; (ch = getopt_long(argc, argv, "S:a:c:C:j:e:E:r:g:G:s:m:M:I:t:d:f", longopts, NULL)) != -1 ; ) {
                 char *endp;
 
                 switch (ch) {
@@ -230,6 +253,9 @@ namespace mpl::demo {
                         break;
                     case 'c':
                         coordinator_ = optarg;
+                        break;
+                    case 'C':
+                        communicator_ = optarg;
                         break;
                     case 'j':
                         jobs_ = strtoul(optarg, &endp, 10);
@@ -259,6 +285,21 @@ namespace mpl::demo {
                         break;
                     case 'M':
                         max_ = optarg;
+                        break;
+                    case 'o':
+                        global_min_ = optarg;
+                        break;
+                    case 'O':
+                        global_max_ = optarg;
+                        break;
+                    case 'n':
+                        num_samples_ = strtoull(optarg, &endp, 0);
+                        break;
+                    case 'l':
+                        lambdaId_ = strtoull(optarg, &endp, 0);
+                        break;
+                    case 'L':
+                        lambdaType_ = optarg;
                         break;
                     case 'I':
                         problemId_ = strtoull(optarg, &endp, 0);
@@ -299,19 +340,46 @@ namespace mpl::demo {
         }
 
         const std::string& coordinator(bool required = true) const {
-            if (required && coordinator_.empty())
+            if (required && coordinator_.empty()) {
                 throw std::invalid_argument("--coordinator is required");
+            }
             return coordinator_;
+        }
+
+        const std::string& communicator(bool required = true) const {
+            if (required && communicator_.empty()) {
+                throw std::invalid_argument("--communicator is required");
+            }
+            return communicator_;
+        }
+
+        const std::string& lambdaType(bool required = true) const {
+            if (required && lambdaType_.empty()) {
+                throw std::invalid_argument("--lambda_type is required");
+            }
+            return lambdaType_;
         }
 
         const std::uint64_t problemId() const {
             return problemId_;
         }
 
-        const std::string& env(bool required = true, std::string default_="") const {
-            if (required && env_.empty())
+        const std::uint64_t lambdaId() const {
+            return lambdaId_;
+        }
+
+        const std::string& env(bool required = true) const {
+            if (required && env_.empty()) {
                 throw std::invalid_argument("--env is required");
+            }
             return env_;
+        }
+
+        const unsigned long jobs(bool required = true) const {
+            if (required && jobs_ == 0) {
+                throw std::invalid_argument("--jobs is required");
+            }
+            return jobs_;
         }
 
         template <class T>
@@ -355,17 +423,21 @@ namespace mpl::demo {
         }
 
         template <class T>
-        T global_min() const {
+        T globalMin() const {
             return parse<T>("global_min", global_min_);
         }
 
         template <class T>
-        T global_max() const {
+        T globalMax() const {
             return parse<T>("global_max", global_max_);
         }
 
         double timeLimit() const {
             return timeLimit_;
+        }
+
+        int numSamples() const {
+            return num_samples_;
         }
 
         double checkResolution(double defaultIfZero) const {

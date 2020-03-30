@@ -8,22 +8,29 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <Eigen/Dense>
 
-namespace mpl {
-    class util {
-    public:
-        template <typename T>
-        static inline std::string ToString(T &tX) {
-            std::ostringstream oStream;
-            oStream << tX;
-            return oStream.str();
-        }
+using namespace Eigen;
+namespace mpl::util {
+    template <typename T>
+    static inline std::string ToString(T &tX) {
+        std::ostringstream oStream;
+        oStream << tX;
+        return oStream.str();
+    }
 
-        template <typename T>
-        static inline const char * ToCString(T &tX) {
-            return ToString(tX).c_str();
-        }
-    };
+    template <typename T>
+    static inline std::ostringstream ToOStream(T &tX) {
+        std::ostringstream oStream;
+        oStream << tX;
+        return oStream;
+    }
+
+    template <typename T>
+    static inline const char * ToCString(T &tX) {
+        return ToString(tX).c_str();
+    }
+
 }
 
 #endif //MPLAMBDA_UTIL_HPP
