@@ -18,6 +18,7 @@
 #include <demo/app_options.hpp>
 #include <message.hpp>
 #include <tree.hpp>
+#include <unordered_map>
 
 
 namespace mpl::demo {
@@ -26,8 +27,10 @@ namespace mpl::demo {
     public:
         using State = typename Scenario::State;
         using Bound = typename Scenario::Bound;
+        using Distance = typename Scenario::Distance;
         using Subspace_t = typename mpl::Subspace<Bound, State, Scalar>;
-        using Vertex_t = Vertex<State>;
+        using Vertex_t = typename Planner::Vertex_t;
+        using Edge_t = typename Planner::Edge_t;
 
     private:
 
@@ -38,15 +41,21 @@ namespace mpl::demo {
         Comm comm;
         Scenario scenario;
         Planner planner;
-        Subspace_t const local_subspace;
+        Subspace_t local_subspace;
         Subspace_t global_subspace;
-        std::unordered_map<Subspace_t, std::vector<Vertex_t>> samples_to_send;
+        std::unordered_map<int, std::vector<Vertex_t>> samples_to_send;
+        std::unordered_map<Subspace_t, int> neighborsToLambdaId;
 
         LocalLambdaFixedGraph();
 
-        static void trackValidSamples(Vertex_t validSample, void* lambda) {
+        static void trackValidSamples(Vertex_t& validSample, void* lambda) {
             auto localLambdaFixedGraph = static_cast<LocalLambdaFixedGraph *>(lambda);
-            localLambdaFixedGraph->samples_to_send[localLambdaFixedGraph->local_subspace].push_back(validSample);
+            auto prmRadius = localLambdaFixedGraph->planner.getrPRM();
+            for (auto [neighbor, lambda_id] : localLambdaFixedGraph->neighborsToLambdaId) {
+                if (neighbor.is_within(prmRadius, validSample.state())) {
+                    localLambdaFixedGraph->samples_to_send[lambda_id].push_back(validSample);
+                }
+            }
         }
 
     public:
@@ -67,8 +76,53 @@ namespace mpl::demo {
         {
             comm.setLambdaId(lambda_id);
             comm.connect(app_options.coordinator());
-            comm.template process<Vertex_t, State>();
+            comm.template process<Edge_t, Distance, Vertex_t, State>();
+
             // First record neighbors of this lambda from the local and global subspace
+            auto eig_num_divisions = app_options.num_divisions<State>();
+            std::vector<int> num_divisions =
+                    std::vector<int>(
+                            eig_num_divisions.data(),
+                            eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
+                            );
+
+
+            std::unordered_map<Subspace_t, int> neighborsToLambdaIdGlobal;
+            auto divisions = global_subspace.divide(num_divisions);
+            for (int i=0; i < divisions.size(); ++i) {
+                neighborsToLambdaIdGlobal[divisions[i]] = i;
+            }
+            local_subspace = divisions[app_options.lambdaId()];
+            auto neighbors = local_subspace.get_neighbors(global_subspace);
+            JI_LOG(INFO) << "Local subspace " << local_subspace;
+            for (auto& n : neighbors) {
+                if (n != local_subspace) neighborsToLambdaId[n] = neighborsToLambdaIdGlobal[n];
+            }
+
+//            auto [tree_root, local_subspace_pointer] = global_subspace.layered_divide(num_divisions, &local_subspace);
+//            Tree<Subspace_t> *curr_node_pointer = local_subspace_pointer;
+//            for (int i=0; i < global_subspace.dimension() - 1; ++i) {
+//                curr_node_pointer = curr_node_pointer->getParent();
+//            }
+//            // Now get the leaves of the curr_node_pointer
+//            std::vector<Tree<Subspace_t>*> stack{curr_node_pointer};
+//            while (!stack.empty()) {
+//                auto next_node_pointer = stack.back();
+//                if (next_node_pointer->isLeaf() && (next_node_pointer->getData() != local_subspace)) {
+//                    neighborsToLambdaId[next_node_pointer->getData()] = neighborsToLambdaIdGlobal[next_node_pointer->getData()];
+//                } else {
+//                    const std::vector<Tree<Subspace_t>*>& children = next_node_pointer->getChildren();
+//                    stack.insert(stack.end(), children.begin(), children.end());
+//                }
+//                stack.pop_back();
+//            }
+//
+            for (auto& [sub, id] : neighborsToLambdaId) {
+                JI_LOG(INFO) << "Neighboring subspace " << sub << " with id: " << id;
+            }
+
+
+
 
             // Then add the callback to track these neighbors
             planner.addValidSampleCallback(trackValidSamples);
@@ -81,7 +135,6 @@ namespace mpl::demo {
         }
 
         void do_work() {
-            comm.template process<Vertex_t, State>();
 //          std::unordered_map<Subspace_t, std::vector<State>> samples_to_send = planner.plan(samples_per_run);
             auto start = std::chrono::high_resolution_clock::now();
             planner.plan(samples_per_run);
@@ -95,19 +148,27 @@ namespace mpl::demo {
 //                comm.put_all(states_to_send);
 //            }
             auto new_vertices = planner.getNewVertices();
-            comm.template sendVertices<Vertex_t, State>(std::move(new_vertices));
+            JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
+            comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
             planner.clearVertices();
 //            comm.put(new_vertices, "graph_vertices");
 //            planner.clearVertices();
 //
-//            auto new_edges = planner.getNewEdges();
-//            comm.put(new_vertices, "graph_edges");
-//            planner.clearEdges();
+            auto new_edges = planner.getNewEdges();
+            JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
+            comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
+            planner.clearEdges();
 
 
+            for (auto &[lambdaId, vertices] : samples_to_send) {
+                comm.template sendVertices<Vertex_t, State>(std::move(vertices), 1, lambdaId); // destination=1 means send to other lambda
+                JI_LOG(INFO) << "Sending " << vertices.size() << " to lambda " << lambdaId;
+                vertices.clear();
+            }
 //            vertex_comm.set_destination(mpl::util::ToCString(local_subspace));
 //            std::vector<State> new_states = vertex_comm.get(max_incoming_vertices);
 //            planner.add_states(new_states);
+            comm.template process<Edge_t, Distance, Vertex_t, State>();
         }
 
         const Planner& getPlanner() const {

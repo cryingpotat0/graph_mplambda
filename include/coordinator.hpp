@@ -54,6 +54,7 @@ namespace mpl {
         std::list<Connection_t> connections_;
         std::list<std::pair<int, int>> childProcesses_;
         std::unordered_map<std::uint64_t, Connection_t*> lambdaId_to_connection_;
+        Graph graph;
 
         void init_local_lambdas() {
             auto num_lambdas = app_options.jobs();
@@ -142,6 +143,18 @@ namespace mpl {
 
         std::string algorithm() {
             return "prm_fixed_graph";
+        }
+
+        void addVertices(const std::vector<Vertex>& vertices) {
+            for (auto& v : vertices) {
+                graph.addVertex(v);
+            }
+        }
+
+        void addEdges(const std::vector<Edge>& edges) {
+            for (auto& e : edges) {
+                graph.addEdge(e);
+            }
         }
 
 
@@ -302,7 +315,7 @@ namespace mpl {
         }
 
         Connection_t* getConnection(std::uint64_t lambdaId) {
-            return lambdaId_to_connection[lambdaId];
+            return lambdaId_to_connection_[lambdaId];
         }
 
         int accept(struct sockaddr *addr, socklen_t * addrLen) {

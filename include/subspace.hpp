@@ -58,9 +58,10 @@ namespace mpl {
             return subspaces;
         }
 
-        Tree<Subspace> layered_divide(const std::vector<int> &num_divisions) {
+        std::pair<Tree<Subspace>, Tree<Subspace>*> layered_divide(const std::vector<int> &num_divisions, const Subspace* find=nullptr) {
             Tree<Subspace> root{Subspace(lower, upper)};
             std::vector<Tree<Subspace> *> current_layer {&root};
+            Tree<Subspace> *found = nullptr;
             for (auto i=0; i < num_divisions.size(); ++i) {
                 auto nd = num_divisions[i];
                 std::vector<Tree<Subspace>*> new_layer;
@@ -74,20 +75,24 @@ namespace mpl {
                         new_upper[i] = new_lower[i] + increment;
                         Subspace child(new_lower, new_upper);
                         node->addChild(child);
+                        if (i == num_divisions.size() - 1) JI_LOG(INFO) << child;
                     }
                 }
                 for (auto node : current_layer) {
                     for (auto c : node->getChildren()) {
                         new_layer.push_back(c);
-                        c->changed = true;
-                        new_layer.size();
+                        if (c->getData() == (*find)) {
+                            found = c;
+                        }
                     }
                 }
                 current_layer.clear();
-                for (auto c : new_layer) { current_layer.emplace_back(c); } // TODO: I feel like I'm overcomplicating this too much
+                for (auto c : new_layer) {
+                    current_layer.emplace_back(c);
+                } // TODO: I feel like I'm overcomplicating this too much
 //                current_layer = new_layer;
             }
-            return root;
+            return std::make_pair(root, found);
         }
 
         std::vector<Subspace> divide_until(int num_objects) {
@@ -95,18 +100,71 @@ namespace mpl {
             return std::vector<Subspace>();
         }
 
-        std::vector<Subspace> get_neighbors(Subspace global_bounds) {
+        std::vector<Subspace> get_neighbors(Subspace& global_bounds) {
+            // TODO
+            std::vector<Subspace> neighbors{*this};
+            for (int i=0; i < dimension(); ++i) {
+                Scalar increment = upper[i] - lower[i];
+                std::vector<Subspace> new_neighbors;
+                for (auto &n: neighbors) {
+                    auto curr_lower = n.getLower();
+                    auto curr_upper = n.getUpper();
+                    curr_lower[i] += increment;
+                    curr_upper[i] += increment;
+                    Subspace incr(curr_lower, curr_upper);
+                    if (global_bounds.contains(incr)) new_neighbors.push_back(std::move(incr));
+
+                    curr_lower = n.getLower();
+                    curr_upper = n.getUpper();
+                    curr_lower[i] -= increment;
+                    curr_upper[i] -= increment;
+                    Subspace decr(curr_lower, curr_upper);
+                    if (global_bounds.contains(decr)) new_neighbors.push_back(std::move(decr));
+
+                    new_neighbors.push_back(std::move(n));
+                }
+                neighbors.clear();
+                neighbors = std::move(new_neighbors);
+            }
+            return neighbors;
+        }
+
+        bool contains(const Subspace& other) const {
+            assert(other.dimension() == dimension());
+            auto other_lower = other.getLower();
+            auto other_upper = other.getUpper();
+            for (int i=0; i < dimension(); ++i) {
+                if ((other_lower[i] < lower[i]) || (other_upper[i] > upper[i])) return false;
+            }
+            return true;
+        }
+
+        std::vector<Subspace> point_near_neighbors(const State& point,
+                const Subspace& global_bounds, Scalar radius,
+                const std::vector<Subspace>& neighbors) {
             // TODO
             return std::vector<Subspace>();
         }
 
-        std::vector<Subspace> point_near_neighbors(State point, Subspace global_bounds, Scalar radius) {
-            // TODO
-            return std::vector<Subspace>();
+        bool is_within(Scalar radius, const State& point) const {
+            Scalar dist = 0;
+            auto middle = (getLower() + getUpper()) / 2.0;
+            auto shifted_upper = getUpper() - middle;
+            auto shifted_point = point - middle;
+            JI_LOG(INFO) << "point " << point << " upper " << getUpper() << " shifted_upper " << shifted_upper << " shifted_point " << shifted_point;
+
+            for (int i=0; i < dimension(); ++i) {
+                dist += pow(std::max(0.0, abs(shifted_point[i]) - shifted_upper[i]), 2);
+            }
+            return dist <= pow(radius, 2);
         }
 
         bool operator==(Subspace const& other) const {
             return other.lower == lower && other.upper == upper;
+        }
+
+        bool operator!=(Subspace const& other) const {
+            return !((*this) == other);
         }
     };
 

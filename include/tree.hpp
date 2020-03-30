@@ -20,7 +20,6 @@ namespace mpl {
         std::vector< Tree<T>* > children;
 
     public:
-        bool changed = false;
 
         Tree(T data_, Tree<T>* parent_) : parent(parent_), data(data_) { }
         explicit Tree(T data_) : parent(nullptr), data(data_) { }
@@ -69,6 +68,10 @@ namespace mpl {
 
         int getNumChildren() const {
             return children.size();
+        }
+
+        bool isLeaf() {
+            return getNumChildren() == 0;
         }
     };
 

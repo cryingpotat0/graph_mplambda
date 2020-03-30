@@ -57,7 +57,11 @@ namespace mpl {
             // call the appropriate process overload for each packet
             // that arrives
             std::size_t needed;
-            while ((needed = packet::parse<typename Coordinator::Vertex, typename Coordinator::State>(rBuf_, [&] (auto&& pkt) {
+            while ((needed = packet::parse<
+                    typename Coordinator::Edge,
+                    typename Coordinator::Distance,
+                    typename Coordinator::Vertex,
+                    typename Coordinator::State>(rBuf_, [&] (auto&& pkt) {
                       process(std::forward<decltype(pkt)>(pkt));
             })) == 0);
             rBuf_.compact(needed);
@@ -94,8 +98,16 @@ namespace mpl {
                 } else {
                     auto destinationLambdaId = pkt.destinationLambdaId();
                     auto other_connection = coordinator_.getConnection(destinationLambdaId);
-                    other_connection->sendVertices(std::move(pkt.vertices()));
+                    other_connection->write(std::move(pkt));
                 }
+            }
+        }
+
+        template <class Edge, class Distance>
+        void process(packet::Edges<Edge, Distance>&& pkt) {
+            JI_LOG(INFO) << "got EDGES";
+            if (coordinator_.algorithm() == "prm_fixed_graph") {
+                coordinator_.addEdges(std::move(pkt.edges()));
             }
         }
 
@@ -177,10 +189,10 @@ namespace mpl {
 //            groupId_ = 0;
         }
 
-//        template <class Packet>
-//        void write(Packet&& packet) {
-//            writeQueue_.push_back(std::forward<Packet>(packet));
-//        }
+        template <class Packet>
+        void write(Packet&& packet) {
+            writeQueue_.push_back(std::forward<Packet>(packet));
+        }
 
         bool process(const struct pollfd& pfd) {
             try {

@@ -168,6 +168,7 @@ namespace mpl::demo {
         std::string max_;
         std::string global_min_;
         std::string global_max_;
+        std::string num_divisions_;
 
 
         double timeLimit_{std::numeric_limits<double>::infinity()};
@@ -230,6 +231,7 @@ namespace mpl::demo {
                     { "lambda_type", required_argument, NULL, 'L' },
                     { "min", required_argument, NULL, 'm' },
                     { "max", required_argument, NULL, 'M' },
+                    { "num_divisions", required_argument, NULL, 'N' },
                     { "global_min", required_argument, NULL, 'o' },
                     { "global_max", required_argument, NULL, 'O' },
                     { "num_samples", required_argument, NULL, 'n' },
@@ -294,6 +296,9 @@ namespace mpl::demo {
                         break;
                     case 'n':
                         num_samples_ = strtoull(optarg, &endp, 0);
+                        break;
+                    case 'N':
+                        num_divisions_ = optarg;
                         break;
                     case 'l':
                         lambdaId_ = strtoull(optarg, &endp, 0);
@@ -400,6 +405,11 @@ namespace mpl::demo {
         template <class T>
         T start() const {
             return parse<T>("start", start_);
+        }
+
+        template <class T>
+        T num_divisions() const {
+            return parse<T>("num_divisions", num_divisions_);
         }
 
         template <class T>

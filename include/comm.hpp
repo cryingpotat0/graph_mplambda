@@ -43,7 +43,7 @@ namespace mpl {
 
         bool finishConnect();
 
-        template <class Vertex, class State, class PacketFn>
+        template <class Edge, class Distance, class Vertex, class State, class PacketFn>
         void processImpl(PacketFn);
 
     public:
@@ -60,7 +60,7 @@ namespace mpl {
         void connect(const std::string& host);
         void connect(const std::string& host, int port);
 
-        template <class Vertex, class State>
+        template <class Edge, class Distance, class Vertex, class State>
         void process();
 
 //        template <class PathFn>
@@ -74,7 +74,10 @@ namespace mpl {
         void sendDone();
 
         template <class Vertex, class State>
-        void sendVertices(std::vector<Vertex> && vertices);
+        void sendVertices(std::vector<Vertex> && vertices, bool destination, std::uint64_t destinationLambdaId);
+
+        template <class Edge, class Distance>
+        void sendEdges(std::vector<Edge> && edges);
 
         inline bool isDone() {
             return done_;
@@ -113,15 +116,30 @@ namespace mpl {
 
 template <class Vertex, class State>
 void mpl::Comm::sendVertices(
-        std::vector<Vertex> && vertices
+        std::vector<Vertex> && vertices,
+        bool destination,
+        std::uint64_t destinationLambdaId
         )
 {
     if (socket_ == -1)
         return;
-    writeQueue_.push_back(packet::Vertices<Vertex, State>(0, 0, std::move(vertices)));
+    writeQueue_.push_back(packet::Vertices<Vertex, State>(destination, destinationLambdaId, std::move(vertices)));
 }
 
-template <class Vertex, class State, class PacketFn>
+
+template <class Edge, class Distance>
+void mpl::Comm::sendEdges(
+        std::vector<Edge> && edges
+)
+{
+    if (socket_ == -1)
+        return;
+    writeQueue_.push_back(packet::Edges<Edge, Distance>(std::move(edges)));
+}
+
+
+
+template <class Edge, class Distance, class Vertex, class State, class PacketFn>
 void mpl::Comm::processImpl(PacketFn fn) {
     ssize_t n;
     std::size_t needed;
@@ -163,7 +181,7 @@ void mpl::Comm::processImpl(PacketFn fn) {
 
             rBuf_ += n;
             rBuf_.flip();
-            while ((needed = packet::parse<Vertex, State>(rBuf_, fn)) == 0);
+            while ((needed = packet::parse<Edge, Distance, Vertex, State>(rBuf_, fn)) == 0);
             rBuf_.compact(needed);
             break;
         default:
@@ -172,9 +190,9 @@ void mpl::Comm::processImpl(PacketFn fn) {
     }
 }
 
-template <class Vertex, class State>
+template <class Edge, class Distance, class Vertex, class State>
 void mpl::Comm::process() {
-    processImpl<Vertex, State>([&] (auto&& pkt) { handle(std::forward<decltype(pkt)>(pkt)); });
+    processImpl<Edge, Distance, Vertex, State>([&] (auto&& pkt) { handle(std::forward<decltype(pkt)>(pkt)); });
 }
 
 //template <class PathFn>

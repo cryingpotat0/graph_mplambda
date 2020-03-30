@@ -263,8 +263,84 @@ namespace mpl::packet {
 
     };
 
-    template <class Distance>
+    template <class Edge, class Distance>
     class Edges {
+        // Edges always go to location they are sent to, no rerouting needed coordinator
+    private:
+        static constexpr std::size_t edgeSize_ = buffer_size_v<Distance> + 4 * buffer_size_v<std::uint64_t>;
+        std::vector<Edge> edges_;
+
+        static inline std::pair<std::uint64_t, std::uint64_t> stringIdToNumerics(const std::string &id) {
+            int pos = id.find("_");
+            std::uint64_t lambdaId = std::stoull(id.substr(0, pos));
+            std::uint64_t vertexId = std::stoull(id.substr(pos + 1));
+            return std::make_pair(lambdaId, vertexId);
+        }
+
+        static inline std::string numericalIdToString(const std::uint64_t &lambdaId, const std::uint64_t &vertexId) {
+            std::ostringstream oStream;
+            oStream << lambdaId << "_" << vertexId;
+            return oStream.str();
+        }
+    public:
+        static std::string name() {
+            return "Edges";
+        }
+
+        explicit Edges(std::vector<Edge>&& edges)
+                 : edges_(std::move(edges))
+        {
+        }
+
+        inline Edges(Type type, BufferView buf)
+        {
+            if (buf.remaining() % edgeSize_ != 0)
+                throw protocol_error("invalid vertices packet size: " + std::to_string(buf.remaining()));
+
+            std::size_t n = buf.remaining() / edgeSize_;
+            edges_.reserve(n);
+            while (edges_.size() < n) {
+                Distance distance = buf.get<Distance>();
+                std::uint64_t lambdaId = buf.get<std::uint64_t>();
+                std::uint64_t vertexId = buf.get<std::uint64_t>();
+                std::string u_id = numericalIdToString(lambdaId, vertexId);
+                lambdaId = buf.get<std::uint64_t>();
+                vertexId = buf.get<std::uint64_t>();
+                std::string v_id = numericalIdToString(lambdaId, vertexId);
+                edges_.emplace_back(Edge{distance, u_id, v_id});
+            }
+        }
+
+        inline operator Buffer () const {
+            Size size = buffer_size_v<Type> + buffer_size_v<Size>
+                        + edgeSize_ * edges_.size();
+            Buffer buf{size};
+            buf.put(EDGES);
+            buf.put(size);
+            std::string id;
+            for (const Edge& e : edges_) {
+                buf.put(e.distance());
+                id = e.u();
+                auto [u_lambdaId, u_vertexId] = stringIdToNumerics(id);
+                buf.put(u_lambdaId);
+                buf.put(u_vertexId);
+                id = e.v();
+                auto [v_lambdaId, v_vertexId] = stringIdToNumerics(id);
+                buf.put(v_lambdaId);
+                buf.put(v_vertexId);
+            }
+            buf.flip();
+            return buf;
+        }
+
+
+        const std::vector<Edge>& edges() const & {
+            return edges_;
+        }
+
+        std::vector<Edge>&& vertices() && {
+            return std::move(edges_);
+        }
     };
 
 //    template <class State>
@@ -366,7 +442,7 @@ namespace mpl::packet {
 //    template <class State>
 //    struct is_path<Path<State>> : std::true_type {};
 
-    template <class Vertex, class State, class Fn>
+    template <class Edge, class Distance, class Vertex, class State, class Fn>
     std::size_t parse(Buffer& buf, Fn fn) {
         static constexpr auto head = buffer_size_v<Type> + buffer_size_v<Size>;
 
@@ -399,6 +475,9 @@ namespace mpl::packet {
                 break;
             case VERTICES:
                 fn(Vertices<Vertex, State>(type, buf.view(size)));
+                break;
+            case EDGES:
+                fn(Edges<Edge, Distance>(type, buf.view(size)));
                 break;
                 // case PROBLEM_SE3:
                 //     fn(ProblemSE3<float>(type, buf.view(size)));

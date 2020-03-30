@@ -61,12 +61,15 @@ namespace mpl {
 
     template<class VertexID, class Distance>
     struct Edge {
-        Distance distance;
+        Distance distance_;
         VertexID u_;
         VertexID v_;
 
         const VertexID& u() const { return u_; }
         const VertexID& v() const { return v_; }
+
+        const Distance& distance() const { return distance_; }
+        Distance distance() { return distance_; }
 
 //        std::string serialize() {
 //            std::ostringstream oStream;

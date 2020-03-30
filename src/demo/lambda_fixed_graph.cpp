@@ -63,8 +63,8 @@ void runPngScenario(AppOptions &app_options) {
 
     Scenario scenario(width, height, local_min, local_max, goalState, obstacles);
     Lambda lambda(app_options, scenario, local_subspace, global_subspace);
-    for(;;) {
-//    for(int i=0; i < 2; ++i) {
+//    for(;;) {
+    for(int i=0; i < 2; ++i) {
 //        comm.poll();
         lambda.do_work();
 //        comm.flush();

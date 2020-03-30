@@ -40,7 +40,7 @@ namespace mpl {
         Scenario scenario;
         void* lambda; // TODO: extremely hacky, have to resolve the circular dependence here. Implement template fix later.
         Graph graph_;
-        std::vector<void (*) (Vertex_t, void*)> validSampleCallbacks;
+        std::vector<void (*) (Vertex_t&, void*)> validSampleCallbacks;
         unc::robotics::nigh::Nigh<Vertex_t, Space, KeyFn, Concurrency, NNStrategy> nn;
         Distance maxDistance;
         uint64_t num_samples_;
@@ -74,8 +74,16 @@ namespace mpl {
 //                  rPRM(scenario_.prmRadius())
 //        {}
 
-        void addValidSampleCallback(void (*f)(Vertex_t, void*)) {
+        void addValidSampleCallback(void (*f)(Vertex_t&, void*)) {
             validSampleCallbacks.push_back(f);
+        }
+
+        void setrPRM(Scalar rPRM_) {
+            rPRM = rPRM_;
+        }
+
+        Scalar getrPRM() {
+            return rPRM;
         }
 
         void plan(int num_samples) {
@@ -105,7 +113,7 @@ namespace mpl {
             return new_vertices;
         }
 
-        const std::vector<Vertex_t>& getNewEdges() {
+        const std::vector<Edge_t>& getNewEdges() {
             return new_edges;
         }
 
