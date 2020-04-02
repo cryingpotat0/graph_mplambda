@@ -82,30 +82,10 @@ void runPngScenario(AppOptions &app_options) {
     Scenario scenario(width, height, local_subspace.getLower(), local_subspace.getUpper(), goalState, obstacles);
     Lambda lambda(app_options, scenario, local_subspace, global_subspace, neighborsToLambdaIdGlobal);
     for(;;) {
-//    for(int i=0; i < 2; ++i) {
-//        comm.poll();
         lambda.do_work();
         if (lambda.isDone()) break;
-//        comm.flush();
     }
     JI_LOG(INFO) << "Finished";
-
-//    const std::string outputName = "png_2d_demo_output.svg";
-//    std::ofstream file(outputName);
-//    shape::startSvg(file, max[0], max[1]);
-//    shape::addBackgroundImg(file, app_options.env());
-//
-//
-//    using Graph = typename Planner::Graph;
-//    Graph graph = lambda.getPlanner().getGraph();
-//    for (auto& [v_id, u_ids] : graph.getAdjacencyList()) {
-//        auto start = graph.getVertex(v_id);
-//        for (auto u_id : u_ids) {
-//            auto end = graph.getVertex(u_id);
-//            shape::addVisitedEdge(file, start.state[0], start.state[1], end.state[0], end.state[1]);
-//        }
-//    }
-//    shape::endSvg(file);
 
 }
 
@@ -162,54 +142,38 @@ void runPngScenario(AppOptions &app_options) {
 //}
 
 
-    int main(int argc, char *argv[]) {
+void runSelectPlanner(AppOptions& app_options) {
+	using Scalar = double; // TODO: add single precision code
 
-    JI_LOG(INFO) << argc << " " << argv;
-    AppOptions app_options(argc, argv);
-    using Scalar = double; // TODO: add single precision code
+	if (app_options.communicator(false).empty()) {
+		app_options.communicator_ = "rabbitmq";
+	}
 
-    if (app_options.communicator(false).empty()) {
-        app_options.communicator_ = "rabbitmq";
-    }
+	if (app_options.coordinator(false).empty()) {
+		app_options.coordinator_ = "localhost";
+	}
 
-    if (app_options.coordinator(false).empty()) {
-        app_options.coordinator_ = "localhost";
-    }
+	// set defaults outside
 
-    // set defaults outside
+	if (app_options.communicator() == "rabbitmq") {
+	} else {
+		throw std::invalid_argument("Invalid comm");
+	}
+	JI_LOG(INFO) << "Using coordinator " << app_options.coordinator()
+		<< " with communicator " << app_options.communicator();
 
-    if (app_options.communicator() == "rabbitmq") {
-    } else {
-        throw std::invalid_argument("Invalid comm");
-    }
-    JI_LOG(INFO) << "Using coordinator " << app_options.coordinator()
-            << " with communicator " << app_options.communicator();
+	if (app_options.scenario() == "png") {
+		runPngScenario<Scalar>(app_options);
+	} else if (app_options.scenario() == "fetch") {
+		//        runFetchScenario<Scalar>(app_options);
+	} else {
+		throw std::invalid_argument("Invalid scenario");
+	}
 
-    if (app_options.scenario() == "png") {
-        runPngScenario<Scalar>(app_options);
-    } else if (app_options.scenario() == "fetch") {
-//        runFetchScenario<Scalar>(app_options);
-    } else {
-        throw std::invalid_argument("Invalid scenario");
-    }
-    return 0;
 }
-
-//
-//int main(int argc, char *argv[]) {
-//    int send_flag = 0;
-//    auto worker_queue = RabbitMQMessageQueue("localhost", 5672, "work");
-//    auto graph_queue = RabbitMQMessageQueue("localhost", 5672, "graph");
-//    static struct option longopts[] = {
-//            { "send", no_argument, &send_flag, 1 },
-//            { NULL, 0, NULL, 0 }
-//    };
-//
-//    for (int ch ; (ch = ::getopt_long(argc, argv, "", longopts, NULL)) != -1 ; ) { }
-//    if (send_flag) {
-//        std::string test = "teeeeeeessssssstttt";
-//        worker_queue.put_raw(test, "work");
-//    } else {
-//        while(1) JI_LOG(INFO) << "output " << worker_queue.get_raw("work");
-//    }
-//}
+int main(int argc, char *argv[]) {
+	JI_LOG(INFO) << argc << " " << argv;
+	AppOptions app_options(argc, argv);
+	runSelectPlanner(app_options);
+	return 0;
+}
