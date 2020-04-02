@@ -38,7 +38,7 @@ link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
 include_directories(include ../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS} ${RABBITMQ_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
 
 #add_executable(mpl_coordinator src/coordinator.cpp include/util.hpp include/demo/app_options.hpp include/tree.hpp include/comm.hpp include/syserr.hpp include/write_queue.hpp include/buffer.hpp include/packet.hpp src/comm.cpp src/write_queue.cpp)
-add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp include/connection.hpp)
+add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp)
 target_link_libraries(mpl_coordinator PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${RABBITMQ_LIBRARIES} ${PNG_LIBRARIES})
 
 add_executable(mpl_lambda_fixed_graph src/demo/lambda_fixed_graph.cpp src/comm.cpp src/write_queue.cpp)
@@ -83,7 +83,7 @@ target_link_libraries(mpl_lambda_fixed_graph PUBLIC Eigen3::Eigen ${FCL_LIBRARIE
 #link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
 #include_directories(include ../../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS})
 #
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources/png_planning_input.png
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources/png_planning_input.png ${CMAKE_CURRENT_SOURCE_DIR}/resources/house_layout.png
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/resources)
 #file(GLOB SE3RSRC
 #     "resources/se3/Twistycool*.dae" "resources/se3/alpha*.dae"

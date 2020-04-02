@@ -34,6 +34,11 @@ namespace mpl {
         ID lambdaId_{0};
         bool recvHello_{false};
 
+        // Delayed vertex write variables
+        std::vector<std::vector<typename Coordinator::Vertex>> vertices_to_send;
+        std::chrono::high_resolution_clock::time_point last_send_of_vertices;
+        constexpr static double milliseconds_before_next_send = 1000; // TODO: make this smarter
+
 //        ID groupId_{0};
 
         bool doRead() {
@@ -72,6 +77,8 @@ namespace mpl {
             JI_LOG(INFO) << "got HELLO (id=" << pkt.id() << ")";
             recvHello_ = true;
             lambdaId_ = pkt.id();
+            last_send_of_vertices = std::chrono::high_resolution_clock::now();
+
 //            groupId_ = coordinator_.addToGroup(pkt.id(), this);
             // this is a possible sign that the group already ended
             // before this connection arrived.  Respond with DONE.
@@ -89,17 +96,61 @@ namespace mpl {
 //            }
         }
 
+        void process(packet::NumSamples&& pkt) {
+            JI_LOG(ERROR) << "got NUM_SAMPLES"; // Coordinator should never receive this
+//            if (groupId_ == 0 || groupId_ != pkt.id()) {
+//                JI_LOG(WARN) << "DONE group id mismatch";
+//            } else {
+//                coordinator_.done(groupId_, this);
+//                groupId_ = 0;
+//            }
+        }
+
         template <class Vertex, class State>
         void process(packet::Vertices<Vertex, State>&& pkt) {
             JI_LOG(INFO) << "got VERTICES";
             if (coordinator_.algorithm() == "prm_fixed_graph") {
                 if (pkt.destination() == 0) {
+                    coordinator_.update_num_samples(lambdaId_, pkt.vertices().size());
                     coordinator_.addVertices(std::move(pkt.vertices()));
                 } else {
                     auto destinationLambdaId = pkt.destinationLambdaId();
                     auto other_connection = coordinator_.getConnection(destinationLambdaId);
-                    other_connection->write(std::move(pkt));
+                    if (other_connection != nullptr) {
+                        // TODO: do a buffered write, the lambdas are receiving too many packets. Merge vertices from many outputs together.
+                        other_connection->delayed_vertices_write(std::move(pkt));
+                    } else {
+                        coordinator_.buffered_data_[destinationLambdaId].push_back(std::move(pkt));
+                    }
                 }
+            }
+        }
+
+        template <class Vertex, class State>
+        void delayed_vertices_write(packet::Vertices<Vertex, State>&& pkt) {
+            vertices_to_send.push_back(std::move(pkt.vertices()));
+            perform_delayed_vertices_write();
+        }
+
+        void perform_delayed_vertices_write() {
+            auto now = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_send_of_vertices);
+            if ((vertices_to_send.size() >= coordinator_.smallest_number_of_neighbors) ||
+                    (vertices_to_send.size() > 0 && duration.count() > milliseconds_before_next_send)) { // TODO: unverified strategy
+                std::size_t total_size = 0;
+                for (const auto& sub : vertices_to_send)
+                    total_size += sub.size();
+                std::vector<typename Coordinator::Vertex> result;
+                result.reserve(total_size);
+                for (const auto& sub : vertices_to_send)
+                    result.insert(result.end(), sub.begin(), sub.end());
+                JI_LOG(INFO) << "Writing " << result.size() << " vertices to " << lambdaId_;
+                auto pkt = packet::Vertices<
+                        typename Coordinator::Vertex,
+                        typename Coordinator::State>(0, 0, std::move(result));
+                write(std::move(pkt));
+                vertices_to_send.clear();
+                last_send_of_vertices = std::chrono::high_resolution_clock::now();
             }
         }
 

@@ -20,6 +20,7 @@ namespace mpl::packet {
     static constexpr Type DONE = 0x6672e31a;
     static constexpr Type VERTICES = 0xf112a36b;
     static constexpr Type EDGES = 0xe163990c;
+    static constexpr Type NUM_SAMPLES = 0xd4e233c4;
 
 
     static constexpr std::size_t MAX_PACKET_SIZE = 1024*1024;
@@ -133,6 +134,41 @@ namespace mpl::packet {
             buf.put(HELLO);
             buf.put(size);
             buf.put(id_);
+            buf.flip();
+            return buf;
+        }
+    };
+
+
+    class NumSamples {
+        std::uint64_t num_samples_;
+
+    public:
+        static std::string name() {
+            return "NumSamples";
+        }
+
+        explicit NumSamples(std::uint64_t num_samples)
+                : num_samples_(num_samples)
+        {
+        }
+
+        explicit NumSamples(Type type, BufferView buf)
+                : num_samples_(buf.get<std::uint64_t>())
+        {
+            JI_LOG(INFO) << "NUM_SAMPLES received";
+        }
+
+        std::uint64_t num_samples() const {
+            return num_samples_;
+        }
+
+        operator Buffer () const {
+            Size size = 16;
+            Buffer buf{size};
+            buf.put(NUM_SAMPLES);
+            buf.put(size);
+            buf.put(num_samples_);
             buf.flip();
             return buf;
         }
@@ -338,7 +374,7 @@ namespace mpl::packet {
             return edges_;
         }
 
-        std::vector<Edge>&& vertices() && {
+        std::vector<Edge>&& edges() && {
             return std::move(edges_);
         }
     };
@@ -436,11 +472,23 @@ namespace mpl::packet {
 //        }
 //    };
 //
-//    template <class Packet>
-//    struct is_path : std::false_type {};
-//
-//    template <class State>
-//    struct is_path<Path<State>> : std::true_type {};
+    template <class Packet>
+    struct is_vertices: std::false_type {};
+
+    template <class Vertex, class State>
+    struct is_vertices<Vertices<Vertex, State>> : std::true_type {};
+
+    template <class Packet>
+    struct is_edges: std::false_type {};
+
+    template <class Edge, class Distance>
+    struct is_edges<Edges<Edge, Distance>> : std::true_type {};
+
+    template <class Packet>
+    struct is_num_samples: std::false_type {};
+
+    template<>
+    struct is_num_samples<NumSamples> : std::true_type {};
 
     template <class Edge, class Distance, class Vertex, class State, class Fn>
     std::size_t parse(Buffer& buf, Fn fn) {
@@ -479,6 +527,10 @@ namespace mpl::packet {
             case EDGES:
                 fn(Edges<Edge, Distance>(type, buf.view(size)));
                 break;
+            case NUM_SAMPLES:
+                fn(NumSamples(type, buf.view(size)));
+                break;
+
                 // case PROBLEM_SE3:
                 //     fn(ProblemSE3<float>(type, buf.view(size)));
                 //     break;

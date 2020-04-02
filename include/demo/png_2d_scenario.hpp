@@ -170,7 +170,7 @@ namespace mpl::demo
         }
 
         Scalar prmRadius() {
-            return 2 * pow((width_ / 100. * height_ / 100. * 1. / PI) * (3.0 / 2.0), 0.5);
+            return 2 * pow((width_ * height_ * 1. / PI) * (3.0 / 2.0), 0.5);
         }
 
     private:

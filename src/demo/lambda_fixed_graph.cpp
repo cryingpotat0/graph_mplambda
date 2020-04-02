@@ -12,6 +12,7 @@
 #include <jilog.hpp>
 #include <util.hpp>
 #include <comm.hpp>
+//#include <demo/fetch_scenario.hpp>
 
 
 using namespace mpl::demo;
@@ -35,6 +36,10 @@ void runPngScenario(AppOptions &app_options) {
         filters.emplace_back(FilterColor(126, 106, 61, 15));
         filters.emplace_back(FilterColor(61, 53, 6, 15));
         filters.emplace_back(FilterColor(255, 255, 255, 5));
+    } else if (app_options.env() == "./resources/house_layout.png") {
+        filters.emplace_back(FilterColor(0, 0, 0, 5));
+        filters.emplace_back(FilterColor(224, 224, 224, 5));
+        filters.emplace_back(FilterColor(255, 255, 255, 5));
     }
 
     auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
@@ -52,23 +57,38 @@ void runPngScenario(AppOptions &app_options) {
 
     auto min = app_options.globalMin<Bound>();
     auto max = app_options.globalMax<Bound>();
-    auto local_min = app_options.min<Bound>();
-    auto local_max = app_options.max<Bound>();
+//    auto local_min = app_options.min<Bound>();
+//    auto local_max = app_options.max<Bound>();
 
-
-    Subspace_t local_subspace(local_min, local_max);
+//    Subspace_t local_subspace(local_min, local_max);
     Subspace_t global_subspace(min, max);
+
+    auto eig_num_divisions = app_options.num_divisions<State>();
+    std::vector<int> num_divisions =
+            std::vector<int>(
+                    eig_num_divisions.data(),
+                    eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
+            );
+
+    std::unordered_map<Subspace_t, int> neighborsToLambdaIdGlobal;
+    auto divisions = global_subspace.divide(num_divisions);
+    for (int i=0; i < divisions.size(); ++i) {
+        neighborsToLambdaIdGlobal[divisions[i]] = i;
+    }
+    auto local_subspace = divisions[app_options.lambdaId()];
 
     JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
 
-    Scenario scenario(width, height, local_min, local_max, goalState, obstacles);
-    Lambda lambda(app_options, scenario, local_subspace, global_subspace);
-//    for(;;) {
-    for(int i=0; i < 2; ++i) {
+    Scenario scenario(width, height, local_subspace.getLower(), local_subspace.getUpper(), goalState, obstacles);
+    Lambda lambda(app_options, scenario, local_subspace, global_subspace, neighborsToLambdaIdGlobal);
+    for(;;) {
+//    for(int i=0; i < 2; ++i) {
 //        comm.poll();
         lambda.do_work();
+        if (lambda.isDone()) break;
 //        comm.flush();
     }
+    JI_LOG(INFO) << "Finished";
 
 //    const std::string outputName = "png_2d_demo_output.svg";
 //    std::ofstream file(outputName);
@@ -89,7 +109,60 @@ void runPngScenario(AppOptions &app_options) {
 
 }
 
-int main(int argc, char *argv[]) {
+
+//template <class Scalar>
+//void runFetchScenario(AppOptions &app_options) {
+//    if (app_options.env(false).empty()) {
+//    }
+//
+//    using Scenario = mpl::demo::FetchScenario<Scalar>;
+//    using Planner = typename mpl::PRMPlanner<Scenario, Scalar>;
+//    using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
+//    using State = typename Scenario::State;
+//    using Bound = typename Scenario::Bound;
+//    using Subspace_t = typename Lambda::Subspace_t;
+//
+//    auto min = app_options.globalMin<Bound>();
+//    auto max = app_options.globalMax<Bound>();
+//    Subspace_t global_subspace(min, max);
+//
+//    auto eig_num_divisions = app_options.num_divisions<State>();
+//    std::vector<int> num_divisions =
+//            std::vector<int>(
+//                    eig_num_divisions.data(),
+//                    eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
+//            );
+//
+//    std::unordered_map<Subspace_t, int> neighborsToLambdaIdGlobal;
+//    auto divisions = global_subspace.divide(num_divisions);
+//    for (int i=0; i < divisions.size(); ++i) {
+//        neighborsToLambdaIdGlobal[divisions[i]] = i;
+//    }
+//    auto local_subspace = divisions[app_options.lambdaId()];
+//
+//    JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
+//
+//    auto startState = app_options.start<State>();
+//    using State = typename Scenario::State;
+//    using Frame = typename Scenario::Frame;
+//    using GoalRadius = Eigen::Matrix<Scalar, 6, 1>;
+//    Frame envFrame = app_options.envFrame<Frame>();
+//    Frame goal = app_options.goal<Frame>();
+//    GoalRadius goalRadius = app_options.goalRadius<GoalRadius>();
+//
+//    Scenario scenario(envFrame, app_options.env(), goal, goalRadius, app_options.checkResolution(0.1));
+//    Lambda lambda(app_options, scenario, local_subspace, global_subspace, neighborsToLambdaIdGlobal);
+//    for(;;) {
+////    for(int i=0; i < 2; ++i) {
+////        comm.poll();
+//        lambda.do_work();
+//        if (lambda.isDone()) break;
+////        comm.flush();
+//    }
+//}
+
+
+    int main(int argc, char *argv[]) {
 
     JI_LOG(INFO) << argc << " " << argv;
     AppOptions app_options(argc, argv);
@@ -114,6 +187,10 @@ int main(int argc, char *argv[]) {
 
     if (app_options.scenario() == "png") {
         runPngScenario<Scalar>(app_options);
+    } else if (app_options.scenario() == "fetch") {
+//        runFetchScenario<Scalar>(app_options);
+    } else {
+        throw std::invalid_argument("Invalid scenario");
     }
     return 0;
 }

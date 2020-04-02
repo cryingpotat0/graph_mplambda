@@ -160,8 +160,11 @@ namespace mpl::demo {
         std::string robot_;
         std::string envFrame_;
 
-        std::string start_;
-        std::string goal_;
+        std::string start_ = "";
+        std::string goal_ = "";
+        std::vector<std::string> starts_;
+        std::vector<std::string> goals_;
+
         std::string goalRadius_;
 
         std::string min_;
@@ -274,13 +277,15 @@ namespace mpl::demo {
                         robot_ = optarg;
                         break;
                     case 'g':
-                        goal_ = optarg;
+                        goal_ = optarg; 
+                        goals_.push_back(optarg);
                         break;
                     case 'G':
                         goalRadius_ = optarg;
                         break;
                     case 's':
-                        start_ = optarg;
+                        start_ = optarg; // Allow for multiple starts
+                        starts_.push_back(optarg);
                         break;
                     case 'm':
                         min_ = optarg;
@@ -440,6 +445,19 @@ namespace mpl::demo {
         template <class T>
         T globalMax() const {
             return parse<T>("global_max", global_max_);
+        }
+
+        template <class T>
+        std::vector<std::pair<T, T>> getStartsAndGoals() const {
+            std::vector<std::pair<T, T>> starts_and_goals;
+            assert(starts_.size() == goals_.size());
+            for (int i=0; i < starts_.size(); ++i) {
+              starts_and_goals.push_back(std::make_pair(
+                      parse<T>("start", starts_[i]),
+                      parse<T>("goal", goals_[i])
+                    ));
+            }
+            return starts_and_goals;
         }
 
         double timeLimit() const {

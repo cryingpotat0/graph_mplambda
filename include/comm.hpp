@@ -63,6 +63,8 @@ namespace mpl {
         template <class Edge, class Distance, class Vertex, class State>
         void process();
 
+        template <class Edge, class Distance, class Vertex, class State, class PathFn>
+        void process(PathFn fn);
 //        template <class PathFn>
 //        void process(PathFn);
 
@@ -195,16 +197,19 @@ void mpl::Comm::process() {
     processImpl<Edge, Distance, Vertex, State>([&] (auto&& pkt) { handle(std::forward<decltype(pkt)>(pkt)); });
 }
 
-//template <class PathFn>
-//void mpl::Comm::process(PathFn fn) {
-//    processImpl([&] (auto&& pkt) {
-//        using T = std::decay_t<decltype(pkt)>;
-//        if constexpr (packet::is_path<T>::value) {
-//            fn(pkt.cost(), std::move(pkt).path());
-//        } else {
-//            handle(std::forward<decltype(pkt)>(pkt));
-//        }
-//    });
-//}
+template <class Edge, class Distance, class Vertex, class State, class PathFn>
+void mpl::Comm::process(PathFn fn) {
+    processImpl<Edge, Distance, Vertex, State>([&] (auto&& pkt) {
+        fn(std::forward<decltype(pkt)>(pkt));
+        using T = std::decay_t<decltype(pkt)>;
+        if constexpr (packet::is_vertices<T>::value || packet::is_num_samples<T>::value) {
+            fn(std::forward<decltype(pkt)>(pkt));
+//        } else if constexpr (packet::is_edges<T>::value) {
+//            fn(std::forward<decltype(pkt)>(pkt));
+        } else {
+            handle(std::forward<decltype(pkt)>(pkt));
+        }
+    });
+}
 
 #endif

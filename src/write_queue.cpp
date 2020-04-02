@@ -26,9 +26,9 @@ void mpl::WriteQueue::writeTo(int socket) {
         if (n >= buffers_.front().remaining()) {
             n -= buffers_.front().remaining();
             buffers_.pop_front();
-            JI_LOG(TRACE) << "removing completed buffer";
+//            JI_LOG(TRACE) << "removing completed buffer";
         } else {
-            JI_LOG(TRACE) << "updating buffer in front";
+//            JI_LOG(TRACE) << "updating buffer in front";
             buffers_.front() += n;
             break;
         }

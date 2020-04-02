@@ -302,9 +302,10 @@ namespace shape
                << addAttr("y", r.p0_[1])
                << addAttr("width", r.p1_[0] - r.p0_[0])
                << addAttr("height", r.p1_[1] - r.p0_[1])
-               << addAttr("fill", r.color_)
-               << addAttr("stroke", "black")
-               << addAttr("stroke-width", "1px")
+//               << addAttr("fill", r.color_)
+                << addAttr("fill-opacity", "0")
+               << addAttr("stroke", r.color_)
+               << addAttr("stroke-width", "6px")
                << closeTag();
     }
 }

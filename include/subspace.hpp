@@ -139,6 +139,14 @@ namespace mpl {
             return true;
         }
 
+        bool contains(const State& point) const {
+            assert(point.size() == dimension());
+            for (int i=0; i < dimension(); ++i) {
+                if ((point[i] < lower[i]) || (point[i] > upper[i])) return false;
+            }
+            return true;
+        }
+
         std::vector<Subspace> point_near_neighbors(const State& point,
                 const Subspace& global_bounds, Scalar radius,
                 const std::vector<Subspace>& neighbors) {
@@ -151,7 +159,7 @@ namespace mpl {
             auto middle = (getLower() + getUpper()) / 2.0;
             auto shifted_upper = getUpper() - middle;
             auto shifted_point = point - middle;
-            JI_LOG(INFO) << "point " << point << " upper " << getUpper() << " shifted_upper " << shifted_upper << " shifted_point " << shifted_point;
+//            JI_LOG(INFO) << "point " << point << " upper " << getUpper() << " shifted_upper " << shifted_upper << " shifted_point " << shifted_point;
 
             for (int i=0; i < dimension(); ++i) {
                 dist += pow(std::max(0.0, abs(shifted_point[i]) - shifted_upper[i]), 2);

@@ -44,7 +44,12 @@ namespace mpl {
         using Graph = UndirectedGraph<Vertex, Edge>;
         using Connection_t = Connection<CoordinatorFixedGraph>;
 
+        std::unordered_map<std::uint64_t, std::vector<Buffer>> buffered_data_; // Any data to be written if lambda is not up yet
+        int smallest_number_of_neighbors;
+
     private:
+        std::vector<std::uint64_t> num_samples_per_lambda_;
+        std::uint64_t global_min_samples;
         demo::AppOptions app_options;
         Subspace_t global_subspace;
         std::vector<Subspace_t> lambda_subspaces;
@@ -57,8 +62,7 @@ namespace mpl {
         Graph graph;
 
         void init_local_lambdas() {
-            auto num_lambdas = app_options.jobs();
-            for (int i=0; i < num_lambdas; ++i) {
+            for (int i=0; i < app_options.jobs() ; ++i) {
                 int p[2];
                 if (::pipe(p) == -1)
                     throw std::system_error(errno, std::system_category(), "Pipe");
@@ -77,8 +81,8 @@ namespace mpl {
                         "--scenario", app_options.scenario(),
                         "--global_min", app_options.global_min_,
                         "--global_max", app_options.global_max_,
-                        "--min", std::to_string(lambda_min[0]) + "," + std::to_string(lambda_min[1]),
-                        "--max", std::to_string(lambda_max[0]) + "," + std::to_string(lambda_max[1]),
+//                        "--min", std::to_string(lambda_min[0]) + "," + std::to_string(lambda_min[1]),
+//                        "--max", std::to_string(lambda_max[0]) + "," + std::to_string(lambda_max[1]),
                         "--lambda_id", lambdaId,
                         "--algorithm", app_options.algorithm(),
                         "--coordinator", app_options.coordinator(),
@@ -87,18 +91,18 @@ namespace mpl {
                         "--time-limit", std::to_string(app_options.timeLimit()),
                         "--env", app_options.env(false),
                         "--env-frame", app_options.envFrame_,
-                        "--start", app_options.start_,
-                        "--goal", app_options.goal_
+//                        "--start", app_options.start_,
+//                        "--goal", app_options.goal_,
+                        "--num_divisions", app_options.num_divisions_
 //                    "--robot", app_options.robot()
                 };
-                auto it = args.begin();
-                while (it != args.end()) {
-                    auto curr = it++;
-                    if ((*curr).empty()) {
-                        args.erase(curr - 1);
-                        args.erase(curr);
-                    }
+                for (int i=0; i < app_options.starts_.size(); ++i) {
+                    args.push_back("--start");
+                    args.push_back(app_options.starts_[i]);
+                    args.push_back("--goal");
+                    args.push_back(app_options.goals_[i]);
                 }
+
 
                 std::vector <const char *> argv;
 
@@ -134,6 +138,7 @@ namespace mpl {
                 app_options(app_options_),
                 global_subspace(Subspace_t(app_options_.globalMin<Bound>(), app_options_.globalMax<Bound>()))
         {
+            smallest_number_of_neighbors = (int) (pow(2, global_subspace.dimension()) - 1);
         }
 
         ~CoordinatorFixedGraph() {
@@ -151,10 +156,33 @@ namespace mpl {
             }
         }
 
+        void update_num_samples(std::uint64_t lambdaId, size_t successful_samples) {
+            num_samples_per_lambda_[lambdaId] += app_options.numSamples(); // Regardless of how many successful samples, each lambda tries to sample these many points
+            auto curr_min_samples = std::min_element(
+                    num_samples_per_lambda_.begin(),
+                    num_samples_per_lambda_.end()
+            );
+            if ((*curr_min_samples) > global_min_samples) {
+                global_min_samples = *curr_min_samples;
+                JI_LOG(INFO) << "Updating global_num_samples to " << global_min_samples * app_options.jobs();
+                for (auto& c: connections_) {
+                    c.write(packet::NumSamples(global_min_samples * app_options.jobs()));
+                }
+            }
+        }
+
         void addEdges(const std::vector<Edge>& edges) {
             for (auto& e : edges) {
                 graph.addEdge(e);
             }
+        }
+
+        const Graph& getGraph() const {
+            return graph;
+        };
+
+        const std::vector<Subspace_t> getSubspaces() const {
+            return lambda_subspaces;
         }
 
 
@@ -189,13 +217,17 @@ namespace mpl {
             int dimension = global_subspace.dimension();
             int num_divisions_per_axis = pow(num_jobs, 1.0 / dimension) - 1;
             std::vector<int> num_divisions;
+            app_options.num_divisions_ = "";
             for (int i=0; i < dimension; ++i) {
                 num_divisions.push_back(num_divisions_per_axis);
+                app_options.num_divisions_ += std::to_string(num_divisions_per_axis) + ",";
             }
+            app_options.num_divisions_ = app_options.num_divisions_.substr(0, app_options.num_divisions_.length() - 1);
 //            auto n = global_subspace.layered_divide(num_divisions);
 //            JI_LOG(INFO) << n;
             lambda_subspaces = global_subspace.divide(num_divisions);
             assert(lambda_subspaces.size() == num_jobs);
+            JI_LOG(INFO) << "Num lambdas: " << app_options.jobs();
             JI_LOG(INFO) << "Global Space: " << global_subspace;
             JI_LOG(INFO) << "Subspaces: " << lambda_subspaces;
         }
@@ -203,9 +235,43 @@ namespace mpl {
         std::vector<State> solve() {
         }
 
+        std::vector<std::pair<Vertex, Vertex>> getStartAndGoalVertices(const std::vector<std::pair<State, State>> &starts_and_goals) {
+            // We can avoid querying each vertex to see if it is the start or the goal because we
+            // add it to a lambda only if it contains it. Moreover, each lambda starts off by adding all the
+            // start and goal points in the same order.
+            std::vector<int> lambda_current_vertex_id;
+            std::vector<std::pair<Vertex, Vertex>> start_and_goal_vertex;
+            lambda_current_vertex_id.resize(lambda_subspaces.size(), 0);
+            for (auto& [start, goal] : starts_and_goals) {
+                std::string start_id, goal_id;
+                for (int lambda_id=0; lambda_id < lambda_subspaces.size(); ++lambda_id) {
+                  if (lambda_subspaces[lambda_id].contains(start)) {
+                    start_id = std::to_string(lambda_id) + "_" + std::to_string(lambda_current_vertex_id[lambda_id]++);
+                  }
+                  if (lambda_subspaces[lambda_id].contains(goal)) {
+                    goal_id = std::to_string(lambda_id) + "_" + std::to_string(lambda_current_vertex_id[lambda_id]++);
+                  }
+                }
+                start_and_goal_vertex.push_back(std::make_pair(
+                        Vertex{start_id, start},
+                        Vertex{goal_id, goal}
+                      ));
+            }
+            return start_and_goal_vertex;
+        }
+
         void loop() {
-            // Do communication stuff
+            // Do communication stuff// TODO: handle case where other connection not initiated
+            bool done_ = false;
+            auto start_and_goal_states = app_options.getStartsAndGoals<State>();
+            auto start_and_goal_vertices = getStartAndGoalVertices(start_and_goal_states);
+            for (auto& [start, goal] : start_and_goal_vertices) {
+                JI_LOG(INFO) << "Using start " << start.id() << " and goal " << goal.id();
+            }
+            auto start = std::chrono::high_resolution_clock::now();
             for(;;) {
+
+
                 pfds.clear();
                 // first comes the fds of the child processes (note that
                 // connection processing may change the child process list, so
@@ -225,10 +291,18 @@ namespace mpl {
                 pfds.back().fd = listen_;
                 pfds.back().events = POLLIN;
 
-                JI_LOG(TRACE) << "polling " << pfds.size();
-                int nReady = ::poll(pfds.data(), pfds.size(), -1);
+//                JI_LOG(TRACE) << "polling " << pfds.size();
+                int nReady = ::poll(pfds.data(), pfds.size(), 1);
+                auto stop = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
+                if (duration.count() > app_options.timeLimit()) {
+                    done_ = true;
+                    for (auto& c : connections_) {
+                        c.sendDone();
+                    }
+                }
 
-                JI_LOG(TRACE) << "poll returned " << nReady;
+//                JI_LOG(TRACE) << "poll returned " << nReady;
 
                 if (nReady == -1) {
                     if (errno == EAGAIN || errno == EINTR) {
@@ -263,6 +337,9 @@ namespace mpl {
                         if (cit->recvHello() &&
                             (lambdaId_to_connection_.find(cit->lambdaId())) == lambdaId_to_connection_.end()) {
                             lambdaId_to_connection_[cit->lambdaId()] = &(*cit);
+                            for (auto& buf: buffered_data_[cit->lambdaId()]) {
+                                cit->write(std::move(buf));
+                            }
                         }
                         ++cit;
                     }
@@ -296,6 +373,8 @@ namespace mpl {
                     // connections.pop_back();
                 }
 
+                if (done_) break;
+
 
 
                 // Get new vertices and edges from lambdas
@@ -304,14 +383,20 @@ namespace mpl {
 
                 // Compute new rPRM
                 // Ensure vertices broadcast to all lambdas
-            }
 
+            }
+            JI_LOG(INFO) << "Loop done";
+            connections_.clear();
+            // Handle cleaning up lambdas
         }
 
         void init_lambdas() {
             if (app_options.lambdaType() == LambdaType::LAMBDA_PSEUDO) {
                 init_local_lambdas();
             }
+
+            int num_lambdas = app_options.jobs();
+            num_samples_per_lambda_.resize(num_lambdas, 0);
         }
 
         Connection_t* getConnection(std::uint64_t lambdaId) {

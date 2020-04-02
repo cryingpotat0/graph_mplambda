@@ -88,8 +88,11 @@ namespace mpl {
 
         void plan(int num_samples) {
             for(int i=0; i < num_samples; ++i) {
+//                if (num_samples_ > 22) {
+//                    return;
+//                }
+//                JI_LOG(INFO) << num_samples_;
                 addRandomSample();
-                // TODO: rPRM update in loop
             }
         }
 
@@ -121,9 +124,12 @@ namespace mpl {
             return graph_;
         }
 
-        void addSample(State& s) {
+        void addSample(State& s, bool print_id=false) {
             if (!scenario.isValid(s)) return;
             std::string id = std::to_string(lambda_id_) + "_" + std::to_string(num_samples_);
+            if (print_id) {
+                JI_LOG(INFO) << "Vertex id " << id;
+            }
             Vertex_t v{id, s};
             std::vector<std::pair<Vertex_t, Scalar>> nbh;
             auto k = std::numeric_limits<std::size_t>::max();
@@ -147,6 +153,39 @@ namespace mpl {
                 fn(v, lambda);
             }
             ++num_samples_;
+        }
+
+        void updatePrmRadius(std::uint64_t num_samples, int dimension) {
+            auto new_radius = scenario.prmRadius() * pow(log( num_samples) / (1.0 * num_samples), 1.0 / dimension);
+            if (new_radius < rPRM) {
+                JI_LOG(INFO) << "New rPRM is " << new_radius;
+                rPRM = new_radius;
+            }
+        }
+
+        void addExistingVertex(Vertex_t& v) {
+            if (!scenario.isValid(v.state())) return;
+            std::vector<std::pair<Vertex_t, Scalar>> nbh;
+            auto k = std::numeric_limits<std::size_t>::max();
+
+            // add to graph
+//            graph_.addVertex(v);
+            // add to nearest neighbor structure
+            nn.insert(v);
+            // add valid edges
+            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
+            for(auto &[other, dist] : nbh) {
+                // Other ones must be valid and in the graph by definition
+                if (scenario.isValid(v.state(), other.state())) {
+                    Edge_t e{dist, v.id_, other.id_};
+//                    graph_.addEdge(e);
+                    new_edges.push_back(std::move(e));
+                }
+            }
+            for (auto fn : validSampleCallbacks) {
+                fn(v, lambda);
+            }
+//            ++num_samples_;
         }
     };
 }
