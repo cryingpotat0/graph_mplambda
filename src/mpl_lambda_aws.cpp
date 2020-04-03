@@ -32,13 +32,16 @@ static std::vector<std::string> createVectorOfStrings(const J& json, const std::
     if (json.ValueExists(name_aws)) {
         Aws::String aws_s = json.GetString(name_aws);
         std::string s(aws_s.c_str(), aws_s.size());
-	auto pos = s.find(delimiter);
-	while (pos != std::string::npos) {
+	size_t pos = 0; //s.find(delimiter);
+	while ((pos = s.find(delimiter)) != std::string::npos) {
 		ret.push_back(s.substr(0, pos));
 		s = s.substr(pos + 1);
 	}
+	if (s.size() > 0) {
+		ret.push_back(s);
+	}
     }
-	return ret;
+    return ret;
 }
 
 invocation_response my_handler(invocation_request const& request) try {
@@ -55,8 +58,6 @@ invocation_response my_handler(invocation_request const& request) try {
     mpl::demo::AppOptions options;
     set(options.scenario_, v, "scenario");
     set(options.coordinator_, v, "coordinator");
-    set(options.start_, v, "start");
-    set(options.goal_, v, "goal");
     set(options.global_min_, v, "global_min");
     set(options.global_max_, v, "global_max");
     set(options.algorithm_, v, "algorithm");
@@ -68,8 +69,11 @@ invocation_response my_handler(invocation_request const& request) try {
     set(options.checkResolution_, v, "check-resolution");
     set(options.lambdaId_, v, "lambda_id");
     set(options.num_divisions_, v, "num_divisions");
+    set(options.num_samples_, v, "num_samples");
     options.starts_ = createVectorOfStrings(v, "start");
     options.goals_ = createVectorOfStrings(v, "goal");
+    options.start_ = options.starts_[0];
+    options.goal_ = options.start_[0];
 
     mpl::demo::runSelectPlanner(options);
     return invocation_response::success("Solved!", "application/json");

@@ -37,7 +37,6 @@ namespace mpl::demo {
 
         std::uint64_t lambda_id;
         int samples_per_run;
-        float time_limit;
 //        const int max_incoming_vertices = 1000;
         Comm comm;
         Scenario scenario;
@@ -46,6 +45,9 @@ namespace mpl::demo {
         Subspace_t global_subspace;
         std::unordered_map<int, std::vector<Vertex_t>> samples_to_send;
         std::unordered_map<Subspace_t, int> neighborsToLambdaId;
+        std::chrono::high_resolution_clock::time_point start_time;
+	bool done_ = false;
+	double time_limit;
 
         LocalLambdaFixedGraph();
 
@@ -73,7 +75,7 @@ namespace mpl::demo {
                   global_subspace(global_subspace_),
                   planner(Planner(scenario_, this, app_options.lambdaId())),
                   samples_per_run(app_options.numSamples()),
-                  time_limit(app_options.timeLimit())
+		  time_limit(app_options.timeLimit())
 
         {
             comm.setLambdaId(lambda_id);
@@ -123,7 +125,7 @@ namespace mpl::demo {
                     planner.addSample(start, true);
                 }
 
-                JI_LOG(INFO) << "Testing start " << start;
+                JI_LOG(INFO) << "Testing goal " << goal;
                 if (local_subspace.contains(goal)) {
                     if (!scenario.isValid(goal)) {
                         JI_LOG(ERROR) << "Goal " << goal << " is not valid";
@@ -142,10 +144,11 @@ namespace mpl::demo {
                 }
             }
             planner.setrPRM(min_subspace_size / 2.0); // TODO: arbitrary here, cannot be greater than min_subspace_size, but no other constraints
+            start_time = std::chrono::high_resolution_clock::now();
         }
 
         inline bool isDone() {
-            return comm.isDone();
+            return comm.isDone() || done_;
         }
 
 
@@ -153,6 +156,11 @@ namespace mpl::demo {
         void do_work() {
 //          std::unordered_map<Subspace_t, std::vector<State>> samples_to_send = planner.plan(samples_per_run);
             auto start = std::chrono::high_resolution_clock::now();
+            auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time);
+	    if (lambda_running_for.count() > time_limit) {
+		done_ = true;
+		return;
+	    }
             planner.plan(samples_per_run);
             auto stop = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -242,21 +250,24 @@ namespace mpl::demo {
 
         std::vector<FilterColor> filters;
 
-        if (app_options.env() == "./resources/png_planning_input.png") {
+        if (app_options.env() == "resources/png_planning_input.png") {
             filters.emplace_back(FilterColor(126, 106, 61, 15));
             filters.emplace_back(FilterColor(61, 53, 6, 15));
             filters.emplace_back(FilterColor(255, 255, 255, 5));
-        } else if (app_options.env() == "./resources/house_layout.png") {
+        } else if (app_options.env() == "resources/house_layout.png") {
             filters.emplace_back(FilterColor(0, 0, 0, 5));
             filters.emplace_back(FilterColor(224, 224, 224, 5));
             filters.emplace_back(FilterColor(255, 255, 255, 5));
         }
 
-        auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
-        auto startState = app_options.start<State>(); // 430, 1300;
-        auto goalState = app_options.goal<State>(); // 3150, 950
+        //auto startState = app_options.start<State>(); // 430, 1300;
+        //auto goalState = app_options.goal<State>(); // 3150, 950
 
-        JI_LOG(INFO) << "Using env " << app_options.env() << " with start " << startState << " and end " << goalState;
+        JI_LOG(INFO) << "Lambda ID" << app_options.lambdaId();
+        JI_LOG(INFO) << "Using env " << app_options.env();
+
+        auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
+        JI_LOG(INFO) << "Loaded env " << app_options.env();
 
         if (app_options.global_min_.empty()) {
             app_options.global_min_ = "0,0";
@@ -289,7 +300,7 @@ namespace mpl::demo {
 
         JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
 
-        Scenario scenario(width, height, local_subspace.getLower(), local_subspace.getUpper(), goalState, obstacles);
+        Scenario scenario(width, height, local_subspace.getLower(), local_subspace.getUpper(), obstacles);
         Lambda lambda(app_options, scenario, local_subspace, global_subspace, neighborsToLambdaIdGlobal);
         for(;;) {
             lambda.do_work();

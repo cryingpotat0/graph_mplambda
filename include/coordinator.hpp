@@ -25,10 +25,20 @@
 #include <syserr.hpp>
 #include <list>
 
+#if HAS_AWS_SDK
+#include <aws/lambda-runtime/runtime.h>
+#include <aws/core/Aws.h>
+#include <aws/core/utils/Outcome.h>
+#include <aws/lambda/LambdaClient.h>
+#include <aws/lambda/model/InvokeRequest.h>
+#include <aws/core/utils/json/JsonSerializer.h>
+#endif
+
 
 namespace mpl {
     struct LambdaType {
         constexpr static auto LAMBDA_PSEUDO = "local";
+        constexpr static auto LAMBDA_AWS = "aws";
     };
 
     template <class Scenario, class Scalar>
@@ -60,6 +70,87 @@ namespace mpl {
         std::list<std::pair<int, int>> childProcesses_;
         std::unordered_map<std::uint64_t, Connection_t*> lambdaId_to_connection_;
         Graph graph;
+#if HAS_AWS_SDK
+        static constexpr const char* ALLOCATION_TAG = "mplLambdaAWS";
+        std::shared_ptr<Aws::Lambda::LambdaClient> lambdaClient_;
+#endif
+
+	void init_aws_lambdas() {
+#if !HAS_AWS_SDK
+		throw std::invalid_argument("AWS SDK is not available");
+#else
+            for (int i=0; i < app_options.jobs() ; ++i) {
+		Aws::Lambda::Model::InvokeRequest invokeRequest;
+		invokeRequest.SetFunctionName("mpl_fixed_graph_aws");
+		invokeRequest.SetInvocationType(Aws::Lambda::Model::InvocationType::Event);
+		std::shared_ptr<Aws::IOStream> payload = Aws::MakeShared<Aws::StringStream>("PayloadData");
+		Aws::Utils::Json::JsonValue jsonPayload;
+
+		//jsonPayload.WithString("algorithm", prob.algorithm() == 'r' ? "rrt" : "cforest");
+
+                auto lambdaId = std::to_string(i);
+                auto lambda_min = lambda_subspaces[i].getLower();
+                auto lambda_max = lambda_subspaces[i].getUpper();
+                std::vector<std::string> args = {
+                        "scenario", app_options.scenario(),
+                        "global_min", app_options.global_min_,
+                        "global_max", app_options.global_max_,
+                        "lambda_id", lambdaId,
+                        "algorithm", app_options.algorithm(),
+                        "coordinator", app_options.coordinator(),
+                        "communicator", app_options.communicator(),
+                        "num_samples", std::to_string(app_options.numSamples()),
+                        "time-limit", std::to_string(app_options.timeLimit()),
+                        "env", app_options.env(false),
+                        "env-frame", app_options.envFrame_,
+                        "num_divisions", app_options.num_divisions_
+                };
+		args.push_back("start");
+		std::string starts;
+                for (int i=0; i < app_options.starts_.size(); ++i) {
+                    starts += app_options.starts_[i];
+		    if (i != app_options.starts_.size() - 1) starts += ";";
+                }
+		args.push_back(starts);
+
+		args.push_back("goal");
+		std::string goals;
+                for (int i=0; i < app_options.goals_.size(); ++i) {
+                    goals += app_options.goals_[i];
+		    if (i != app_options.goals_.size() - 1) goals += ";";
+                }
+		args.push_back(goals);
+
+		for (std::size_t i=0 ; i+1<args.size() ; i+=2) {
+			const std::string& key = args[i];
+			const std::string& val = args[i+1];
+			jsonPayload.WithString(
+					Aws::String(key.c_str(), key.size()),
+					Aws::String(val.c_str(), val.size()));
+		}
+
+		*payload << jsonPayload.View().WriteReadable();
+		invokeRequest.SetBody(payload);
+		invokeRequest.SetContentType("application/json");
+
+		auto outcome = lambdaClient_->Invoke(invokeRequest);
+		if (outcome.IsSuccess()) {
+			auto &result = outcome.GetResult();
+			Aws::IOStream& payload = result.GetPayload();
+			Aws::String functionResult;
+			std::getline(payload, functionResult);
+			JI_LOG(INFO) << "Lambda result: " << functionResult;
+		} else {
+			auto &error = outcome.GetError();
+			std::ostringstream msg;
+			msg << "name: '" << error.GetExceptionName() << "', message: '" << error.GetMessage() << "'";
+			throw std::runtime_error(msg.str());
+
+		}
+	    }
+#endif
+
+	}
 
         void init_local_lambdas() {
             for (int i=0; i < app_options.jobs() ; ++i) {
@@ -81,8 +172,6 @@ namespace mpl {
                         "--scenario", app_options.scenario(),
                         "--global_min", app_options.global_min_,
                         "--global_max", app_options.global_max_,
-//                        "--min", std::to_string(lambda_min[0]) + "," + std::to_string(lambda_min[1]),
-//                        "--max", std::to_string(lambda_max[0]) + "," + std::to_string(lambda_max[1]),
                         "--lambda_id", lambdaId,
                         "--algorithm", app_options.algorithm(),
                         "--coordinator", app_options.coordinator(),
@@ -91,10 +180,7 @@ namespace mpl {
                         "--time-limit", std::to_string(app_options.timeLimit()),
                         "--env", app_options.env(false),
                         "--env-frame", app_options.envFrame_,
-//                        "--start", app_options.start_,
-//                        "--goal", app_options.goal_,
                         "--num_divisions", app_options.num_divisions_
-//                    "--robot", app_options.robot()
                 };
                 for (int i=0; i < app_options.starts_.size(); ++i) {
                     args.push_back("--start");
@@ -139,11 +225,28 @@ namespace mpl {
                 global_subspace(Subspace_t(app_options_.globalMin<Bound>(), app_options_.globalMax<Bound>()))
         {
             smallest_number_of_neighbors = (int) (pow(2, global_subspace.dimension()) - 1);
+#if HAS_AWS_SDK
+            if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
+                JI_LOG(INFO) << "initializing lambda client";
+                Aws::SDKOptions options;
+                Aws::InitAPI(options);
+                Aws::Client::ClientConfiguration clientConfig;
+                clientConfig.region = "us-west-2";
+                lambdaClient_ = Aws::MakeShared<Aws::Lambda::LambdaClient>(ALLOCATION_TAG, clientConfig);
+            }
+#endif
         }
 
         ~CoordinatorFixedGraph() {
             if (listen_ != -1 && !::close(listen_))
                 JI_LOG(WARN) << "failed to close listening socket";
+	    
+#if HAS_AWS_SDK
+            if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
+                Aws::SDKOptions options;
+                Aws::ShutdownAPI(options);
+            }
+#endif
         }
 
         std::string algorithm() {
@@ -393,7 +496,9 @@ namespace mpl {
         void init_lambdas() {
             if (app_options.lambdaType() == LambdaType::LAMBDA_PSEUDO) {
                 init_local_lambdas();
-            }
+            } else if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
+                init_aws_lambdas();
+	    }
 
             int num_lambdas = app_options.jobs();
             num_samples_per_lambda_.resize(num_lambdas, 0);

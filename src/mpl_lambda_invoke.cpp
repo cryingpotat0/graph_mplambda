@@ -25,11 +25,13 @@ void invokeLambda() {
     jsonPayload.WithString("global_min", "0,0");
     jsonPayload.WithString("global_max", "1403,1404");
     jsonPayload.WithString("algorithm", "prm_fixed_graph");
-    jsonPayload.WithString("env", "resource/house_layout.png");
+    jsonPayload.WithString("env", "resources/house_layout.png");
     jsonPayload.WithString("lambda_id", "0");
     jsonPayload.WithString("num_divisions", "1,1");
-    jsonPayload.WithString("robot", "");
+    //jsonPayload.WithString("robot", "");
     jsonPayload.WithString("envFrame", "");
+    jsonPayload.WithString("time-limit", "3");
+    jsonPayload.WithString("num_samples", "500");
     *payload << jsonPayload.View().WriteReadable();
     invokeRequest.SetBody(payload);
     invokeRequest.SetContentType("application/json");

@@ -45,8 +45,9 @@
 #include <vector>
 #include <interpolate.hpp>
 #include <randomize.hpp>
+#include <jilog.hpp>
 
-constexpr bool PRINT_FILTERED_IMAGE = true; // enable this to export a filtered png file.
+constexpr bool PRINT_FILTERED_IMAGE = false; // enable this to export a filtered png file.
 
 namespace mpl::demo
 {
@@ -87,7 +88,7 @@ namespace mpl::demo
         Space space_;
         Bound min_;
         Bound max_;
-        State goal_;
+        //State goal_;
         std::vector<bool> isObstacle_;
         static constexpr Scalar PI = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620L;
 
@@ -97,14 +98,14 @@ namespace mpl::demo
             const int height,
             State min,
             State max,
-            State goalState,
+            //State goalState,
             std::vector<bool> &isObstacle
         )
             : width_(width),
               height_(height),
               min_(min),
               max_(max),
-              goal_(goalState),
+              //goal_(goalState),
               isObstacle_(isObstacle)
         {
         }
@@ -143,10 +144,10 @@ namespace mpl::demo
             return max_;
         }
 
-        const State &goal() const
-        {
-            return goal_;
-        }
+        //const State &goal() const
+        //{
+        //    return goal_;
+        //}
 
         const int width() const
         {
@@ -241,6 +242,10 @@ namespace mpl::demo
          * Read png file
          */
         FILE *fp = std::fopen(inputName.c_str(), "rb");
+        if (fp == NULL) {
+		JI_LOG(ERROR) << "no file exists";
+		exit(1);
+	}
         png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
         png_infop info = png_create_info_struct(png);
 
