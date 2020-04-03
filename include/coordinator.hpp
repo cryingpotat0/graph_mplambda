@@ -68,7 +68,7 @@ namespace mpl {
         std::vector<struct pollfd> pfds;
         std::list<Connection_t> connections_;
         std::list<std::pair<int, int>> childProcesses_;
-        std::unordered_map<std::uint64_t, Connection_t*> lambdaId_to_connection_;
+        std::vector<Connection_t*> lambdaId_to_connection_;
         Graph graph;
 #if HAS_AWS_SDK
         static constexpr const char* ALLOCATION_TAG = "mplLambdaAWS";
@@ -249,7 +249,7 @@ namespace mpl {
 #endif
         }
 
-        std::string algorithm() {
+        inline std::string algorithm() {
             return "prm_fixed_graph";
         }
 
@@ -437,19 +437,23 @@ namespace mpl {
                     assert(pit != pfds.end());
 
                     if (cit->process(*pit)) {
+		    	//JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " << cit->recvHello();
                         if (cit->recvHello() &&
-                            (lambdaId_to_connection_.find(cit->lambdaId())) == lambdaId_to_connection_.end()) {
+                            (lambdaId_to_connection_[cit->lambdaId()] == nullptr)) {
                             lambdaId_to_connection_[cit->lambdaId()] = &(*cit);
+			    JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size();
                             for (auto& buf: buffered_data_[cit->lambdaId()]) {
                                 cit->write(std::move(buf));
                             }
-                        }
+                        } else {
+			    //JI_LOG(INFO) << "Existing lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " " << (lambdaId_to_connection_[cit->lambdaId()] == nullptr);
+			}
                         ++cit;
                     }
                     else {
                         if (cit->recvHello()) {
                             // it should be in the map
-                            lambdaId_to_connection_.erase(cit->lambdaId());
+                            lambdaId_to_connection_[cit->lambdaId()] = nullptr;
                         }
                         cit = connections_.erase(cit);
                     }
@@ -502,6 +506,7 @@ namespace mpl {
 
             int num_lambdas = app_options.jobs();
             num_samples_per_lambda_.resize(num_lambdas, 0);
+            lambdaId_to_connection_.resize(num_lambdas, nullptr);
         }
 
         Connection_t* getConnection(std::uint64_t lambdaId) {

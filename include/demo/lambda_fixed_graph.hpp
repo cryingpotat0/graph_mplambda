@@ -175,25 +175,44 @@ namespace mpl::demo {
             if (new_vertices.size() > 0) {
                 JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
                 comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
-                planner.clearVertices();
+                //planner.clearVertices();
             }
+            comm.template process<Edge_t, Distance, Vertex_t, State>(
+                    [&] (auto &&pkt) {
+                        using T = std::decay_t<decltype(pkt)>;
+                        if constexpr (packet::is_vertices<T>::value) {
+                            handleIncomingVertices(std::move(pkt.vertices()));
+                        } else if constexpr (packet::is_num_samples<T>::value) {
+                            handleGlobalNumSamplesUpdate(pkt.num_samples());
+                        }
+                    });
 //            comm.put(new_vertices, "graph_vertices");
-//            planner.clearVertices();
+            planner.clearVertices();
 //
             auto new_edges = planner.getNewEdges();
             if (new_edges.size() > 0) {
                 JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
                 comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
-                planner.clearEdges();
+                //planner.clearEdges();
             }
 
+            comm.template process<Edge_t, Distance, Vertex_t, State>(
+                    [&] (auto &&pkt) {
+                        using T = std::decay_t<decltype(pkt)>;
+                        if constexpr (packet::is_vertices<T>::value) {
+                            handleIncomingVertices(std::move(pkt.vertices()));
+                        } else if constexpr (packet::is_num_samples<T>::value) {
+                            handleGlobalNumSamplesUpdate(pkt.num_samples());
+                        }
+                    });
+	    planner.clearEdges();
 
             for (auto &[lambdaId, vertices] : samples_to_send) {
+	    	JI_LOG(INFO) << "Sending " << vertices.size() << " to lambda " << lambdaId;
                 if (vertices.size() > 0) {
-                    JI_LOG(INFO) << "Sending " << vertices.size() << " to lambda " << lambdaId;
                     comm.template sendVertices<Vertex_t, State>(std::move(vertices), 1, lambdaId); // destination=1 means send to other lambda
+		    //vertices.clear();
                 }
-                vertices.clear();
             }
 //            vertex_comm.set_destination(mpl::util::ToCString(local_subspace));
 //            std::vector<State> new_states = vertex_comm.get(max_incoming_vertices);
@@ -207,14 +226,27 @@ namespace mpl::demo {
                             handleGlobalNumSamplesUpdate(pkt.num_samples());
                         }
                     });
+            for (auto &[lambdaId, vertices] : samples_to_send) {
+		vertices.clear();
+	    }
 
             // Repeat this step to send interconnections immediately
             new_edges = planner.getNewEdges();
             if (new_edges.size() > 0) {
                 JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
                 comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
-                planner.clearEdges();
             }
+
+            comm.template process<Edge_t, Distance, Vertex_t, State>(
+                    [&] (auto &&pkt) {
+                        using T = std::decay_t<decltype(pkt)>;
+                        if constexpr (packet::is_vertices<T>::value) {
+                            handleIncomingVertices(std::move(pkt.vertices()));
+                        } else if constexpr (packet::is_num_samples<T>::value) {
+                            handleGlobalNumSamplesUpdate(pkt.num_samples());
+                        }
+                    });
+            planner.clearEdges();
         }
 
         void handleGlobalNumSamplesUpdate(std::uint64_t num_samples) {

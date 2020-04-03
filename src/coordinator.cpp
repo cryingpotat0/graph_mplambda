@@ -55,8 +55,8 @@ void savePngImages(const Coordinator& coord, const AppOptions &app_options) {
 
             if (v_id.substr(0, pos1) == u_id.substr(0, pos2)) {
                 // The 0th element indicates which lambda
-                shape::addEdge(file, start.state()[0], start.state()[1], end.state()[0], end.state()[1],
-                        6, shape::Color(40, 40, 40));
+                //shape::addEdge(file, start.state()[0], start.state()[1], end.state()[0], end.state()[1],
+                //        6, shape::Color(40, 40, 40));
             } else {
                 shape::addEdge(file, start.state()[0], start.state()[1], end.state()[0], end.state()[1],
                                6, shape::Color(250, 50, 50));

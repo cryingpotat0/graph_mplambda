@@ -507,7 +507,7 @@ namespace mpl::packet {
             throw protocol_error("maximum packet size exceeded: " + std::to_string(size));
 
         if (buf.remaining() < size) {
-            JI_LOG(TRACE) << "short packet recv, have " << buf.remaining() << ", need " << size;
+            //JI_LOG(TRACE) << "short packet recv, have " << buf.remaining() << ", need " << size;
             return size; // size - buf.remaining();
         }
 

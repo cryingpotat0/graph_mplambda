@@ -44,7 +44,7 @@ namespace mpl {
             assert(rBuf_.remaining() > 0); // we may need to grow the buffer
 
             ssize_t n = ::recv(socket_, rBuf_.begin(), rBuf_.remaining(), 0);
-            JI_LOG(TRACE) << "recv " << n;
+            //JI_LOG(TRACE) << "recv " << n;
             if (n <= 0) {
                 // on error (-1) or connection close (0), send DONE to
                 // the group to which this connection is attached.
@@ -107,7 +107,7 @@ namespace mpl {
 
         template <class Vertex, class State>
         void process(packet::Vertices<Vertex, State>&& pkt) {
-            JI_LOG(INFO) << "got VERTICES";
+            //JI_LOG(INFO) << "got VERTICES";
             if (coordinator_.algorithm() == "prm_fixed_graph") {
                 if (pkt.destination() == 0) {
                     coordinator_.update_num_samples(lambdaId_, pkt.vertices().size());
@@ -116,9 +116,12 @@ namespace mpl {
                     auto destinationLambdaId = pkt.destinationLambdaId();
                     auto other_connection = coordinator_.getConnection(destinationLambdaId);
                     if (other_connection != nullptr) {
+			    JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
                         // TODO: do a buffered write, the lambdas are receiving too many packets. Merge vertices from many outputs together.
-                        other_connection->delayed_vertices_write(std::move(pkt));
+                        //other_connection->delayed_vertices_write(std::move(pkt));
+                        other_connection->write(std::move(pkt));
                     } else {
+		    	JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
                         coordinator_.buffered_data_[destinationLambdaId].push_back(std::move(pkt));
                     }
                 }
@@ -155,7 +158,7 @@ namespace mpl {
 
         template <class Edge, class Distance>
         void process(packet::Edges<Edge, Distance>&& pkt) {
-            JI_LOG(INFO) << "got EDGES";
+            //JI_LOG(INFO) << "got EDGES";
             if (coordinator_.algorithm() == "prm_fixed_graph") {
                 coordinator_.addEdges(std::move(pkt.edges()));
             }

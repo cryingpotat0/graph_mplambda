@@ -13,9 +13,9 @@ void mpl::WriteQueue::writeTo(int socket) {
         iovs_.back().iov_len = it->remaining();
     }
 
-    JI_LOG(TRACE) << "about to write " << iovs_.size() << " iovecs to " << socket;
+    //JI_LOG(TRACE) << "about to write " << iovs_.size() << " iovecs to " << socket;
     ssize_t n = ::writev(socket, iovs_.data(), iovs_.size());
-    JI_LOG(TRACE) << "wrote " << n << " bytes to " << socket;
+    //JI_LOG(TRACE) << "wrote " << n << " bytes to " << socket;
     if (n == -1) {
         if (errno == EAGAIN)
             return;
