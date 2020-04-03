@@ -6,7 +6,6 @@
 #include <random>
 #include <nigh/auto_strategy.hpp>
 #include <string>
-#include <boost/algorithm/string.hpp>
 #include <iostream>
 
 namespace mpl {

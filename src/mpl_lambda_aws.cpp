@@ -25,6 +25,22 @@ static void set(T& value, const J& json, const std::string& name) {
     }
 }
 
+template <class J>
+static std::vector<std::string> createVectorOfStrings(const J& json, const std::string& name, std::string delimiter=";") {
+    Aws::String name_aws(name.c_str(), name.size());
+    std::vector<std::string> ret;
+    if (json.ValueExists(name_aws)) {
+        Aws::String aws_s = json.GetString(name_aws);
+        std::string s(aws_s.c_str(), aws_s.size());
+	auto pos = s.find(delimiter);
+	while (pos != std::string::npos) {
+		ret.push_back(s.substr(0, pos));
+		s = s.substr(pos + 1);
+	}
+    }
+	return ret;
+}
+
 invocation_response my_handler(invocation_request const& request) try {
     using namespace Aws::Utils::Json;
     Aws::String payload(request.payload.c_str(), request.payload.size());
@@ -41,16 +57,19 @@ invocation_response my_handler(invocation_request const& request) try {
     set(options.coordinator_, v, "coordinator");
     set(options.start_, v, "start");
     set(options.goal_, v, "goal");
-    set(options.min_, v, "min");
-    set(options.max_, v, "max");
+    set(options.global_min_, v, "global_min");
+    set(options.global_max_, v, "global_max");
     set(options.algorithm_, v, "algorithm");
     set(options.env_, v, "env");
-    set(options.robot_, v, "robot");
+    //set(options.robot_, v, "robot");
     set(options.envFrame_, v, "env-frame");
     set(options.goalRadius_, v, "goal-radius");
     set(options.timeLimit_, v, "time-limit");
     set(options.checkResolution_, v, "check-resolution");
-    set(options.problemId_, v, "problem-id");
+    set(options.lambdaId_, v, "lambda_id");
+    set(options.num_divisions_, v, "num_divisions");
+    options.starts_ = createVectorOfStrings(v, "start");
+    options.goals_ = createVectorOfStrings(v, "goal");
 
     mpl::demo::runSelectPlanner(options);
     return invocation_response::success("Solved!", "application/json");

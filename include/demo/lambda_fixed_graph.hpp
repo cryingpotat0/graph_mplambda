@@ -8,7 +8,6 @@
 #define MPL_LAMBDA_FIXED_GRAPH_HPP
 
 #include <jilog.hpp>
-#include <pq.hpp>
 #include <unordered_map>
 #include <vector>
 #include <prm_planner.hpp>
@@ -16,7 +15,6 @@
 #include <util.hpp>
 #include <chrono>
 #include <demo/app_options.hpp>
-#include <message.hpp>
 #include <tree.hpp>
 #include <unordered_map>
 #include <packet.hpp>

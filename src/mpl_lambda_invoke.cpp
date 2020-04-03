@@ -13,19 +13,22 @@ static std::shared_ptr<Aws::Lambda::LambdaClient> m_client;
 
 void invokeLambda() {
     Aws::Lambda::Model::InvokeRequest invokeRequest;
-    invokeRequest.SetFunctionName("mpl_lambda_aws_test");
+    invokeRequest.SetFunctionName("mpl_fixed_graph_aws");
     invokeRequest.SetInvocationType(Aws::Lambda::Model::InvocationType::Event);
     std::shared_ptr<Aws::IOStream> payload = Aws::MakeShared<Aws::StringStream>("PayloadData");
     Aws::Utils::Json::JsonValue jsonPayload;
-    jsonPayload.WithString("scenario", "se3");
-    jsonPayload.WithString("coordinator", "35.165.206.179");
-    jsonPayload.WithString("start", "0,0,0,1,270,160,-200");
-    jsonPayload.WithString("goal", "0,0,0,1,270,160,-400");
-    jsonPayload.WithString("min", "53.46,-21.25,-476.86");
-    jsonPayload.WithString("max", "402.96,269.25,-91.0");
-    jsonPayload.WithString("algorithm", "rrt");
-    jsonPayload.WithString("env", "resources/se3/Twistycool_env.dae");
-    jsonPayload.WithString("robot", "resources/se3/Twistycool_robot.dae");
+// --scenario png --start 500,10 --goal 500,20 --global_min 0,0 --global_max 2000,1300 --num_samples 1000 --env ./resources/house_layout.png --lambda_id 0 --num_divisions 1,1
+    jsonPayload.WithString("scenario", "png");
+    jsonPayload.WithString("coordinator", "54.188.233.199");
+    jsonPayload.WithString("start", "500,10;1000,500");
+    jsonPayload.WithString("goal", "500,500;100,1300");
+    jsonPayload.WithString("global_min", "0,0");
+    jsonPayload.WithString("global_max", "1403,1404");
+    jsonPayload.WithString("algorithm", "prm_fixed_graph");
+    jsonPayload.WithString("env", "resource/house_layout.png");
+    jsonPayload.WithString("lambda_id", "0");
+    jsonPayload.WithString("num_divisions", "1,1");
+    jsonPayload.WithString("robot", "");
     jsonPayload.WithString("envFrame", "");
     *payload << jsonPayload.View().WriteReadable();
     invokeRequest.SetBody(payload);

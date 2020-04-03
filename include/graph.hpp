@@ -7,8 +7,6 @@
 #ifndef MPLAMBDA_GRAPH_HPP
 #define MPLAMBDA_GRAPH_HPP
 
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graphviz.hpp>
 #include <iterator>
 #include <vector>
 #include <unordered_map>

@@ -6,7 +6,6 @@
 #define MPLAMBDA_CONNECTION_HPP
 
 #include <coordinator.hpp>
-#include <pq.hpp>
 #include <jilog.hpp>
 #include <getopt.h>
 #include <string>

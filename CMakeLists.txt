@@ -34,8 +34,6 @@ if (OPENMP_FOUND)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
-include_directories(include ../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS} ${RABBITMQ_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
 
 
 add_executable(mpl_lambda_fixed_graph src/demo/lambda_fixed_graph.cpp src/comm.cpp src/write_queue.cpp)
@@ -50,8 +48,8 @@ else ()
     
     find_package(aws-lambda-runtime REQUIRED)
     find_package(AWSSDK COMPONENTS s3 lambda)
-    add_executable(mpl_lambda_aws src/mpl_lambda_aws.cpp src/mpl/demo/lambda_common.cpp src/mpl/comm.cpp src/mpl/write_queue.cpp src/mpl/demo/app_options.cpp)
-    target_link_libraries(mpl_lambda_aws PUBLIC Eigen3::Eigen Threads::Threads ${ASSIMP_LIBRARIES} ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES})
+    add_executable(mpl_fixed_graph_aws src/mpl_lambda_aws.cpp  src/comm.cpp src/write_queue.cpp)
+    target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${ASSIMP_LIBRARIES} ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES})
     
     # the following line adds "aws-lambda-package-mpl_lambda_aws" as a
     # target which creates a .zip file with everything we need to
@@ -70,10 +68,12 @@ else ()
     add_executable(mpl_lambda_invoke src/mpl_lambda_invoke.cpp)
     target_link_libraries(mpl_lambda_invoke AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES})
 
-    add_executable(mpl_coordinator src/mpl_coordinator.cpp src/mpl/write_queue.cpp)
-    target_link_libraries(mpl_coordinator Threads::Threads AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES})
+    add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp)
+    target_link_libraries(mpl_coordinator Threads::Threads AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES})
 
 endif()
+link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
+include_directories(include ../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS} ${RABBITMQ_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
 
 #link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
 #include_directories(include ../../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS})

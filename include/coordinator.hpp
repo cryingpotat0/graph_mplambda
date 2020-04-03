@@ -14,7 +14,6 @@
 #include <graph.hpp>
 #include <tree.hpp>
 #include <prm_planner.hpp>
-#include <message.hpp>
 #include <connection.hpp>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
@@ -24,6 +23,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <syserr.hpp>
+#include <list>
 
 
 namespace mpl {

@@ -6,6 +6,7 @@
 //#include <demo/app_options.hpp>
 #include <demo/png_2d_scenario.hpp>
 #include <demo/shape_hierarchy.hpp>
+#include <list>
 //#include <demo/fetch_scenario.hpp>
 //#include <comm.hpp>
 //#include <poll.h>
