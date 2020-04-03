@@ -181,10 +181,9 @@ namespace mpl {
                     new_edges.push_back(std::move(e));
                 }
             }
-            for (auto fn : validSampleCallbacks) {
-                fn(v, lambda);
-            }
-//            ++num_samples_;
+            //for (auto fn : validSampleCallbacks) {
+            //    fn(v, lambda);
+            //}
         }
     };
 }
