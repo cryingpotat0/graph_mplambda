@@ -119,6 +119,20 @@ namespace shape
              << addAttr("stroke-linecap", "round")
              << closeTag();
     }
+    
+    inline void addText(std::ofstream &file, std::string text, double x, double y, Color c, int font_size) {
+        file << "\t"
+             << startTag("text")
+             << addAttr("x", x)
+             << addAttr("y", y)
+             << addAttr("fill", c)
+             << addAttr("font-size", font_size)
+             << addAttr("font-weight", "bold")
+	     << ">"
+	     << text
+             << closeTag("text");
+
+    }
 
     inline void addSolutionEdge(std::ofstream &file, double x1, double y1, double x2, double y2, double width = 4.0, Color color = Color(250, 50, 50))
     {

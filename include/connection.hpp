@@ -110,13 +110,14 @@ namespace mpl {
             //JI_LOG(INFO) << "got VERTICES";
             if (coordinator_.algorithm() == "prm_fixed_graph") {
                 if (pkt.destination() == 0) {
+		    JI_LOG(INFO) << "Received " << pkt.vertices().size() << " vertices from lambda " << lambdaId_;
                     coordinator_.update_num_samples(lambdaId_, pkt.vertices().size());
                     coordinator_.addVertices(std::move(pkt.vertices()));
                 } else {
                     auto destinationLambdaId = pkt.destinationLambdaId();
                     auto other_connection = coordinator_.getConnection(destinationLambdaId);
                     if (other_connection != nullptr) {
-			    JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
+			JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
                         // TODO: do a buffered write, the lambdas are receiving too many packets. Merge vertices from many outputs together.
                         //other_connection->delayed_vertices_write(std::move(pkt));
                         other_connection->write(std::move(pkt));
@@ -246,6 +247,10 @@ namespace mpl {
         void write(Packet&& packet) {
             writeQueue_.push_back(std::forward<Packet>(packet));
         }
+	
+	void write_buf(Buffer&& buf) {
+	    writeQueue_.push_back(std::move(buf));
+	}
 
         bool process(const struct pollfd& pfd) {
             try {
@@ -257,7 +262,7 @@ namespace mpl {
 
                 return true;
             } catch (const std::exception& ex) {
-                JI_LOG(WARN) << "exception processing connection: " << ex.what();
+                JI_LOG(WARN) << "exception processing connection: " << ex.what() << " lambda id " << lambdaId_;
                 return false;
             }
         }

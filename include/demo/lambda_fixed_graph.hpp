@@ -85,8 +85,24 @@ namespace mpl::demo {
             // First record neighbors of this lambda from the local and global subspace
             auto neighbors = local_subspace.get_neighbors(global_subspace);
             JI_LOG(INFO) << "Local subspace " << local_subspace;
+	    //for (auto& [n, i] : neighborsToLambdaIdGlobal) {
+	    //        JI_LOG(INFO) << n << " lambda id" << i;
+	    //}	
+
             for (auto& n : neighbors) {
-                if (n != local_subspace) neighborsToLambdaId[n] = neighborsToLambdaIdGlobal[n];
+                if (n != local_subspace) {
+			//int val = neighborsToLambdaIdGlobal[n];
+			//JI_LOG(INFO) << n << " lambda id" << val;
+			for (auto& [other_n, i] : neighborsToLambdaIdGlobal) {
+				if (n == other_n) { // Issues with hashing subspace, just use it as a container
+					neighborsToLambdaId[n] = i;
+					//JI_LOG(INFO) << n << " lambda id" << i;
+				}
+			}	
+		}
+		//if (neighborsToLambdaIdGlobal.count(n) == 0) {
+		//	JI_LOG(ERROR) << "Could not find neighbor";
+		//}
             }
 
 //            auto [tree_root, local_subspace_pointer] = global_subspace.layered_divide(num_divisions, &local_subspace);
@@ -143,7 +159,7 @@ namespace mpl::demo {
                     min_subspace_size = subspace_size;
                 }
             }
-            planner.setrPRM(min_subspace_size / 2.0); // TODO: arbitrary here, cannot be greater than min_subspace_size, but no other constraints
+            planner.setrPRM(min_subspace_size / 4.0); // TODO: arbitrary here, cannot be greater than min_subspace_size, but no other constraints
             start_time = std::chrono::high_resolution_clock::now();
         }
 
@@ -157,10 +173,10 @@ namespace mpl::demo {
 //          std::unordered_map<Subspace_t, std::vector<State>> samples_to_send = planner.plan(samples_per_run);
             auto start = std::chrono::high_resolution_clock::now();
             auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time);
-	    if (lambda_running_for.count() > time_limit) {
-		done_ = true;
-		return;
-	    }
+	    //if (lambda_running_for.count() > time_limit) {
+	    //    done_ = true;
+	    //    return;
+	    //}
             planner.plan(samples_per_run);
             auto stop = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -172,51 +188,42 @@ namespace mpl::demo {
 //                comm.put_all(states_to_send);
 //            }
             auto new_vertices = planner.getNewVertices();
-            if (new_vertices.size() > 0) {
-                JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
-                comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
-                //planner.clearVertices();
-            }
-            comm.template process<Edge_t, Distance, Vertex_t, State>(
-                    [&] (auto &&pkt) {
-                        using T = std::decay_t<decltype(pkt)>;
-                        if constexpr (packet::is_vertices<T>::value) {
-                            handleIncomingVertices(std::move(pkt.vertices()));
-                        } else if constexpr (packet::is_num_samples<T>::value) {
-                            handleGlobalNumSamplesUpdate(pkt.num_samples());
-                        }
-                    });
-//            comm.put(new_vertices, "graph_vertices");
+            //if (new_vertices.size() > 0) {
+            // Even if we have no vertices to send, tell the coordinator we are done sampling
+	    JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
+	    comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
             planner.clearVertices();
+                //planner.clearVertices();
+            //}
 //
             auto new_edges = planner.getNewEdges();
+	    auto edgeSize = packet::Edges<Edge_t, Distance>::edgeSize_;
+	    auto edgeHeaderSize = packet::Edges<Edge_t, Distance>::edgeHeaderSize_;
+	    auto maxPacketSize = mpl::packet::MAX_PACKET_SIZE;
             if (new_edges.size() > 0) {
-                JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
-                comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
-                //planner.clearEdges();
+	        JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
+	        if (edgeSize * new_edges.size() + edgeHeaderSize < maxPacketSize) {
+	        	comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
+	        } else {
+	        	auto freePacketSpace = maxPacketSize - edgeHeaderSize;
+	        	int numEdgesPerPacket = freePacketSpace / edgeSize;
+	        	for (int i=0; i < new_edges.size(); i+= numEdgesPerPacket) {
+				auto end_val = std::min( (int) new_edges.size(), i + numEdgesPerPacket);
+	        		std::vector<Edge_t> newEdgesPartial(new_edges.begin() + i, new_edges.begin() + end_val);
+	        		JI_LOG(INFO) << "Sending " << newEdgesPartial.size() << " partial new edges";
+	        		comm.template sendEdges<Edge_t, Distance>(std::move(newEdgesPartial));
+	        	}
+	        }
+	        planner.clearEdges();
             }
 
-            comm.template process<Edge_t, Distance, Vertex_t, State>(
-                    [&] (auto &&pkt) {
-                        using T = std::decay_t<decltype(pkt)>;
-                        if constexpr (packet::is_vertices<T>::value) {
-                            handleIncomingVertices(std::move(pkt.vertices()));
-                        } else if constexpr (packet::is_num_samples<T>::value) {
-                            handleGlobalNumSamplesUpdate(pkt.num_samples());
-                        }
-                    });
-	    planner.clearEdges();
-
             for (auto &[lambdaId, vertices] : samples_to_send) {
-	    	JI_LOG(INFO) << "Sending " << vertices.size() << " to lambda " << lambdaId;
                 if (vertices.size() > 0) {
+		    JI_LOG(INFO) << "Sending " << vertices.size() << " to lambda " << lambdaId;
                     comm.template sendVertices<Vertex_t, State>(std::move(vertices), 1, lambdaId); // destination=1 means send to other lambda
-		    //vertices.clear();
+	            vertices.clear();
                 }
             }
-//            vertex_comm.set_destination(mpl::util::ToCString(local_subspace));
-//            std::vector<State> new_states = vertex_comm.get(max_incoming_vertices);
-//            planner.add_states(new_states);
             comm.template process<Edge_t, Distance, Vertex_t, State>(
                     [&] (auto &&pkt) {
                         using T = std::decay_t<decltype(pkt)>;
@@ -226,27 +233,36 @@ namespace mpl::demo {
                             handleGlobalNumSamplesUpdate(pkt.num_samples());
                         }
                     });
-            for (auto &[lambdaId, vertices] : samples_to_send) {
-		vertices.clear();
-	    }
 
-            // Repeat this step to send interconnections immediately
-            new_edges = planner.getNewEdges();
-            if (new_edges.size() > 0) {
-                JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
-                comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
-            }
+            //// Repeat this step to send interconnections immediately
+            //new_edges = planner.getNewEdges();
+            //if (new_edges.size() > 0) {
+            //    JI_LOG(INFO) << "Sending interconnections " << new_edges.size() << " new edges";
+	    //    if (edgeSize * new_edges.size() + edgeHeaderSize < maxPacketSize) {
+	    //    	JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
+	    //    	comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
+	    //    } else {
+	    //    	auto freePacketSpace = maxPacketSize - edgeHeaderSize;
+	    //    	int numEdgesPerPacket = freePacketSpace / edgeSize;
+	    //    	for (int i=0; i < new_edges.size(); i+= numEdgesPerPacket) {
+	    //    		std::vector<Edge_t> newEdgesPartial(new_edges.begin() + i, new_edges.begin() + i + numEdgesPerPacket);
+	    //    		JI_LOG(INFO) << "Sending " << newEdgesPartial.size() << " partial new edges";
+	    //    		comm.template sendEdges<Edge_t, Distance>(std::move(newEdgesPartial));
+	    //    	}
+	    //    }
+	    //    planner.clearEdges();
+            //}
 
-            comm.template process<Edge_t, Distance, Vertex_t, State>(
-                    [&] (auto &&pkt) {
-                        using T = std::decay_t<decltype(pkt)>;
-                        if constexpr (packet::is_vertices<T>::value) {
-                            handleIncomingVertices(std::move(pkt.vertices()));
-                        } else if constexpr (packet::is_num_samples<T>::value) {
-                            handleGlobalNumSamplesUpdate(pkt.num_samples());
-                        }
-                    });
-            planner.clearEdges();
+            //comm.template process<Edge_t, Distance, Vertex_t, State>(
+            //        [&] (auto &&pkt) {
+            //            using T = std::decay_t<decltype(pkt)>;
+            //            if constexpr (packet::is_vertices<T>::value) {
+            //                handleIncomingVertices(std::move(pkt.vertices()));
+            //            } else if constexpr (packet::is_num_samples<T>::value) {
+            //                handleGlobalNumSamplesUpdate(pkt.num_samples());
+            //            }
+            //        });
+	    // More incoming vertices might be setup here
         }
 
         void handleGlobalNumSamplesUpdate(std::uint64_t num_samples) {
@@ -328,6 +344,10 @@ namespace mpl::demo {
         for (int i=0; i < divisions.size(); ++i) {
             neighborsToLambdaIdGlobal[divisions[i]] = i;
         }
+	//for (auto& [n, i] : neighborsToLambdaIdGlobal) {
+	//	JI_LOG(INFO) << n << " lambda id" << i;
+	//}	
+        JI_LOG(INFO) << "Total number of lambdas " << neighborsToLambdaIdGlobal.size();
         auto local_subspace = divisions[app_options.lambdaId()];
 
         JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;

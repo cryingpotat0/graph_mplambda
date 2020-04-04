@@ -303,7 +303,6 @@ namespace mpl::packet {
     class Edges {
         // Edges always go to location they are sent to, no rerouting needed coordinator
     private:
-        static constexpr std::size_t edgeSize_ = buffer_size_v<Distance> + 4 * buffer_size_v<std::uint64_t>;
         std::vector<Edge> edges_;
 
         static inline std::pair<std::uint64_t, std::uint64_t> stringIdToNumerics(const std::string &id) {
@@ -319,6 +318,8 @@ namespace mpl::packet {
             return oStream.str();
         }
     public:
+        static constexpr std::size_t edgeSize_ = buffer_size_v<Distance> + 4 * buffer_size_v<std::uint64_t>;
+        static constexpr std::size_t edgeHeaderSize_ = buffer_size_v<Type> + buffer_size_v<Size>;
         static std::string name() {
             return "Edges";
         }
@@ -503,8 +504,10 @@ namespace mpl::packet {
         Type type = buf.peek<Type>(0);
         Size size = buf.peek<Size>(buffer_size_v<Type>);
 
-        if (size > MAX_PACKET_SIZE)
-            throw protocol_error("maximum packet size exceeded: " + std::to_string(size));
+        if (size > MAX_PACKET_SIZE) {
+	    JI_LOG(INFO) << MAX_PACKET_SIZE << " " << Edges<Edge, Distance>::edgeSize_;
+            throw protocol_error("maximum packet size exceeded: " + std::to_string(size) + " " + std::to_string(type == EDGES));
+	}
 
         if (buf.remaining() < size) {
             //JI_LOG(TRACE) << "short packet recv, have " << buf.remaining() << ", need " << size;

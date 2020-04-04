@@ -168,8 +168,20 @@ namespace mpl {
         }
 
         bool operator==(Subspace const& other) const {
-            return other.lower == lower && other.upper == upper;
+	    assert (other.dimension() == dimension());
+	    for (int i=0; i < dimension(); ++i) {
+		if ((!double_equal(lower[i], other.lower[i])) || 
+				(!double_equal(upper[i], other.upper[i]))) {
+			return false;
+		}
+	    }
+	    return true;
+            //return other.getLower() == lower && other.getUpper() == upper;
         }
+	
+	bool double_equal(const double& a, const double& b, const double TOLERANCE=0.01) const {
+		return std::abs(a-b) < TOLERANCE;
+	}
 
         bool operator!=(Subspace const& other) const {
             return !((*this) == other);
@@ -196,7 +208,7 @@ std::ostream &operator<<(std::ostream &os, const mpl::Subspace<Bound, State, Sca
 template <typename T>
 std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
     for (auto it : v) {
-        out << it << std::endl;
+        out << it << ";";
     }
     return out;
 }

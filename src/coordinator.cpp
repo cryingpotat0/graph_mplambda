@@ -63,6 +63,12 @@ void savePngImages(const Coordinator& coord, const AppOptions &app_options) {
             }
         }
     }
+    for (int i=0; i < coord.getSubspaces().size(); ++i) {
+	auto lower = coord.getSubspaces()[i].getLower();
+	auto upper = coord.getSubspaces()[i].getUpper();
+	auto mid = (lower + upper) / 2;
+	shape::addText(file, std::to_string(i), mid[0], mid[1], shape::Color(50, 50, 250), 48);
+    }
     shape::endSvg(file);
 }
 
@@ -93,7 +99,12 @@ int main(int argc, char *argv[]) {
                 coord.start_socket();
                 coord.divide_work();
                 coord.init_lambdas();
-                coord.loop();
+		try {
+			coord.loop();
+		} catch(...) {
+			JI_LOG(ERROR) << "Exception caught";
+			exit(1);
+		}
                 savePngImages<Coordinator, Scenario::State>(coord, app_options);
             }
         } else if (app_options.scenario() == "fetch") {

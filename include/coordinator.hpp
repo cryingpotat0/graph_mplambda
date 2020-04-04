@@ -54,7 +54,7 @@ namespace mpl {
         using Graph = UndirectedGraph<Vertex, Edge>;
         using Connection_t = Connection<CoordinatorFixedGraph>;
 
-        std::unordered_map<std::uint64_t, std::vector<Buffer>> buffered_data_; // Any data to be written if lambda is not up yet
+        std::vector<std::vector<Buffer>> buffered_data_; // Any data to be written if lambda is not up yet
         int smallest_number_of_neighbors;
 
     private:
@@ -272,6 +272,7 @@ namespace mpl {
                     c.write(packet::NumSamples(global_min_samples * app_options.jobs()));
                 }
             }
+	    JI_LOG(INFO) << num_samples_per_lambda_;
         }
 
         void addEdges(const std::vector<Edge>& edges) {
@@ -365,7 +366,7 @@ namespace mpl {
 
         void loop() {
             // Do communication stuff// TODO: handle case where other connection not initiated
-            bool done_ = false;
+            int done_ = 0;
             auto start_and_goal_states = app_options.getStartsAndGoals<State>();
             auto start_and_goal_vertices = getStartAndGoalVertices(start_and_goal_states);
             for (auto& [start, goal] : start_and_goal_vertices) {
@@ -399,10 +400,11 @@ namespace mpl {
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
                 if (duration.count() > app_options.timeLimit()) {
-                    done_ = true;
+                    done_ += 1;
                     for (auto& c : connections_) {
                         c.sendDone();
                     }
+		    JI_LOG(INFO) << "Sending done to all connections";
                 }
 
 //                JI_LOG(TRACE) << "poll returned " << nReady;
@@ -441,10 +443,14 @@ namespace mpl {
                         if (cit->recvHello() &&
                             (lambdaId_to_connection_[cit->lambdaId()] == nullptr)) {
                             lambdaId_to_connection_[cit->lambdaId()] = &(*cit);
-			    JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size();
+			    stop = std::chrono::high_resolution_clock::now();
+			    auto duration_to_lambda = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+			    JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda.count() << " milliseconds";
                             for (auto& buf: buffered_data_[cit->lambdaId()]) {
-                                cit->write(std::move(buf));
+				JI_LOG(INFO) << "Writing buffered_data of num buffers " << buffered_data_[cit->lambdaId()].size();
+                                cit->write_buf(std::move(buf));
                             }
+			    buffered_data_[cit->lambdaId()].clear();
                         } else {
 			    //JI_LOG(INFO) << "Existing lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " " << (lambdaId_to_connection_[cit->lambdaId()] == nullptr);
 			}
@@ -480,7 +486,9 @@ namespace mpl {
                     // connections.pop_back();
                 }
 
-                if (done_) break;
+                if (done_) {
+			break;
+		}
 
 
 
@@ -507,6 +515,7 @@ namespace mpl {
             int num_lambdas = app_options.jobs();
             num_samples_per_lambda_.resize(num_lambdas, 0);
             lambdaId_to_connection_.resize(num_lambdas, nullptr);
+            buffered_data_.resize(num_lambdas);
         }
 
         Connection_t* getConnection(std::uint64_t lambdaId) {
