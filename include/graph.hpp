@@ -59,6 +59,7 @@ namespace mpl {
 
     template<class VertexID, class Distance>
     struct Edge {
+        using Distance_t = Distance;
         Distance distance_;
         VertexID u_;
         VertexID v_;
@@ -121,20 +122,62 @@ namespace mpl {
             return vertex_properties.at(id);
         }
 
+        const Edge& getEdge(const VertexID& u, const VertexID& v) const {
+            EdgeID forward(u, v);
+            return edge_properties.at(forward);
+        }
+
         void addEdge(Edge e) {
             // TODO: checks for existence of vertices
             auto u = e.u();
             auto v = e.v();
             EdgeID forward(u, v);
+//            JI_LOG(TRACE) << "Adding u: " << u << " v: " << v;
             edge_properties[forward] = e;
             EdgeID backward(v, u);
+//            JI_LOG(TRACE) << "Adding u: " << v << " v: " << u;
             edge_properties[backward] = e;
             adjacency_list[v].insert(u);
             adjacency_list[u].insert(v);
         }
 
-        void djikstras(VertexID& start, VertexID& end) {
+        std::pair<bool, std::vector<VertexID>> djikstras(const VertexID& start, const VertexID& end) {
+            using Distance = typename Edge::Distance_t;
+            using DistVertexPair = typename std::pair<Distance, VertexID>;
+            std::priority_queue<DistVertexPair> pq;
+            std::unordered_map<VertexID, Distance> dists;
+            std::unordered_map<VertexID, VertexID> prev;
+            pq.push(std::make_pair(0, start));
+//            JI_LOG(INFO) << "Num edges " << edge_properties.size();
+            while (!pq.empty()) {
+                auto [curr_dist, u] = pq.top();
+                pq.pop();
+                if (u == end) break;
+//                JI_LOG(TRACE) << "Len of adjacency list for " << u << " is " << std::to_string(adjacency_list[u].size());
+                for (auto& v : adjacency_list[u]) {
+//                    JI_LOG(TRACE) << "u: " << u << " v: " << v;
+                    auto edge = getEdge(u, v);
+                    if (dists.find(v) == dists.end()) dists[v] = std::numeric_limits<Distance>::max();
 
+                    if (dists[v] > dists[u] + edge.distance()) {
+                        dists[v] = dists[u] + edge.distance();
+                        prev[v] = u;
+                        pq.push(std::make_pair(dists[v], v));
+                    }
+                }
+            }
+            if (prev.find(end) == prev.end()) {
+                return std::make_pair(false, std::vector<VertexID>());
+            }
+            auto curr = end;
+            std::vector<VertexID> path;
+            while (curr != start) {
+                path.push_back(curr);
+                curr = prev[curr];
+            }
+            path.push_back(start);
+            std::reverse(path.begin(), path.end());
+            return std::make_pair(true, path);
         }
 
 

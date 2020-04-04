@@ -56,6 +56,10 @@ namespace mpl {
 
         std::vector<std::vector<Buffer>> buffered_data_; // Any data to be written if lambda is not up yet
         int smallest_number_of_neighbors;
+        std::unordered_map<std::pair<std::string, std::string>,
+                std::pair<bool, std::vector<std::string>>,
+                pair_hash<std::string, std::string>
+        > pathFromGoalToStarts;
 
     private:
         std::vector<std::uint64_t> num_samples_per_lambda_;
@@ -75,9 +79,9 @@ namespace mpl {
         std::shared_ptr<Aws::Lambda::LambdaClient> lambdaClient_;
 #endif
 
-	void init_aws_lambdas() {
+        void init_aws_lambdas() {
 #if !HAS_AWS_SDK
-		throw std::invalid_argument("AWS SDK is not available");
+            throw std::invalid_argument("AWS SDK is not available");
 #else
             for (int i=0; i < app_options.jobs() ; ++i) {
 		Aws::Lambda::Model::InvokeRequest invokeRequest;
@@ -150,7 +154,7 @@ namespace mpl {
 	    }
 #endif
 
-	}
+        }
 
         void init_local_lambdas() {
             for (int i=0; i < app_options.jobs() ; ++i) {
@@ -240,7 +244,7 @@ namespace mpl {
         ~CoordinatorFixedGraph() {
             if (listen_ != -1 && !::close(listen_))
                 JI_LOG(WARN) << "failed to close listening socket";
-	    
+
 #if HAS_AWS_SDK
             if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
                 Aws::SDKOptions options;
@@ -272,7 +276,7 @@ namespace mpl {
                     c.write(packet::NumSamples(global_min_samples * app_options.jobs()));
                 }
             }
-	    JI_LOG(INFO) << num_samples_per_lambda_;
+            JI_LOG(INFO) << num_samples_per_lambda_;
         }
 
         void addEdges(const std::vector<Edge>& edges) {
@@ -336,9 +340,6 @@ namespace mpl {
             JI_LOG(INFO) << "Subspaces: " << lambda_subspaces;
         }
 
-        std::vector<State> solve() {
-        }
-
         std::vector<std::pair<Vertex, Vertex>> getStartAndGoalVertices(const std::vector<std::pair<State, State>> &starts_and_goals) {
             // We can avoid querying each vertex to see if it is the start or the goal because we
             // add it to a lambda only if it contains it. Moreover, each lambda starts off by adding all the
@@ -349,17 +350,17 @@ namespace mpl {
             for (auto& [start, goal] : starts_and_goals) {
                 std::string start_id, goal_id;
                 for (int lambda_id=0; lambda_id < lambda_subspaces.size(); ++lambda_id) {
-                  if (lambda_subspaces[lambda_id].contains(start)) {
-                    start_id = std::to_string(lambda_id) + "_" + std::to_string(lambda_current_vertex_id[lambda_id]++);
-                  }
-                  if (lambda_subspaces[lambda_id].contains(goal)) {
-                    goal_id = std::to_string(lambda_id) + "_" + std::to_string(lambda_current_vertex_id[lambda_id]++);
-                  }
+                    if (lambda_subspaces[lambda_id].contains(start)) {
+                        start_id = std::to_string(lambda_id) + "_" + std::to_string(lambda_current_vertex_id[lambda_id]++);
+                    }
+                    if (lambda_subspaces[lambda_id].contains(goal)) {
+                        goal_id = std::to_string(lambda_id) + "_" + std::to_string(lambda_current_vertex_id[lambda_id]++);
+                    }
                 }
                 start_and_goal_vertex.push_back(std::make_pair(
                         Vertex{start_id, start},
                         Vertex{goal_id, goal}
-                      ));
+                ));
             }
             return start_and_goal_vertex;
         }
@@ -369,10 +370,12 @@ namespace mpl {
             int done_ = 0;
             auto start_and_goal_states = app_options.getStartsAndGoals<State>();
             auto start_and_goal_vertices = getStartAndGoalVertices(start_and_goal_states);
-            for (auto& [start, goal] : start_and_goal_vertices) {
-                JI_LOG(INFO) << "Using start " << start.id() << " and goal " << goal.id();
+            for (auto& [start_v, goal] : start_and_goal_vertices) {
+                JI_LOG(INFO) << "Using start " << start_v.id() << " and goal " << goal.id();
+                pathFromGoalToStarts[std::make_pair(start_v.id(), goal.id())] = std::make_pair(false, std::vector<std::string>());
             }
-            auto start = std::chrono::high_resolution_clock::now();
+
+            auto start_time = std::chrono::high_resolution_clock::now();
             for(;;) {
 
 
@@ -398,14 +401,26 @@ namespace mpl {
 //                JI_LOG(TRACE) << "polling " << pfds.size();
                 int nReady = ::poll(pfds.data(), pfds.size(), 1);
                 auto stop = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start_time);
                 if (duration.count() > app_options.timeLimit()) {
-                    done_ += 1;
-                    for (auto& c : connections_) {
-                        c.sendDone();
-                    }
-		    JI_LOG(INFO) << "Sending done to all connections";
+                    done_ = 1;
                 }
+//                bool all_found = true;
+//                for (auto it=pathFromGoalToStarts.begin(); it != pathFromGoalToStarts.end(); it++) {
+//                    const auto& [start, goal] = it->first;
+//                    const auto& [found, path] = it->second;
+//                    if (found) {
+//                        JI_LOG(INFO) << "Path found for start " << start << " goal " << goal;
+//                    }
+//                    auto start_djikstras = std::chrono::high_resolution_clock::now();
+//                    pathFromGoalToStarts[it->first] = graph.djikstras(start, goal);
+//                    auto end_djikstras = std::chrono::high_resolution_clock::now();
+//                    all_found = false;
+//                    JI_LOG(INFO) << "Time to do djikstras for start " << start << " goal " << goal
+//                        << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_djikstras - start_djikstras);;
+//                }
+//                if (all_found) done_ = 2; // TODO: Do this better, set a flag
+
 
 //                JI_LOG(TRACE) << "poll returned " << nReady;
 
@@ -439,21 +454,21 @@ namespace mpl {
                     assert(pit != pfds.end());
 
                     if (cit->process(*pit)) {
-		    	//JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " << cit->recvHello();
+                        //JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " << cit->recvHello();
                         if (cit->recvHello() &&
                             (lambdaId_to_connection_[cit->lambdaId()] == nullptr)) {
                             lambdaId_to_connection_[cit->lambdaId()] = &(*cit);
-			    stop = std::chrono::high_resolution_clock::now();
-			    auto duration_to_lambda = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-			    JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda.count() << " milliseconds";
+                            stop = std::chrono::high_resolution_clock::now();
+                            auto duration_to_lambda = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+                            JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda.count() << " milliseconds";
                             for (auto& buf: buffered_data_[cit->lambdaId()]) {
-				JI_LOG(INFO) << "Writing buffered_data of num buffers " << buffered_data_[cit->lambdaId()].size();
+                                JI_LOG(INFO) << "Writing buffered_data of num buffers " << buffered_data_[cit->lambdaId()].size();
                                 cit->write_buf(std::move(buf));
                             }
-			    buffered_data_[cit->lambdaId()].clear();
+                            buffered_data_[cit->lambdaId()].clear();
                         } else {
-			    //JI_LOG(INFO) << "Existing lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " " << (lambdaId_to_connection_[cit->lambdaId()] == nullptr);
-			}
+                            //JI_LOG(INFO) << "Existing lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " " << (lambdaId_to_connection_[cit->lambdaId()] == nullptr);
+                        }
                         ++cit;
                     }
                     else {
@@ -487,8 +502,13 @@ namespace mpl {
                 }
 
                 if (done_) {
-			break;
-		}
+
+                    for (auto& c : connections_) {
+                        c.sendDone();
+                    }
+                    JI_LOG(INFO) << "Sending done to all connections";
+                    break;
+                }
 
 
 
@@ -503,6 +523,18 @@ namespace mpl {
             JI_LOG(INFO) << "Loop done";
             connections_.clear();
             // Handle cleaning up lambdas
+
+            if (done_ == 2) {
+                auto stop = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start_time);
+                JI_LOG(INFO) << "All paths found. Loop finished in " << duration;
+            }
+            // Do a final djikstras
+            for (auto it=pathFromGoalToStarts.begin(); it != pathFromGoalToStarts.end(); it++) {
+                const auto& [start, goal] = it->first;
+                const auto& [found, path] = it->second;
+                pathFromGoalToStarts[it->first] = graph.djikstras(start, goal);
+            }
         }
 
         void init_lambdas() {
@@ -510,7 +542,7 @@ namespace mpl {
                 init_local_lambdas();
             } else if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
                 init_aws_lambdas();
-	    }
+            }
 
             int num_lambdas = app_options.jobs();
             num_samples_per_lambda_.resize(num_lambdas, 0);

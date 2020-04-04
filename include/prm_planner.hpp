@@ -129,6 +129,9 @@ namespace mpl {
             if (print_id) {
                 JI_LOG(INFO) << "Vertex id " << id;
             }
+            else {
+                JI_LOG(INFO) << "state " << s;
+            }
             Vertex_t v{id, s};
             std::vector<std::pair<Vertex_t, Scalar>> nbh;
             auto k = std::numeric_limits<std::size_t>::max();
@@ -142,9 +145,10 @@ namespace mpl {
             nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition
-                if (scenario.isValid(v.state(), other.state())) {
+                if (dist > 0 && scenario.isValid(v.state(), other.state())) {
                     Edge_t e{dist, v.id_, other.id_};
 //                    graph_.addEdge(e);
+//                    JI_LOG(INFO) << "u: " << v.id_ << " v: " << other.id_;
                     new_edges.push_back(std::move(e));
                 }
             }

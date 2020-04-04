@@ -159,7 +159,7 @@ namespace mpl {
 
         template <class Edge, class Distance>
         void process(packet::Edges<Edge, Distance>&& pkt) {
-            //JI_LOG(INFO) << "got EDGES";
+            JI_LOG(INFO) << "Received " << pkt.edges().size() << " edges from lambda " << lambdaId_;
             if (coordinator_.algorithm() == "prm_fixed_graph") {
                 coordinator_.addEdges(std::move(pkt.edges()));
             }

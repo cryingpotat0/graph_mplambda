@@ -159,7 +159,7 @@ namespace mpl::demo {
                     min_subspace_size = subspace_size;
                 }
             }
-            planner.setrPRM(min_subspace_size / 4.0); // TODO: arbitrary here, cannot be greater than min_subspace_size, but no other constraints
+            //planner.setrPRM(min_subspace_size / 4.0); // TODO: arbitrary here, cannot be greater than min_subspace_size, but no other constraints
             start_time = std::chrono::high_resolution_clock::now();
         }
 

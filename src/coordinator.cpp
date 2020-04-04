@@ -18,14 +18,41 @@
 using namespace mpl::demo;
 
 template <class Coordinator, class State>
+void saveSolutionPaths(const Coordinator& coord, const AppOptions &app_options) {
+
+    std::vector<FilterColor> filters;
+
+    auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
+    for (auto& [locs, info] : coord.pathFromGoalToStarts) {
+        auto& [start, goal] = locs;
+        auto& [found, path] = info;
+        const std::string outputName = "png_2d_demo_output-" + start + "-" + goal + ".svg";
+        std::ofstream file(outputName);
+        shape::startSvg(file, width, height);
+        shape::addBackgroundImg(file, app_options.env());
+
+        using Graph = typename Coordinator::Graph;
+        auto graph = coord.getGraph();
+        auto start_v = graph.getVertex(start);
+        auto goal_v = graph.getVertex(goal);
+        shape::addStartState(file, start_v.state()[0], start_v.state()[1], 20);
+        shape::addGoalState(file, goal_v.state()[0], goal_v.state()[1], 20);
+
+        if (found) {
+            for (auto it=path.begin(); it < path.end() - 1; it++) {
+                auto u = graph.getVertex((*it));
+                auto v = graph.getVertex(*(it+1));
+                shape::addSolutionEdge(file, u.state()[0], u.state()[1], v.state()[0], v.state()[1]);
+            }
+        }
+        shape::endSvg(file);
+    }
+}
+
+template <class Coordinator, class State>
 void savePngImages(const Coordinator& coord, const AppOptions &app_options) {
 
     std::vector<FilterColor> filters;
-    if (app_options.env() == "./resources/png_planning_input.png") {
-        filters.emplace_back(FilterColor(126, 106, 61, 15));
-        filters.emplace_back(FilterColor(61, 53, 6, 15));
-        filters.emplace_back(FilterColor(255, 255, 255, 5));
-    }
 
     auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
     auto startState = app_options.start<State>(); // 430, 1300;
@@ -55,8 +82,8 @@ void savePngImages(const Coordinator& coord, const AppOptions &app_options) {
 
             if (v_id.substr(0, pos1) == u_id.substr(0, pos2)) {
                 // The 0th element indicates which lambda
-                //shape::addEdge(file, start.state()[0], start.state()[1], end.state()[0], end.state()[1],
-                //        6, shape::Color(40, 40, 40));
+                shape::addEdge(file, start.state()[0], start.state()[1], end.state()[0], end.state()[1],
+                        6, shape::Color(40, 40, 40));
             } else {
                 shape::addEdge(file, start.state()[0], start.state()[1], end.state()[0], end.state()[1],
                                6, shape::Color(250, 50, 50));
@@ -64,13 +91,15 @@ void savePngImages(const Coordinator& coord, const AppOptions &app_options) {
         }
     }
     for (int i=0; i < coord.getSubspaces().size(); ++i) {
-	auto lower = coord.getSubspaces()[i].getLower();
-	auto upper = coord.getSubspaces()[i].getUpper();
-	auto mid = (lower + upper) / 2;
-	shape::addText(file, std::to_string(i), mid[0], mid[1], shape::Color(50, 50, 250), 48);
+        auto lower = coord.getSubspaces()[i].getLower();
+        auto upper = coord.getSubspaces()[i].getUpper();
+        auto mid = (lower + upper) / 2;
+        shape::addText(file, std::to_string(i), mid[0], mid[1], shape::Color(50, 50, 250), 48);
     }
     shape::endSvg(file);
+    saveSolutionPaths<Coordinator, State>(coord, app_options);
 }
+
 
 int main(int argc, char *argv[]) {
     mpl::demo::AppOptions app_options(argc, argv);
@@ -101,8 +130,8 @@ int main(int argc, char *argv[]) {
                 coord.init_lambdas();
 		try {
 			coord.loop();
-		} catch(...) {
-			JI_LOG(ERROR) << "Exception caught";
+		} catch(const std::exception& e) {
+			JI_LOG(ERROR) << "Exception caught " << e.what();
 			exit(1);
 		}
                 savePngImages<Coordinator, Scenario::State>(coord, app_options);
