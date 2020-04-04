@@ -321,20 +321,28 @@ namespace mpl {
         }
 
         void divide_work() {
-            int num_jobs = app_options.jobs();
-            int dimension = global_subspace.dimension();
-            int num_divisions_per_axis = pow(num_jobs, 1.0 / dimension) - 1;
-            std::vector<int> num_divisions;
-            app_options.num_divisions_ = "";
-            for (int i=0; i < dimension; ++i) {
-                num_divisions.push_back(num_divisions_per_axis);
-                app_options.num_divisions_ += std::to_string(num_divisions_per_axis) + ",";
-            }
-            app_options.num_divisions_ = app_options.num_divisions_.substr(0, app_options.num_divisions_.length() - 1);
+//            int num_jobs = app_options.jobs();
+//            int dimension = global_subspace.dimension();
+//            int num_divisions_per_axis = pow(num_jobs, 1.0 / dimension) - 1;
+//            std::vector<int> num_divisions;
+//            app_options.num_divisions_ = "";
+//            for (int i=0; i < dimension; ++i) {
+//                num_divisions.push_back(num_divisions_per_axis);
+//                app_options.num_divisions_ += std::to_string(num_divisions_per_axis) + ",";
+//            }
+//            app_options.num_divisions_ = app_options.num_divisions_.substr(0, app_options.num_divisions_.length() - 1);
+
+            auto eig_num_divisions = app_options.num_divisions<State>();
+            std::vector<int> num_divisions = std::vector<int>(
+                            eig_num_divisions.data(),
+                            eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
+                    );
+              assert(num_divisions.size() == global_subspace.dimension());
 //            auto n = global_subspace.layered_divide(num_divisions);
 //            JI_LOG(INFO) << n;
             lambda_subspaces = global_subspace.divide(num_divisions);
-            assert(lambda_subspaces.size() == num_jobs);
+            app_options.jobs_ = lambda_subspaces.size();
+//            assert(lambda_subspaces.size() == num_jobs);
             JI_LOG(INFO) << "Num lambdas: " << app_options.jobs();
             JI_LOG(INFO) << "Global Space: " << global_subspace;
             JI_LOG(INFO) << "Subspaces: " << lambda_subspaces;
@@ -532,8 +540,21 @@ namespace mpl {
             // Do a final djikstras
             for (auto it=pathFromGoalToStarts.begin(); it != pathFromGoalToStarts.end(); it++) {
                 const auto& [start, goal] = it->first;
-                const auto& [found, path] = it->second;
-                pathFromGoalToStarts[it->first] = graph.djikstras(start, goal);
+                auto start_djikstras = std::chrono::high_resolution_clock::now();
+                const auto& [found, path] = graph.djikstras(start, goal);
+                auto end_djikstras = std::chrono::high_resolution_clock::now();
+                JI_LOG(INFO) << "Time to do djikstras for start " << start << " goal " << goal
+                        << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_djikstras - start_djikstras);;
+                if (found) {
+                    Distance d = 0;
+                    for (auto it=path.begin(); it < path.end() - 1; it++) {
+                        auto u = (*it);
+                        auto v = (*(it+1));
+                        d += graph.getEdge(u, v).distance();
+                    }
+                    JI_LOG(INFO) << "Path found for start " << start << " goal " << goal << " with distance " << d;
+                }
+                pathFromGoalToStarts[it->first] = std::make_pair(found, path);
             }
         }
 
