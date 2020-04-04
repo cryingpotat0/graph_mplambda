@@ -47,7 +47,7 @@ namespace mpl::demo {
         std::unordered_map<Subspace_t, int> neighborsToLambdaId;
         std::chrono::high_resolution_clock::time_point start_time;
 	bool done_ = false;
-	double time_limit;
+	double time_limit = 100.0; // Set safety maximum limit so we don't get charged on AWS
 
         LocalLambdaFixedGraph();
 
@@ -74,8 +74,8 @@ namespace mpl::demo {
                   local_subspace(local_subspace_),
                   global_subspace(global_subspace_),
                   planner(Planner(scenario_, this, app_options.lambdaId())),
-                  samples_per_run(app_options.numSamples()),
-		  time_limit(app_options.timeLimit())
+                  samples_per_run(app_options.numSamples())
+		  //time_limit(app_options.timeLimit())
 
         {
             comm.setLambdaId(lambda_id);
@@ -173,10 +173,10 @@ namespace mpl::demo {
 //          std::unordered_map<Subspace_t, std::vector<State>> samples_to_send = planner.plan(samples_per_run);
             auto start = std::chrono::high_resolution_clock::now();
             auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time);
-	    //if (lambda_running_for.count() > time_limit) {
-	    //    done_ = true;
-	    //    return;
-	    //}
+	    if (lambda_running_for.count() > time_limit) {
+	        done_ = true;
+	        return;
+	    }
             planner.plan(samples_per_run);
             auto stop = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
