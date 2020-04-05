@@ -142,7 +142,8 @@ namespace mpl {
             new_vertices.push_back(v);
             nn.insert(v);
             // add valid edges
-            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
+//            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
+            nn.nearest(nbh, v.state(), k, rPRM);
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition
                 if (dist > 0 && scenario.isValid(v.state(), other.state())) {
@@ -176,7 +177,8 @@ namespace mpl {
             // add to nearest neighbor structure
             nn.insert(v);
             // add valid edges
-            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
+//            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
+            nn.nearest(nbh, v.state(), k, rPRM);
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition
                 if (scenario.isValid(v.state(), other.state())) {

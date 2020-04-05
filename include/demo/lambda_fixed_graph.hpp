@@ -20,6 +20,7 @@
 #include <packet.hpp>
 #include <demo/png_2d_scenario.hpp>
 #include <comm.hpp>
+#include <demo/fetch_scenario.hpp>
 
 
 namespace mpl::demo {
@@ -347,56 +348,53 @@ namespace mpl::demo {
     }
 
 
-//template <class Scalar>
-//void runFetchScenario(AppOptions &app_options) {
-//    if (app_options.env(false).empty()) {
-//    }
-//
-//    using Scenario = mpl::demo::FetchScenario<Scalar>;
-//    using Planner = typename mpl::PRMPlanner<Scenario, Scalar>;
-//    using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
-//    using State = typename Scenario::State;
-//    using Bound = typename Scenario::Bound;
-//    using Subspace_t = typename Lambda::Subspace_t;
-//
-//    auto min = app_options.globalMin<Bound>();
-//    auto max = app_options.globalMax<Bound>();
-//    Subspace_t global_subspace(min, max);
-//
-//    auto eig_num_divisions = app_options.num_divisions<State>();
-//    std::vector<int> num_divisions =
-//            std::vector<int>(
-//                    eig_num_divisions.data(),
-//                    eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
-//            );
-//
-//    std::unordered_map<Subspace_t, int> neighborsToLambdaIdGlobal;
-//    auto divisions = global_subspace.divide(num_divisions);
-//    for (int i=0; i < divisions.size(); ++i) {
-//        neighborsToLambdaIdGlobal[divisions[i]] = i;
-//    }
-//    auto local_subspace = divisions[app_options.lambdaId()];
-//
-//    JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
-//
-//    auto startState = app_options.start<State>();
-//    using State = typename Scenario::State;
-//    using Frame = typename Scenario::Frame;
-//    using GoalRadius = Eigen::Matrix<Scalar, 6, 1>;
-//    Frame envFrame = app_options.envFrame<Frame>();
-//    Frame goal = app_options.goal<Frame>();
-//    GoalRadius goalRadius = app_options.goalRadius<GoalRadius>();
-//
-//    Scenario scenario(envFrame, app_options.env(), goal, goalRadius, app_options.checkResolution(0.1));
-//    Lambda lambda(app_options, scenario, local_subspace, global_subspace, neighborsToLambdaIdGlobal);
-//    for(;;) {
-////    for(int i=0; i < 2; ++i) {
-////        comm.poll();
-//        lambda.do_work();
-//        if (lambda.isDone()) break;
-////        comm.flush();
-//    }
-//}
+    template <class Scalar>
+    void runFetchScenario(AppOptions &app_options) {
+        if (app_options.env(false).empty()) {
+        }
+
+        using Scenario = mpl::demo::FetchScenario<Scalar>;
+        using Planner = typename mpl::PRMPlanner<Scenario, Scalar>;
+        using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
+        using State = typename Scenario::State;
+        using Bound = typename Scenario::Bound;
+        using Subspace_t = typename Lambda::Subspace_t;
+
+        auto min = app_options.globalMin<Bound>();
+        auto max = app_options.globalMax<Bound>();
+        Subspace_t global_subspace(min, max);
+
+        auto eig_num_divisions = app_options.num_divisions<State>();
+        std::vector<int> num_divisions =
+                std::vector<int>(
+                        eig_num_divisions.data(),
+                        eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
+                );
+
+        std::unordered_map<Subspace_t, int> neighborsToLambdaIdGlobal;
+        auto divisions = global_subspace.divide(num_divisions);
+        for (int i=0; i < divisions.size(); ++i) {
+            neighborsToLambdaIdGlobal[divisions[i]] = i;
+        }
+        auto local_subspace = divisions[app_options.lambdaId()];
+
+        JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
+
+        auto startState = app_options.start<State>();
+        using State = typename Scenario::State;
+        using Frame = typename Scenario::Frame;
+        using GoalRadius = Eigen::Matrix<Scalar, 6, 1>;
+        Frame envFrame = app_options.envFrame<Frame>();
+        Frame goal = app_options.goal<Frame>();
+        GoalRadius goalRadius = app_options.goalRadius<GoalRadius>();
+
+        Scenario scenario(envFrame, app_options.env(), goal, goalRadius, app_options.checkResolution(0.1));
+        Lambda lambda(app_options, scenario, local_subspace, global_subspace, neighborsToLambdaIdGlobal);
+        for(;;) {
+            lambda.do_work();
+            if (lambda.isDone()) break;
+        }
+    }
 
 
     void runSelectPlanner(AppOptions& app_options) {
@@ -422,7 +420,7 @@ namespace mpl::demo {
         if (app_options.scenario() == "png") {
             runPngScenario<Scalar>(app_options);
         } else if (app_options.scenario() == "fetch") {
-            //        runFetchScenario<Scalar>(app_options);
+            runFetchScenario<Scalar>(app_options);
         } else {
             throw std::invalid_argument("Invalid scenario");
         }
