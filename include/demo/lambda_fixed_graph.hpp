@@ -143,6 +143,7 @@ namespace mpl::demo {
                 }
             }
             //planner.setrPRM(min_subspace_size / 4.0); // TODO: arbitrary here, cannot be greater than min_subspace_size, but no other constraints
+            handleGlobalNumSamplesUpdate(neighborsToLambdaIdGlobal.size() * samples_per_run); // If we imagine it as a large batching process, this assumption can hold
             start_time = std::chrono::high_resolution_clock::now();
         }
 

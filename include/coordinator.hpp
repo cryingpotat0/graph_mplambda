@@ -60,11 +60,11 @@ namespace mpl {
                 std::pair<bool, std::vector<std::string>>,
                 pair_hash<std::string, std::string>
         > pathFromGoalToStarts;
+        demo::AppOptions app_options;
 
     private:
         std::vector<std::uint64_t> num_samples_per_lambda_;
         std::uint64_t global_min_samples;
-        demo::AppOptions app_options;
         Subspace_t global_subspace;
         std::vector<Subspace_t> lambda_subspaces;
         int listen_{-1};
@@ -461,6 +461,7 @@ namespace mpl {
                 for (auto cit = connections_.begin(); cit != connections_.end(); ++pit) {
                     assert(pit != pfds.end());
 
+		    cit->perform_delayed_vertices_write();
                     if (cit->process(*pit)) {
                         //JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " << cit->recvHello();
                         if (cit->recvHello() &&
@@ -552,8 +553,10 @@ namespace mpl {
                         auto v = (*(it+1));
                         d += graph.getEdge(u, v).distance();
                     }
-                    JI_LOG(INFO) << "Path found for start " << start << " goal " << goal << " with distance " << d;
-                }
+                    JI_LOG(INFO) << "Path found for start " << graph.getVertex(start).state() << " goal " << graph.getVertex(goal).state() << " with distance " << d;
+                } else {
+                    JI_LOG(INFO) << "No Path found for start " << graph.getVertex(start).state() << " goal " << graph.getVertex(goal).state() << " with distance inf";
+		}
                 pathFromGoalToStarts[it->first] = std::make_pair(found, path);
             }
         }

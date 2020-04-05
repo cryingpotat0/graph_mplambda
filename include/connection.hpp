@@ -36,7 +36,7 @@ namespace mpl {
         // Delayed vertex write variables
         std::vector<std::vector<typename Coordinator::Vertex>> vertices_to_send;
         std::chrono::high_resolution_clock::time_point last_send_of_vertices;
-        constexpr static double milliseconds_before_next_send = 1000; // TODO: make this smarter
+        double milliseconds_before_next_send;
 
 //        ID groupId_{0};
 
@@ -119,8 +119,8 @@ namespace mpl {
                     if (other_connection != nullptr) {
 			JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
                         // TODO: do a buffered write, the lambdas are receiving too many packets. Merge vertices from many outputs together.
-                        //other_connection->delayed_vertices_write(std::move(pkt));
-                        other_connection->write(std::move(pkt));
+                        other_connection->delayed_vertices_write(std::move(pkt));
+                        //other_connection->write(std::move(pkt));
                     } else {
 		    	JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
                         coordinator_.buffered_data_[destinationLambdaId].push_back(std::move(pkt));
@@ -133,28 +133,6 @@ namespace mpl {
         void delayed_vertices_write(packet::Vertices<Vertex, State>&& pkt) {
             vertices_to_send.push_back(std::move(pkt.vertices()));
             perform_delayed_vertices_write();
-        }
-
-        void perform_delayed_vertices_write() {
-            auto now = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_send_of_vertices);
-            if ((vertices_to_send.size() >= coordinator_.smallest_number_of_neighbors) ||
-                    (vertices_to_send.size() > 0 && duration.count() > milliseconds_before_next_send)) { // TODO: unverified strategy
-                std::size_t total_size = 0;
-                for (const auto& sub : vertices_to_send)
-                    total_size += sub.size();
-                std::vector<typename Coordinator::Vertex> result;
-                result.reserve(total_size);
-                for (const auto& sub : vertices_to_send)
-                    result.insert(result.end(), sub.begin(), sub.end());
-                JI_LOG(INFO) << "Writing " << result.size() << " vertices to " << lambdaId_;
-                auto pkt = packet::Vertices<
-                        typename Coordinator::Vertex,
-                        typename Coordinator::State>(0, 0, std::move(result));
-                write(std::move(pkt));
-                vertices_to_send.clear();
-                last_send_of_vertices = std::chrono::high_resolution_clock::now();
-            }
         }
 
         template <class Edge, class Distance>
@@ -205,6 +183,7 @@ namespace mpl {
                 , socket_(coordinator.accept(reinterpret_cast<struct sockaddr*>(&addr_), &addrLen_))
         {
             JI_LOG(TRACE) << "connection accepted";
+	    milliseconds_before_next_send = coordinator.app_options.timeLimit() / 10.0; // Arbitrary, try and send atleast 10 sets of vertices between lambdas
         }
 
         ~Connection() {
@@ -225,6 +204,29 @@ namespace mpl {
         operator struct pollfd () const {
             return { socket_, static_cast<short>(writeQueue_.empty() ? POLLIN : (POLLIN | POLLOUT)), 0 };
         }
+
+        void perform_delayed_vertices_write() {
+            auto now = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_send_of_vertices);
+            if ((vertices_to_send.size() >= coordinator_.smallest_number_of_neighbors) ||
+                    (vertices_to_send.size() > 0 && duration.count() > milliseconds_before_next_send)) { // TODO: unverified strategy
+                std::size_t total_size = 0;
+                for (const auto& sub : vertices_to_send)
+                    total_size += sub.size();
+                std::vector<typename Coordinator::Vertex> result;
+                result.reserve(total_size);
+                for (const auto& sub : vertices_to_send)
+                    result.insert(result.end(), sub.begin(), sub.end());
+                JI_LOG(INFO) << "Writing " << result.size() << " vertices to " << lambdaId_;
+                auto pkt = packet::Vertices<
+                        typename Coordinator::Vertex,
+                        typename Coordinator::State>(0, 0, std::move(result));
+                write(std::move(pkt));
+                vertices_to_send.clear();
+                last_send_of_vertices = std::chrono::high_resolution_clock::now();
+            }
+        }
+
 
         bool recvHello() {
             return recvHello_;
