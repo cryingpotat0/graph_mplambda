@@ -162,6 +162,7 @@ namespace mpl::demo {
 
         std::string start_ = "";
         std::string goal_ = "";
+        std::string correct_goal_ = "";
         std::vector<std::string> starts_;
         std::vector<std::string> goals_;
 
@@ -227,6 +228,7 @@ namespace mpl::demo {
                     { "env", required_argument, NULL, 'e' },
                     { "env-frame", required_argument, NULL, 'E' },
                     { "robot", required_argument, NULL, 'r' },
+                    //{ "correct_goal", required_argument, NULL, 'z' },
                     { "goal", required_argument, NULL, 'g' },
                     { "goal-radius", required_argument, NULL, 'G' },
                     { "start", required_argument, NULL, 's' },
@@ -329,6 +331,8 @@ namespace mpl::demo {
                     case 'f':
                         singlePrecision_ = true;
                         break;
+		    case 'z':
+			correct_goal_ = optarg;
                     default:
                         usage(argv[0]);
                         throw std::invalid_argument("see above");
@@ -420,6 +424,11 @@ namespace mpl::demo {
         template <class T>
         T goal() const {
             return parse<T>("goal", goal_);
+        }
+
+        template <class T>
+        T correct_goal() const {
+            return parse<T>("correct_goal", correct_goal_);
         }
 
         template <class T>

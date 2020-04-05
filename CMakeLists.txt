@@ -16,6 +16,7 @@ if (PKGCONFIG_FOUND)
   pkg_check_modules(FCL fcl>=0.6)
   pkg_check_modules(CCD ccd>=2.0)
   pkg_check_modules(RABBITMQ librabbitmq)
+  #pkg_check_modules(ASSIMP assimp)
 else()
     find_package(FCL REQUIRED)
     find_package(CCD CONFIG)
@@ -47,8 +48,9 @@ else ()
     find_package(aws-lambda-runtime REQUIRED)
     find_package(AWSSDK COMPONENTS s3 lambda)
     add_executable(mpl_fixed_graph_aws src/mpl_lambda_aws.cpp  src/comm.cpp src/write_queue.cpp)
-    #target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${ASSIMP_LIBRARIES} ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES})
-    target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES})
+    target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${ASSIMP_LIBRARIES} ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} )
+    #target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${ASSIMP_LIBRARIES} ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} /usr/local/lib/libIrrXML.a)
+    #target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES})
     
     # the following line adds "aws-lambda-package-mpl_lambda_aws" as a
     # target which creates a .zip file with everything we need to
@@ -68,7 +70,7 @@ else ()
     target_link_libraries(mpl_lambda_invoke AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES})
 
     add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp)
-    target_link_libraries(mpl_coordinator Threads::Threads AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES})
+    target_link_libraries(mpl_coordinator Threads::Threads AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${CCD_LIBRARIES})
 
 endif()
 
@@ -81,7 +83,8 @@ include_directories(include ../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIR
 #link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
 #include_directories(include ../../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS})
 #
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources/png_planning_input.png ${CMAKE_CURRENT_SOURCE_DIR}/resources/house_layout.png
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources/png_planning_input.png ${CMAKE_CURRENT_SOURCE_DIR}/resources/house_layout.png 
+		${CMAKE_CURRENT_SOURCE_DIR}/resources/AUTOLAB.dae
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/resources)
 #file(GLOB SE3RSRC
 #     "resources/se3/Twistycool*.dae" "resources/se3/alpha*.dae"

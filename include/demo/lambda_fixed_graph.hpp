@@ -374,21 +374,22 @@ namespace mpl::demo {
         std::unordered_map<Subspace_t, int> neighborsToLambdaIdGlobal;
         auto divisions = global_subspace.divide(num_divisions);
         for (int i=0; i < divisions.size(); ++i) {
-            neighborsToLambdaIdGlobal[divisions[i]] = i;
+	    if (i != app_options.lambdaId()) neighborsToLambdaIdGlobal[divisions[i]] = i;
         }
         auto local_subspace = divisions[app_options.lambdaId()];
 
-        JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
 
+        JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
+	app_options.correct_goal_ = "-1.07,0.16,0.88,0,0,0";
+	app_options.goalRadius_ = "0.01,0.01,0.01,0.01,0.01,3.14";
         auto startState = app_options.start<State>();
         using State = typename Scenario::State;
         using Frame = typename Scenario::Frame;
         using GoalRadius = Eigen::Matrix<Scalar, 6, 1>;
         Frame envFrame = app_options.envFrame<Frame>();
-        Frame goal = app_options.goal<Frame>();
+        Frame goal = app_options.correct_goal<Frame>();
         GoalRadius goalRadius = app_options.goalRadius<GoalRadius>();
-
-        Scenario scenario(envFrame, app_options.env(), goal, goalRadius, app_options.checkResolution(0.1));
+        Scenario scenario(envFrame, app_options.env(), goal, goalRadius, local_subspace.getLower(), local_subspace.getUpper(), app_options.checkResolution(0.1));
         Lambda lambda(app_options, scenario, local_subspace, global_subspace, neighborsToLambdaIdGlobal);
         for(;;) {
             lambda.do_work();

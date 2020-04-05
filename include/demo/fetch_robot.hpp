@@ -174,6 +174,31 @@ namespace mpl::demo {
             return q;
         }
 
+        template <class RNG>
+        static Config randomConfig(RNG& rng, Config min_, Config max_) {
+            // sample unbounded joints in the range -PI to +PI.  Note:
+            // torso_lift is included in this cwise min/max, but to no
+            // effect since its bounds are less than +/- 3.14 meters.
+            static Config min = min_.cwiseMax(-4*PI);
+            static Config max = max_.cwiseMin(+4*PI);
+            Config q;
+            for (int i=0 ; i < kDOF ; ++i) {
+                std::uniform_real_distribution<S> dist(min[i], max[i]);
+                q[i] = dist(rng);
+            }
+            return q;
+        }
+
+	static S workspaceVolume() {
+            static Config min = jointMin().cwiseMax(-4*PI);
+            static Config max = jointMax().cwiseMin(+4*PI);
+	    S volume = 1.0;
+            for (int i=0 ; i < kDOF ; ++i) {
+		volume *= std::abs(max[i] - min[i]);
+            }
+	    return volume;
+	}
+
         static const Config& restConfig() {
             static const S deg90 = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620L /2;
             static Config q =

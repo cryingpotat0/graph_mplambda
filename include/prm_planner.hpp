@@ -129,9 +129,9 @@ namespace mpl {
             if (print_id) {
                 JI_LOG(INFO) << "Vertex id " << id;
             }
-            else {
-                JI_LOG(INFO) << "state " << s;
-            }
+            //else {
+            //    JI_LOG(INFO) << "state " << s;
+            //}
             Vertex_t v{id, s};
             std::vector<std::pair<Vertex_t, Scalar>> nbh;
             auto k = std::numeric_limits<std::size_t>::max();

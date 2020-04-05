@@ -7,7 +7,7 @@
 #include <demo/png_2d_scenario.hpp>
 #include <demo/shape_hierarchy.hpp>
 #include <list>
-//#include <demo/fetch_scenario.hpp>
+#include <demo/fetch_scenario.hpp>
 //#include <comm.hpp>
 //#include <poll.h>
 //#include <packet.hpp>
@@ -137,16 +137,16 @@ int main(int argc, char *argv[]) {
                 savePngImages<Coordinator, Scenario::State>(coord, app_options);
             }
         } else if (app_options.scenario() == "fetch") {
-//            using Scenario = mpl::demo::FetchScenario<double>;
-//
-//            if (app_options.algorithm() == "prm_fixed_graph") {
-//                using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
-//                Coordinator coord(app_options);
-//                coord.start_socket();
-//                coord.divide_work();
-//                coord.init_lambdas();
-//                coord.loop();
-//            }
+            using Scenario = mpl::demo::FetchScenario<double>;
+
+            if (app_options.algorithm() == "prm_fixed_graph") {
+                using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
+                Coordinator coord(app_options);
+                coord.start_socket();
+                coord.divide_work();
+                coord.init_lambdas();
+                coord.loop();
+            }
         }
         else {
             throw std::invalid_argument("Invalid scenario");

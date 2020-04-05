@@ -30,6 +30,9 @@ namespace mpl::demo {
         Mesh environment_;
         Frame envFrame_;
 
+	const Bound min_;
+	const Bound max_;
+
         Frame goal_;
         Eigen::Matrix<S, 6, 1> goalL_;
         S goalEps_;
@@ -51,11 +54,15 @@ namespace mpl::demo {
                 const std::string& envMesh,
                 const Frame& goal,
                 const Eigen::Matrix<S, 6, 1>& goalTol,
+		Bound min,
+		Bound max,
                 S checkResolution = 0.01)
                 : environment_(MeshLoad<Mesh>::load(envMesh, false, true))
                 , envFrame_{envFrame}
                 , goal_{goal}
                 , invStepSize_(1 / checkResolution)
+		, min_(min)
+		, max_(max)
         {
             goalEps_ = goalTol.minCoeff();
             goalL_ = goalEps_ / goalTol.array();
@@ -74,8 +81,7 @@ namespace mpl::demo {
         }
 
         S prmRadius() {
-            // TODO: how to get measure of free space?
-            // return 2 * pow((width_ / 100. * height_ / 100. * 1. / PI) * (3.0 / 2.0), 1.0 / 8); // 8 dim planning
+            return 2 * pow(Robot::workspaceVolume() * 1. / (pow(Robot::PI, 4) / 24.0) * (9.0 / 8.0), 1.0 / 8); // 8 dim planning
         }
 
         static State scale(const State& q) {
@@ -84,7 +90,7 @@ namespace mpl::demo {
 
         template <class RNG>
         State randomSample(RNG& rng) {
-            return Robot::randomConfig(rng);
+            return Robot::randomConfig(rng, min_, max_);
         }
 
         template <class RNG>
