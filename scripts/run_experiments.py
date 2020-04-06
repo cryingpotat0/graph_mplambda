@@ -48,29 +48,29 @@ goals = [[0.23500702335257, -0.51331827548709, 1.08889918323223, -2.821186656011
 
 
 if __name__ == "__main__":
-    time_limits = [1, 5] #, 2, 3]
+    time_limits = [5, 10, 20] #, 2, 3]
     #time_limits = [10]
-    num_samples = [128] #10, 20, 40]
+    num_samples = [1] #10, 20, 40]
     num_divisions = [
         #(2,2)
-        (0,0,0,0,0,0,0,0), 
-        #(1,0,0,0,0,0,0,0), 
+        (0,0,0,0,0,0,0,0),  #1
+        (1,0,0,0,0,0,0,0),  #2
         (1,1,0,0,0,0,0,0),  #4
-        #(1,1,1,0,0,0,0,0),  #8
-        (1,1,1,1,1,0,0,0),  #32
-        (1,1,1,1,1,1,0,0),  #64
+        (2,1,0,0,0,0,0,0),  #6
+        #(1,1,1,1,1,0,0,0),  #32
+        #(1,1,1,1,1,1,0,0),  #64
         #(1,1,1,1,1,1,1,0),  #128
 
     ]
     num_trials = 1
     for time_limit in time_limits:
-        for num_sample_for_one in num_samples:
+        for num_sample in num_samples:
             for num_division_tup in num_divisions:
                 for trial in range(num_trials):
                     
                     num_lambdas = reduce(lambda a,b: (a) * (b), [val + 1 for val in num_division_tup])
                     num_division = reduce(lambda a,b: "{},{}".format(a,b), num_division_tup)
-                    num_sample = num_sample_for_one // num_lambdas
+                    #num_sample = num_sample_for_one // num_lambdas
                     file_name = "outputs/num_divisions={num_divisions}__num_lambdas={num_lambdas}__time_limit={time_limit}__trial={trial}__num_samples={num_samples}.txt".format(num_divisions=num_division, trial=trial, time_limit=time_limit, num_lambdas=num_lambdas, num_samples=num_sample)
                     if os.path.exists(file_name): continue
                     command = "PI=3.141592653589793 ;PI_2=1.570796326794897; make -j8; ./mpl_coordinator --scenario fetch --goal-radius 0.01,0.01,0.01,0.01,0.01,$PI --env-frame 0.57,-0.90,0.00,0,0,-$PI_2 --env resources/AUTOLAB.dae --global_min 0,-1.6056,-1.221,-$PI,-2.251,-$PI,-2.16,-$PI --global_max 0.38615,1.6056,1.518,$PI,2.251,$PI,2.16,$PI " 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
                     os.system(command)
                     #exit(1)
                     print("-------------------------------------------------------------------------------------")
-                    time.sleep(10) 
+                    time.sleep(2) 
                     #import ipdb; ipdb.set_trace()
 
 #### fetch stuff
