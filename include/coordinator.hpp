@@ -411,7 +411,7 @@ namespace mpl {
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start_time);
                 if (duration.count() > app_options.timeLimit()) {
-                    done_ = 1;
+		    if (!done_) done_ = 1;
                 }
 //                bool all_found = true;
 //                for (auto it=pathFromGoalToStarts.begin(); it != pathFromGoalToStarts.end(); it++) {
@@ -461,9 +461,14 @@ namespace mpl {
                 for (auto cit = connections_.begin(); cit != connections_.end(); ++pit) {
                     assert(pit != pfds.end());
 
-		    cit->perform_delayed_vertices_write();
+		    //cit->perform_delayed_vertices_write();
                     if (cit->process(*pit)) {
                         //JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " << cit->recvHello();
+			if (cit->recvDone()) {
+                            lambdaId_to_connection_[cit->lambdaId()] = nullptr;
+			    cit = connections_.erase(cit);
+			    continue;
+			}
                         if (cit->recvHello() &&
                             (lambdaId_to_connection_[cit->lambdaId()] == nullptr)) {
                             lambdaId_to_connection_[cit->lambdaId()] = &(*cit);
@@ -512,11 +517,17 @@ namespace mpl {
 
                 if (done_) {
 
-                    for (auto& c : connections_) {
-                        c.sendDone();
-                    }
-                    JI_LOG(INFO) << "Sending done to all connections";
-                    break;
+		    if (connections_.size() == 0) break;
+		    if (done_ == 1) {
+			    for (auto& c : connections_) {
+				    c.sendDone();
+			    }
+			done_ += 1;
+			JI_LOG(INFO) << "Sending done to all connections";
+			break; // don't allow lambdas to flush their queue
+		    }
+		    break;
+	
                 }
 
 
@@ -533,12 +544,16 @@ namespace mpl {
             connections_.clear();
             // Handle cleaning up lambdas
 
-            if (done_ == 2) {
-                auto stop = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start_time);
-                JI_LOG(INFO) << "All paths found. Loop finished in " << duration;
-            }
+            //if (done_ == 2) {
+	    auto stop = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+		JI_LOG(INFO) << "Loop finished in " << duration;
+		JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
+		JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
+		JI_LOG(INFO) << "Final samples per lambda " << num_samples_per_lambda_;
+            //}
             // Do a final djikstras
+/*
             for (auto it=pathFromGoalToStarts.begin(); it != pathFromGoalToStarts.end(); it++) {
                 const auto& [start, goal] = it->first;
                 auto start_djikstras = std::chrono::high_resolution_clock::now();
@@ -559,6 +574,7 @@ namespace mpl {
 		}
                 pathFromGoalToStarts[it->first] = std::make_pair(found, path);
             }
+*/
         }
 
         void init_lambdas() {

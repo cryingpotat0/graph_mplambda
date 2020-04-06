@@ -48,25 +48,29 @@ goals = [[0.23500702335257, -0.51331827548709, 1.08889918323223, -2.821186656011
 
 
 if __name__ == "__main__":
-    time_limits = [10, 20, 30, 60]
-    num_samples = [5,] #10, 20, 40]
+    time_limits = [1, 5] #, 2, 3]
+    #time_limits = [10]
+    num_samples = [128] #10, 20, 40]
     num_divisions = [
-        #(0,0,0,0,0,0,0,0), 
+        #(2,2)
+        (0,0,0,0,0,0,0,0), 
         #(1,0,0,0,0,0,0,0), 
         (1,1,0,0,0,0,0,0),  #4
-        (1,1,1,0,0,0,0,0),  #8
+        #(1,1,1,0,0,0,0,0),  #8
         (1,1,1,1,1,0,0,0),  #32
         (1,1,1,1,1,1,0,0),  #64
-        (1,1,1,1,1,1,1,0),  #128
+        #(1,1,1,1,1,1,1,0),  #128
 
     ]
-    num_trials = 10
+    num_trials = 1
     for time_limit in time_limits:
-        for num_sample in num_samples:
+        for num_sample_for_one in num_samples:
             for num_division_tup in num_divisions:
                 for trial in range(num_trials):
+                    
                     num_lambdas = reduce(lambda a,b: (a) * (b), [val + 1 for val in num_division_tup])
                     num_division = reduce(lambda a,b: "{},{}".format(a,b), num_division_tup)
+                    num_sample = num_sample_for_one // num_lambdas
                     file_name = "outputs/num_divisions={num_divisions}__num_lambdas={num_lambdas}__time_limit={time_limit}__trial={trial}__num_samples={num_samples}.txt".format(num_divisions=num_division, trial=trial, time_limit=time_limit, num_lambdas=num_lambdas, num_samples=num_sample)
                     if os.path.exists(file_name): continue
                     command = "PI=3.141592653589793 ;PI_2=1.570796326794897; make -j8; ./mpl_coordinator --scenario fetch --goal-radius 0.01,0.01,0.01,0.01,0.01,$PI --env-frame 0.57,-0.90,0.00,0,0,-$PI_2 --env resources/AUTOLAB.dae --global_min 0,-1.6056,-1.221,-$PI,-2.251,-$PI,-2.16,-$PI --global_max 0.38615,1.6056,1.518,$PI,2.251,$PI,2.16,$PI " 
@@ -81,7 +85,9 @@ if __name__ == "__main__":
                             if i != len(goal) - 1: command += ","
                     command += " --lambda_type aws --coordinator 54.188.233.199 --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
                     #command += " --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
-                    #command = "rm -f png_2d_demo_output*; make -j8; ./mpl_coordinator --scenario png --global_min 0,0 --global_max 1403,1404 --env resources/house_layout.png --start 1301,332 --goal 600,1034 --start 977,1140 --goal 275,87 --start 249,683 --goal 789,709 --start 1328,438 --goal 533,822 --start 695,919 --goal 357,142 --start 797,196 --goal 884,1173 --start 828,327 --goal 446,898 --start 962,1140 --goal 82,478 --start 275,789 --goal 952,339 --start 772,1307 --goal 6,394 --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_samples, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
+
+                    #command = "rm -f png_2d_demo_output*; make -j8; ./mpl_coordinator --scenario png --global_min 0,0 --global_max 1403,1404 --env resources/house_layout.png --start 1301,332 --goal 600,1034 --start 977,1140 --goal 275,87 --start 249,683 --goal 789,709 --start 1328,438 --goal 533,822 --start 695,919 --goal 357,142 --start 797,196 --goal 884,1173 --start 828,327 --goal 446,898 --start 962,1140 --goal 82,478 --start 275,789 --goal 952,339 --start 772,1307 --goal 6,394 --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
+                    #command = "rm -f png_2d_demo_output*; make -j8; ./mpl_coordinator --scenario png --global_min 0,0 --global_max 1403,1404 --env resources/house_layout.png --start 1301,332 --goal 600,1034 --start 977,1140 --goal 275,87 --start 249,683 --goal 789,709 --start 1328,438 --goal 533,822 --start 695,919 --goal 357,142 --start 797,196 --goal 884,1173 --start 828,327 --goal 446,898 --start 962,1140 --goal 82,478 --start 275,789 --goal 952,339 --start 772,1307 --goal 6,394 --lambda_type aws --coordinator 54.188.233.199 --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
                     print(command)
                     os.system(command)
                     #exit(1)

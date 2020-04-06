@@ -140,19 +140,19 @@ namespace mpl {
 //            graph_.addVertex(v);
             // add to nearest neighbor structure
             new_vertices.push_back(v);
-            nn.insert(v);
             // add valid edges
 //            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
             nn.nearest(nbh, v.state(), k, rPRM);
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition
-                if (dist > 0 && scenario.isValid(v.state(), other.state())) {
+                if (scenario.isValid(v.state(), other.state())) {
                     Edge_t e{dist, v.id_, other.id_};
 //                    graph_.addEdge(e);
 //                    JI_LOG(INFO) << "u: " << v.id_ << " v: " << other.id_;
                     new_edges.push_back(std::move(e));
                 }
             }
+            nn.insert(v);
             for (auto fn : validSampleCallbacks) {
                 fn(v, lambda);
             }
@@ -175,7 +175,6 @@ namespace mpl {
             // add to graph
 //            graph_.addVertex(v);
             // add to nearest neighbor structure
-            nn.insert(v);
             // add valid edges
 //            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
             nn.nearest(nbh, v.state(), k, rPRM);
@@ -187,6 +186,7 @@ namespace mpl {
                     new_edges.push_back(std::move(e));
                 }
             }
+            //nn.insert(v);
             //for (auto fn : validSampleCallbacks) {
             //    fn(v, lambda);
             //}

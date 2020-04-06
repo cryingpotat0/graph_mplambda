@@ -159,6 +159,9 @@ namespace mpl::demo {
             auto start = std::chrono::high_resolution_clock::now();
             auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time);
             if (lambda_running_for.count() > time_limit) {
+		comm.sendDone();
+		comm.template process<Edge_t, Distance, Vertex_t, State>();
+		JI_LOG(INFO) << "Sent done" ;
                 done_ = true;
                 return;
             }
@@ -167,20 +170,6 @@ namespace mpl::demo {
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
             JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to sample " << samples_per_run << " points is " << duration;
-
-//            for (auto& [subspace, states_to_send] : samples_to_send) {
-//                comm.set_destination(mpl::util::ToCString(subspace));
-//                comm.put_all(states_to_send);
-//            }
-            auto new_vertices = planner.getNewVertices();
-            //if (new_vertices.size() > 0) {
-            // Even if we have no vertices to send, tell the coordinator we are done sampling
-            JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
-            comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
-            planner.clearVertices();
-            //planner.clearVertices();
-            //}
-//
             auto new_edges = planner.getNewEdges();
             auto edgeSize = packet::Edges<Edge_t, Distance>::edgeSize_;
             auto edgeHeaderSize = packet::Edges<Edge_t, Distance>::edgeHeaderSize_;
@@ -202,6 +191,17 @@ namespace mpl::demo {
                 planner.clearEdges();
             }
 
+//            for (auto& [subspace, states_to_send] : samples_to_send) {
+//                comm.set_destination(mpl::util::ToCString(subspace));
+//                comm.put_all(states_to_send);
+//            }
+            auto new_vertices = planner.getNewVertices();
+            //if (new_vertices.size() > 0) {
+            // Even if we have no vertices to send, tell the coordinator we are done sampling
+            JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
+            comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
+            planner.clearVertices();
+
             for (auto &[lambdaId, vertices] : samples_to_send) {
                 if (vertices.size() > 0) {
                     JI_LOG(INFO) << "Sending " << vertices.size() << " to lambda " << lambdaId;
@@ -209,6 +209,19 @@ namespace mpl::demo {
                     vertices.clear();
                 }
             }
+
+            //comm.template process<Edge_t, Distance, Vertex_t, State>(
+            //        [&] (auto &&pkt) {
+            //            using T = std::decay_t<decltype(pkt)>;
+            //            if constexpr (packet::is_vertices<T>::value) {
+            //                handleIncomingVertices(std::move(pkt.vertices()));
+            //            } else if constexpr (packet::is_num_samples<T>::value) {
+            //                handleGlobalNumSamplesUpdate(pkt.num_samples());
+            //            }
+            //        });
+            //planner.clearVertices();
+            //}
+//
             comm.template process<Edge_t, Distance, Vertex_t, State>(
                     [&] (auto &&pkt) {
                         using T = std::decay_t<decltype(pkt)>;
@@ -218,6 +231,7 @@ namespace mpl::demo {
                             handleGlobalNumSamplesUpdate(pkt.num_samples());
                         }
                     });
+
 
             //// Repeat this step to send interconnections immediately
             //new_edges = planner.getNewEdges();

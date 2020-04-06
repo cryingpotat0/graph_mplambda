@@ -108,6 +108,14 @@ namespace mpl {
             return adjacency_list;
         }
 
+	const int edgeCount() {
+		return edge_properties.size();
+	}
+
+	const int vertexCount() {
+		return vertex_properties.size();
+	}
+
         void merge(UndirectedGraph &other) {
             for (auto& [v_id, u_ids] : other.getAdjacencyList()) {
                 adjacency_list[v_id].merge(u_ids);

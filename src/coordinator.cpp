@@ -90,6 +90,10 @@ void savePngImages(const Coordinator& coord, const AppOptions &app_options) {
             }
         }
     }
+    for (auto& [v_id, u_id]: graph.getAdjacencyList()) {
+	auto state = graph.getVertex(v_id).state();
+	shape::addState(file, state[0], state[1], 2, 'v');
+    }
     for (int i=0; i < coord.getSubspaces().size(); ++i) {
         auto lower = coord.getSubspaces()[i].getLower();
         auto upper = coord.getSubspaces()[i].getUpper();

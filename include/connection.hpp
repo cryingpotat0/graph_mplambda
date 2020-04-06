@@ -32,6 +32,7 @@ namespace mpl {
         WriteQueue writeQueue_;
         ID lambdaId_{0};
         bool recvHello_{false};
+	bool recvDone_{false};
 
         // Delayed vertex write variables
         std::vector<std::vector<typename Coordinator::Vertex>> vertices_to_send;
@@ -87,6 +88,7 @@ namespace mpl {
 
         void process(packet::Done&& pkt) {
             JI_LOG(INFO) << "got DONE (id=" << pkt.id() << ")";
+	    recvDone_ = true;
 //            if (groupId_ == 0 || groupId_ != pkt.id()) {
 //                JI_LOG(WARN) << "DONE group id mismatch";
 //            } else {
@@ -119,8 +121,8 @@ namespace mpl {
                     if (other_connection != nullptr) {
 			JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
                         // TODO: do a buffered write, the lambdas are receiving too many packets. Merge vertices from many outputs together.
-                        other_connection->delayed_vertices_write(std::move(pkt));
-                        //other_connection->write(std::move(pkt));
+                        //other_connection->delayed_vertices_write(std::move(pkt));
+                        other_connection->write(std::move(pkt));
                     } else {
 		    	JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
                         coordinator_.buffered_data_[destinationLambdaId].push_back(std::move(pkt));
@@ -230,6 +232,10 @@ namespace mpl {
 
         bool recvHello() {
             return recvHello_;
+        }
+
+        bool recvDone() {
+            return recvDone_;
         }
 
         ID lambdaId() {
