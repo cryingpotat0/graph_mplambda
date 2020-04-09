@@ -22,15 +22,15 @@ namespace mpl {
             assert(lower.size() == upper.size());
         }
 
-        Bound getLower() const {
+        const Bound& getLower() const {
             return lower;
         }
 
-        Bound getUpper() const {
+        const Bound& getUpper() const {
             return upper;
         }
 
-        int dimension() const {
+        const int dimension() const {
             return lower.size();
         };
 
@@ -159,10 +159,11 @@ namespace mpl {
             auto middle = (getLower() + getUpper()) / 2.0;
             auto shifted_upper = getUpper() - middle;
             auto shifted_point = point - middle;
-//            JI_LOG(INFO) << "point " << point << " upper " << getUpper() << " shifted_upper " << shifted_upper << " shifted_point " << shifted_point;
+            JI_LOG(INFO) << "point " << point << " upper " << getUpper() << " shifted_upper " << shifted_upper << " shifted_point " << shifted_point;
 
             for (int i=0; i < dimension(); ++i) {
-                dist += pow(std::max(0.0, abs(shifted_point[i]) - shifted_upper[i]), 2);
+                dist += pow(std::max(0.0, std::abs(shifted_point[i]) - shifted_upper[i]), 2);
+                //dist += std::pow(shifted_point[i] , 2);
             }
             return dist <= pow(radius, 2);
         }

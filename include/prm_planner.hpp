@@ -137,18 +137,14 @@ namespace mpl {
             auto k = std::numeric_limits<std::size_t>::max();
 
             // add to graph
-//            graph_.addVertex(v);
             // add to nearest neighbor structure
             new_vertices.push_back(v);
             // add valid edges
-//            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
             nn.nearest(nbh, v.state(), k, rPRM);
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition
                 if (scenario.isValid(v.state(), other.state())) {
                     Edge_t e{dist, v.id_, other.id_};
-//                    graph_.addEdge(e);
-//                    JI_LOG(INFO) << "u: " << v.id_ << " v: " << other.id_;
                     new_edges.push_back(std::move(e));
                 }
             }
@@ -161,7 +157,7 @@ namespace mpl {
 
         void updatePrmRadius(std::uint64_t num_samples, int dimension) {
             auto new_radius = scenario.prmRadius() * pow(log( num_samples) / (1.0 * num_samples), 1.0 / dimension);
-            if (new_radius < rPRM) {
+            if (new_radius > 0 && new_radius < rPRM) {
                 JI_LOG(INFO) << "New rPRM is " << new_radius;
                 rPRM = new_radius;
             }

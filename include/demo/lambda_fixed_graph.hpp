@@ -83,38 +83,15 @@ namespace mpl::demo {
             comm.connect(app_options.coordinator());
             comm.template process<Edge_t, Distance, Vertex_t, State>();
 
-            // First record neighbors of this lambda from the local and global subspace
-            //auto neighbors = local_subspace.get_neighbors(global_subspace);
+            //// First record neighbors of this lambda from the local and global subspace
+            ////auto neighbors = local_subspace.get_neighbors(global_subspace);
             JI_LOG(INFO) << "Local subspace " << local_subspace;
-            //for (auto& [n, i] : neighborsToLambdaIdGlobal) {
-            //        JI_LOG(INFO) << n << " lambda id" << i;
-            //}
-
-//            for (auto& n : neighbors) {
-//                if (n != local_subspace) {
-//                    //int val = neighborsToLambdaIdGlobal[n];
-//                    //JI_LOG(INFO) << n << " lambda id" << val;
-//                    for (auto& [other_n, i] : neighborsToLambdaIdGlobal) {
-//                        if (n == other_n) { // Issues with hashing subspace, just use it as a container
-//                            neighborsToLambdaId[n] = i;
-//                            //JI_LOG(INFO) << n << " lambda id" << i;
-//                        }
-//                    }
-//                }
-//                //if (neighborsToLambdaIdGlobal.count(n) == 0) {
-//                //	JI_LOG(ERROR) << "Could not find neighbor";
-//                //}
-//            }
             neighborsToLambdaId = neighborsToLambdaIdGlobal;
 
-//            for (auto& [sub, id] : neighborsToLambdaId) {
-//                JI_LOG(INFO) << "Neighboring subspace " << sub << " with id: " << id;
-//            }
-
-            // Then add the callback to track these neighbors
+            //// Then add the callback to track these neighbors
             planner.addValidSampleCallback(trackValidSamples);
 
-            // Add start and goal samples
+            //// Add start and goal samples
             for (auto& [start, goal] : app_options.getStartsAndGoals<State>()) {
                 JI_LOG(INFO) << "Testing start " << start;
                 if (local_subspace.contains(start)) {
@@ -122,7 +99,7 @@ namespace mpl::demo {
                         JI_LOG(ERROR) << "Start " << start << " is not valid";
                         continue;
                     }
-                    planner.addSample(start, true);
+		    planner.addSample(start, true);
                 }
 
                 JI_LOG(INFO) << "Testing goal " << goal;
@@ -136,15 +113,14 @@ namespace mpl::demo {
                 }
             }
 
-            auto min_subspace_size = std::numeric_limits<Scalar>::max();
-            for (int i=0; i < local_subspace.dimension(); ++i) {
-                auto subspace_size = local_subspace.getUpper()[i] - local_subspace.getLower()[i];
-                if (subspace_size < min_subspace_size) {
-                    min_subspace_size = subspace_size;
-                }
-            }
-            //planner.setrPRM(min_subspace_size / 4.0); // TODO: arbitrary here, cannot be greater than min_subspace_size, but no other constraints
-            handleGlobalNumSamplesUpdate(neighborsToLambdaIdGlobal.size() * samples_per_run); // If we imagine it as a large batching process, this assumption can hold
+            //auto min_subspace_size = std::numeric_limits<Scalar>::max();
+            //for (int i=0; i < local_subspace.dimension(); ++i) {
+            //    auto subspace_size = local_subspace.getUpper()[i] - local_subspace.getLower()[i];
+            //    if (subspace_size < min_subspace_size) {
+            //        min_subspace_size = subspace_size;
+            //    }
+            //}
+            //handleGlobalNumSamplesUpdate(neighborsToLambdaIdGlobal.size() * samples_per_run); // If we imagine it as a large batching process, this assumption can hold
             start_time = std::chrono::high_resolution_clock::now();
         }
 
@@ -191,12 +167,8 @@ namespace mpl::demo {
                 planner.clearEdges();
             }
 
-//            for (auto& [subspace, states_to_send] : samples_to_send) {
-//                comm.set_destination(mpl::util::ToCString(subspace));
-//                comm.put_all(states_to_send);
-//            }
             auto new_vertices = planner.getNewVertices();
-            //if (new_vertices.size() > 0) {
+
             // Even if we have no vertices to send, tell the coordinator we are done sampling
             JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
             comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
@@ -210,18 +182,6 @@ namespace mpl::demo {
                 }
             }
 
-            //comm.template process<Edge_t, Distance, Vertex_t, State>(
-            //        [&] (auto &&pkt) {
-            //            using T = std::decay_t<decltype(pkt)>;
-            //            if constexpr (packet::is_vertices<T>::value) {
-            //                handleIncomingVertices(std::move(pkt.vertices()));
-            //            } else if constexpr (packet::is_num_samples<T>::value) {
-            //                handleGlobalNumSamplesUpdate(pkt.num_samples());
-            //            }
-            //        });
-            //planner.clearVertices();
-            //}
-//
             comm.template process<Edge_t, Distance, Vertex_t, State>(
                     [&] (auto &&pkt) {
                         using T = std::decay_t<decltype(pkt)>;
@@ -232,36 +192,6 @@ namespace mpl::demo {
                         }
                     });
 
-
-            //// Repeat this step to send interconnections immediately
-            //new_edges = planner.getNewEdges();
-            //if (new_edges.size() > 0) {
-            //    JI_LOG(INFO) << "Sending interconnections " << new_edges.size() << " new edges";
-            //    if (edgeSize * new_edges.size() + edgeHeaderSize < maxPacketSize) {
-            //    	JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
-            //    	comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
-            //    } else {
-            //    	auto freePacketSpace = maxPacketSize - edgeHeaderSize;
-            //    	int numEdgesPerPacket = freePacketSpace / edgeSize;
-            //    	for (int i=0; i < new_edges.size(); i+= numEdgesPerPacket) {
-            //    		std::vector<Edge_t> newEdgesPartial(new_edges.begin() + i, new_edges.begin() + i + numEdgesPerPacket);
-            //    		JI_LOG(INFO) << "Sending " << newEdgesPartial.size() << " partial new edges";
-            //    		comm.template sendEdges<Edge_t, Distance>(std::move(newEdgesPartial));
-            //    	}
-            //    }
-            //    planner.clearEdges();
-            //}
-
-            //comm.template process<Edge_t, Distance, Vertex_t, State>(
-            //        [&] (auto &&pkt) {
-            //            using T = std::decay_t<decltype(pkt)>;
-            //            if constexpr (packet::is_vertices<T>::value) {
-            //                handleIncomingVertices(std::move(pkt.vertices()));
-            //            } else if constexpr (packet::is_num_samples<T>::value) {
-            //                handleGlobalNumSamplesUpdate(pkt.num_samples());
-            //            }
-            //        });
-            // More incoming vertices might be setup here
         }
 
         void handleGlobalNumSamplesUpdate(std::uint64_t num_samples) {
@@ -435,7 +365,7 @@ namespace mpl::demo {
         if (app_options.scenario() == "png") {
             runPngScenario<Scalar>(app_options);
         } else if (app_options.scenario() == "fetch") {
-            runFetchScenario<Scalar>(app_options);
+            //runFetchScenario<Scalar>(app_options);
         } else {
             throw std::invalid_argument("Invalid scenario");
         }

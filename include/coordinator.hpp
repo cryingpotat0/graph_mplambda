@@ -64,7 +64,7 @@ namespace mpl {
 
     private:
         std::vector<std::uint64_t> num_samples_per_lambda_;
-        std::uint64_t global_min_samples;
+        std::uint64_t global_min_samples{0};
         Subspace_t global_subspace;
         std::vector<Subspace_t> lambda_subspaces;
         int listen_{-1};
@@ -275,7 +275,10 @@ namespace mpl {
                 for (auto& c: connections_) {
                     c.write(packet::NumSamples(global_min_samples * app_options.jobs()));
                 }
-            }
+            } else {
+                JI_LOG(INFO) << "Not updating global_num_samples " << global_min_samples << " from curr_min " << *curr_min_samples;
+
+	    }
             JI_LOG(INFO) << num_samples_per_lambda_;
         }
 
@@ -553,7 +556,6 @@ namespace mpl {
 		JI_LOG(INFO) << "Final samples per lambda " << num_samples_per_lambda_;
             //}
             // Do a final djikstras
-/*
             for (auto it=pathFromGoalToStarts.begin(); it != pathFromGoalToStarts.end(); it++) {
                 const auto& [start, goal] = it->first;
                 auto start_djikstras = std::chrono::high_resolution_clock::now();
@@ -574,7 +576,6 @@ namespace mpl {
 		}
                 pathFromGoalToStarts[it->first] = std::make_pair(found, path);
             }
-*/
         }
 
         void init_lambdas() {
