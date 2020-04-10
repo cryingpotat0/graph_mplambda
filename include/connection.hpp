@@ -45,14 +45,8 @@ namespace mpl {
             assert(rBuf_.remaining() > 0); // we may need to grow the buffer
 
             ssize_t n = ::recv(socket_, rBuf_.begin(), rBuf_.remaining(), 0);
-            //JI_LOG(TRACE) << "recv " << n;
+            JI_LOG(INFO) << "recv " << n;
             if (n <= 0) {
-                // on error (-1) or connection close (0), send DONE to
-                // the group to which this connection is attached.
-//                if (groupId_) {
-//                    coordinator_.done(groupId_, this);
-//                    groupId_ = 0;
-//                }
 
                 return (n < 0) ? throw syserr("recv") : false;
             }
@@ -74,7 +68,7 @@ namespace mpl {
         }
 
         void process(packet::Hello&& pkt) {
-            JI_LOG(INFO) << "got HELLO (id=" << pkt.id() << ")";
+            JI_LOG(INFO) << "got HELLO (id=" << pkt.id() << ")" << " socket " << socket_;
             recvHello_ = true;
             lambdaId_ = pkt.id();
             last_send_of_vertices = std::chrono::high_resolution_clock::now();

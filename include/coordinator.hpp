@@ -23,6 +23,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <syserr.hpp>
+#include <signal.h>
 #include <list>
 
 #if HAS_AWS_SDK
@@ -304,6 +305,9 @@ namespace mpl {
             int on = 1;
             if (::setsockopt(listen_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1)
                 throw syserr("set reuse addr");
+	    // TODO: replace below code with MSG_NOSIGNAL in writev later
+	    signal(SIGPIPE, SIG_IGN);
+
 
             struct sockaddr_in addr;
             addr.sin_family = AF_INET;
@@ -342,7 +346,6 @@ namespace mpl {
                     );
               assert(num_divisions.size() == global_subspace.dimension());
 //            auto n = global_subspace.layered_divide(num_divisions);
-//            JI_LOG(INFO) << n;
             lambda_subspaces = global_subspace.divide(num_divisions);
             app_options.jobs_ = lambda_subspaces.size();
 //            assert(lambda_subspaces.size() == num_jobs);
@@ -379,6 +382,7 @@ namespace mpl {
         void loop() {
             // Do communication stuff// TODO: handle case where other connection not initiated
             int done_ = 0;
+	    JI_LOG(INFO) << "loop started";
             auto start_and_goal_states = app_options.getStartsAndGoals<State>();
             auto start_and_goal_vertices = getStartAndGoalVertices(start_and_goal_states);
             for (auto& [start_v, goal] : start_and_goal_vertices) {
@@ -412,8 +416,8 @@ namespace mpl {
 //                JI_LOG(TRACE) << "polling " << pfds.size();
                 int nReady = ::poll(pfds.data(), pfds.size(), 1);
                 auto stop = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start_time);
-                if (duration.count() > app_options.timeLimit()) {
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+                if (duration.count() > app_options.timeLimit() * 1000) { // specified time limit in ms
 		    if (!done_) done_ = 1;
                 }
 //                bool all_found = true;
@@ -527,9 +531,8 @@ namespace mpl {
 			    }
 			done_ += 1;
 			JI_LOG(INFO) << "Sending done to all connections";
-			break; // don't allow lambdas to flush their queue
 		    }
-		    break;
+		    break; // Don't wait for lambda queues to finish
 	
                 }
 

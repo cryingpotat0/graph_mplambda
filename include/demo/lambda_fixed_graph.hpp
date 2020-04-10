@@ -86,7 +86,12 @@ namespace mpl::demo {
             //// First record neighbors of this lambda from the local and global subspace
             ////auto neighbors = local_subspace.get_neighbors(global_subspace);
             JI_LOG(INFO) << "Local subspace " << local_subspace;
-            neighborsToLambdaId = neighborsToLambdaIdGlobal;
+	    for (auto [neighbor, lambdaId] : neighborsToLambdaIdGlobal) {
+		    if (lambdaId != lambda_id) {
+			    neighborsToLambdaId[neighbor] = lambdaId;
+		    }
+	    }
+            //neighborsToLambdaId = neighborsToLambdaIdGlobal;
 
             //// Then add the callback to track these neighbors
             planner.addValidSampleCallback(trackValidSamples);
@@ -129,15 +134,18 @@ namespace mpl::demo {
         }
 
 
+	void shutdown() {
+		comm.sendDone();
+		//comm.
+		//comm.template process<Edge_t, Distance, Vertex_t, State>();
+		JI_LOG(INFO) << "Sent done" ;
+	}
 
         void do_work() {
 //          std::unordered_map<Subspace_t, std::vector<State>> samples_to_send = planner.plan(samples_per_run);
             auto start = std::chrono::high_resolution_clock::now();
             auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time);
-            if (lambda_running_for.count() > time_limit) {
-		comm.sendDone();
-		comm.template process<Edge_t, Distance, Vertex_t, State>();
-		JI_LOG(INFO) << "Sent done" ;
+            if (lambda_running_for.count() > time_limit || comm.isDone()) {
                 done_ = true;
                 return;
             }
@@ -209,6 +217,10 @@ namespace mpl::demo {
         const Planner& getPlanner() const {
             return planner;
         }
+
+	const std::uint64_t& lambdaId() const {
+		return lambda_id;
+	}
 
     };
 
@@ -287,6 +299,7 @@ namespace mpl::demo {
             lambda.do_work();
             if (lambda.isDone()) break;
         }
+	lambda.shutdown();
         JI_LOG(INFO) << "Finished";
 
     }
@@ -365,7 +378,7 @@ namespace mpl::demo {
         if (app_options.scenario() == "png") {
             runPngScenario<Scalar>(app_options);
         } else if (app_options.scenario() == "fetch") {
-            //runFetchScenario<Scalar>(app_options);
+            runFetchScenario<Scalar>(app_options);
         } else {
             throw std::invalid_argument("Invalid scenario");
         }

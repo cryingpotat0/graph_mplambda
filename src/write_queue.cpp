@@ -1,6 +1,8 @@
 #include <jilog.hpp>
 #include <write_queue.hpp>
 #include <syserr.hpp>
+#include <sys/socket.h>
+
 
 void mpl::WriteQueue::writeTo(int socket) {
     if (empty())
@@ -15,10 +17,17 @@ void mpl::WriteQueue::writeTo(int socket) {
 
     //JI_LOG(TRACE) << "about to write " << iovs_.size() << " iovecs to " << socket;
     ssize_t n = ::writev(socket, iovs_.data(), iovs_.size());
-    //JI_LOG(TRACE) << "wrote " << n << " bytes to " << socket;
+    //struct msghdr mh;
+    //mh.msg_iov = iovs_.data();
+    //mh.msg_iovlen = iovs_.size();
+    //struct sockaddr_in dest;
+    //ssize_t n = ::sendmsg(socket, &mh, MSG_NOSIGNAL);
+
+    JI_LOG(TRACE) << "wrote " << n << " bytes to " << socket;
     if (n == -1) {
         if (errno == EAGAIN)
             return;
+	JI_LOG(TRACE) << errno;
         throw syserr("writev");
     }
 

@@ -152,7 +152,7 @@ namespace mpl {
         std::pair<bool, std::vector<VertexID>> djikstras(const VertexID& start, const VertexID& end) {
             using Distance = typename Edge::Distance_t;
             using DistVertexPair = typename std::pair<Distance, VertexID>;
-            std::priority_queue<DistVertexPair> pq;
+            std::priority_queue<DistVertexPair, std::vector<DistVertexPair>, std::greater<DistVertexPair>> pq;
             std::unordered_map<VertexID, Distance> dists;
             std::unordered_map<VertexID, VertexID> prev;
             pq.push(std::make_pair(0, start));
