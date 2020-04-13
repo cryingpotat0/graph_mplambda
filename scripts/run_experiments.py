@@ -50,18 +50,17 @@ goals = [[0.23500702335257, -0.51331827548709, 1.08889918323223, -2.821186656011
 
 if __name__ == "__main__":
     #time_limits = [5, 10, 20] #, 2, 3]
-    time_limits = [0.1, ]
-    num_samples = [1] #10, 20, 40]
+    time_limits = [1] #[0.2, 0.5, ]#1]
+    num_samples = [1, ] #10, 20, 40]
     num_divisions = [
-        (0,0),
-        #(1,0),
-        (1,1),
-        #(2,1),
-        (2,2),
-        #(0,0,0,0,0,0,0,0),  #1
+        #(0,0),
+        #(1,1),
+        #(2,2),
+        (0,0,0,0,0,0,0,0),  #1
         #(1,0,0,0,0,0,0,0),  #2
         #(1,1,0,0,0,0,0,0),  #4
         #(2,1,0,0,0,0,0,0),  #6
+        (1,1,1,0,0,0,0,0),  #8
         #(1,1,1,1,1,0,0,0),  #32
         #(1,1,1,1,1,1,0,0),  #64
         #(1,1,1,1,1,1,1,0),  #128
@@ -78,33 +77,34 @@ if __name__ == "__main__":
                     #num_sample = num_sample_for_one // num_lambdas
                     file_name = "outputs/num_divisions={num_divisions}__num_lambdas={num_lambdas}__time_limit={time_limit}__trial={trial}__num_samples={num_samples}.txt".format(num_divisions=num_division, trial=trial, time_limit=time_limit, num_lambdas=num_lambdas, num_samples=num_sample)
                     if os.path.exists(file_name): continue
-                    #command = "PI=3.141592653589793 ;PI_2=1.570796326794897; make -j8; ./mpl_coordinator --scenario fetch --goal-radius 0.01,0.01,0.01,0.01,0.01,$PI --env-frame 0.57,-0.90,0.00,0,0,-$PI_2 --env resources/AUTOLAB.dae --global_min 0,-1.6056,-1.221,-$PI,-2.251,-$PI,-2.16,-$PI --global_max 0.38615,1.6056,1.518,$PI,2.251,$PI,2.16,$PI " 
-                    #for (start, goal) in zip(starts, goals):
-                    #    command += " --start "
-                    #    for i, s in enumerate(start):
-                    #        command += str(s)
-                    #        if i != len(start) - 1: command += ","
-                    #    command += " --goal "
-                    #    for i, g in enumerate(goal):
-                    #        command += str(g)
-                    #        if i != len(goal) - 1: command += ","
+                    command = "PI=3.141592653589793 ;PI_2=1.570796326794897; make -j8; ./mpl_coordinator --scenario fetch --goal-radius 0.01,0.01,0.01,0.01,0.01,$PI --env-frame 0.57,-0.90,0.00,0,0,-$PI_2 --env resources/AUTOLAB.dae --global_min 0,-1.6056,-1.221,-$PI,-2.251,-$PI,-2.16,-$PI --global_max 0.38615,1.6056,1.518,$PI,2.251,$PI,2.16,$PI " 
+                    for (start, goal) in zip(starts, goals):
+                        command += " --start "
+                        for i, s in enumerate(start):
+                            command += str(s)
+                            if i != len(start) - 1: command += ","
+                        command += " --goal "
+                        for i, g in enumerate(goal):
+                            command += str(g)
+                            if i != len(goal) - 1: command += ","
                     #command += " --lambda_type aws --coordinator 54.188.233.199 --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
-                    #command += " --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
+                    command += " --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} ".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, )
 
                     #command = "rm -f png_2d_demo_output*; make -j8; ./mpl_coordinator --scenario png --global_min 0,0 --global_max 1403,1404 --env resources/house_layout.png --start 1301,332 --goal 600,1034 --start 977,1140 --goal 275,87 --start 249,683 --goal 789,709 --start 1328,438 --goal 533,822 --start 695,919 --goal 357,142 --start 797,196 --goal 884,1173 --start 828,327 --goal 446,898 --start 962,1140 --goal 82,478 --start 275,789 --goal 952,339 --start 772,1307 --goal 6,394 --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
-                    command = "rm -f png_2d_demo_output*; rm -f lambda-*; make -j8; ./mpl_coordinator --scenario png --global_min 0,0 --global_max 1403,1404 --env resources/house_layout.png --start 1301,332 --goal 600,1034 --start 977,1140 --goal 275,87 --start 249,683 --goal 789,709 --start 1328,438 --goal 533,822 --start 695,919 --goal 357,142 --start 797,196 --goal 884,1173 --start 828,327 --goal 446,898 --start 962,1140 --goal 82,478 --start 275,789 --goal 952,339 --start 772,1307 --goal 6,394 --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, )
+                    #command = "rm -f png_2d_demo_output*; rm -f lambda-*; make -j8; ./mpl_coordinator --scenario png --global_min 0,0 --global_max 1403,1404 --env resources/house_layout.png --start 1301,332 --goal 600,1034 --start 977,1140 --goal 275,87 --start 249,683 --goal 789,709 --start 1328,438 --goal 533,822 --start 695,919 --goal 357,142 --start 797,196 --goal 884,1173 --start 828,327 --goal 446,898 --start 962,1140 --goal 82,478 --start 275,789 --goal 952,339 --start 772,1307 --goal 6,394 --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, )
                     #command = "rm -f png_2d_demo_output*; make -j8; ./mpl_coordinator --scenario png --global_min 0,0 --global_max 1403,1404 --env resources/house_layout.png --start 1301,332 --goal 600,1034 --start 977,1140 --goal 275,87 --start 249,683 --goal 789,709 --start 1328,438 --goal 533,822 --start 695,919 --goal 357,142 --start 797,196 --goal 884,1173 --start 828,327 --goal 446,898 --start 962,1140 --goal 82,478 --start 275,789 --goal 952,339 --start 772,1307 --goal 6,394 --lambda_type aws --coordinator 54.188.233.199 --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
                     print(command)
                     print(file_name)
                     #subprocess.call('ls')
                     subprocess.call(command, shell=True, stderr=open(file_name, 'w'))
-                    move_cmd = "mkdir {folder_name}; mv png* {folder_name}".format(folder_name=file_name[:-4])
-                    print(move_cmd)
-                    subprocess.call("mkdir {folder_name}; mv png* {folder_name}; mv lambda-* {folder_name}".format(folder_name=file_name[:-4]), shell=True)
+                    subprocess.call("mkdir {folder_name}; mv lambda-* {folder_name}".format(folder_name=file_name[:-4]), shell=True)
+                    #move_cmd = "mkdir {folder_name}; mv png* {folder_name}".format(folder_name=file_name[:-4])
+                    #print(move_cmd)
+                    #subprocess.call("mkdir {folder_name}; mv png* {folder_name}; mv lambda-* {folder_name}".format(folder_name=file_name[:-4]), shell=True)
                     #os.system(command)
                     #exit(1)
                     print("-------------------------------------------------------------------------------------")
-                    time.sleep(1) 
+                    time.sleep(2) 
                     #import ipdb; ipdb.set_trace()
 
 #### fetch stuff
