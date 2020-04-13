@@ -26,7 +26,9 @@ void saveSolutionPaths(const Coordinator& coord, const AppOptions &app_options) 
     for (auto& [locs, info] : coord.pathFromGoalToStarts) {
         auto& [start, goal] = locs;
         auto& [found, path] = info;
-        const std::string outputName = "png_2d_demo_output-" + start + "-" + goal + ".svg";
+        const std::string outputName = "png_2d_demo_output-" + 
+		std::to_string(start.first) + "_" + std::to_string(start.second) + "-" + 
+		std::to_string(goal.first) + "_" + std::to_string(goal.second) + ".svg";
         std::ofstream file(outputName);
         shape::startSvg(file, width, height);
         shape::addBackgroundImg(file, app_options.env());
@@ -77,10 +79,10 @@ void savePngImages(const Coordinator& coord, const AppOptions &app_options) {
         auto start = graph.getVertex(v_id);
         for (auto u_id : u_ids) {
             auto end = graph.getVertex(u_id);
-            auto pos1 = v_id.find("_");
-            auto pos2 = u_id.find("_");
+	    auto& [lambdaId1, vertexId1] = v_id;
+	    auto& [lambdaId2, vertexId2] = u_id;
 
-            if (v_id.substr(0, pos1) == u_id.substr(0, pos2)) {
+            if (lambdaId1 == lambdaId2) {
                 // The 0th element indicates which lambda
                 shape::addEdge(file, start.state()[0], start.state()[1], end.state()[0], end.state()[1],
                         6, shape::Color(40, 40, 40));

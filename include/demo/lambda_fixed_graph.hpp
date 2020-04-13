@@ -15,7 +15,6 @@
 #include <util.hpp>
 #include <chrono>
 #include <demo/app_options.hpp>
-#include <tree.hpp>
 #include <unordered_map>
 #include <packet.hpp>
 #include <demo/png_2d_scenario.hpp>
@@ -45,7 +44,7 @@ namespace mpl::demo {
         Subspace_t local_subspace;
         Subspace_t global_subspace;
         std::unordered_map<int, std::vector<Vertex_t>> samples_to_send;
-        std::unordered_map<Subspace_t, int> neighborsToLambdaId;
+        std::vector<std::pair<Subspace_t, int>> neighborsToLambdaId;
         std::chrono::high_resolution_clock::time_point start_time;
 	bool done_ = false;
 	double time_limit = 100.0; // Set safety maximum limit so we don't get charged on AWS
@@ -68,7 +67,7 @@ namespace mpl::demo {
                 Scenario &scenario_,
                 Subspace_t &local_subspace_,
                 Subspace_t &global_subspace_,
-                std::unordered_map<Subspace_t, int>& neighborsToLambdaIdGlobal
+                std::vector<std::pair<Subspace_t, int>>& neighborsToLambdaIdGlobal
         )
                 : lambda_id(app_options.lambdaId()),
                   scenario(scenario_),
@@ -86,9 +85,9 @@ namespace mpl::demo {
             //// First record neighbors of this lambda from the local and global subspace
             ////auto neighbors = local_subspace.get_neighbors(global_subspace);
             JI_LOG(INFO) << "Local subspace " << local_subspace;
-	    for (auto [neighbor, lambdaId] : neighborsToLambdaIdGlobal) {
-		    if (lambdaId != lambda_id) {
-			    neighborsToLambdaId[neighbor] = lambdaId;
+	    for (auto [neighbor, neighborLambdaId] : neighborsToLambdaIdGlobal) {
+		    if (neighborLambdaId != lambda_id) {
+			    neighborsToLambdaId.push_back(std::make_pair(neighbor, neighborLambdaId));
 		    }
 	    }
             //neighborsToLambdaId = neighborsToLambdaIdGlobal;
@@ -97,6 +96,7 @@ namespace mpl::demo {
             planner.addValidSampleCallback(trackValidSamples);
 
             //// Add start and goal samples
+            auto s = std::chrono::high_resolution_clock::now();
             for (auto& [start, goal] : app_options.getStartsAndGoals<State>()) {
                 JI_LOG(INFO) << "Testing start " << start;
                 if (local_subspace.contains(start)) {
@@ -117,6 +117,9 @@ namespace mpl::demo {
                     planner.addSample(goal, true);
                 }
             }
+	    auto e = std::chrono::high_resolution_clock::now();
+            auto start_goal_time = std::chrono::duration_cast<std::chrono::milliseconds>(e - s);
+	    JI_LOG(INFO) << "Time to check starts and goals " << start_goal_time;
 
             //auto min_subspace_size = std::numeric_limits<Scalar>::max();
             //for (int i=0; i < local_subspace.dimension(); ++i) {
@@ -267,10 +270,6 @@ namespace mpl::demo {
 
         auto min = app_options.globalMin<Bound>();
         auto max = app_options.globalMax<Bound>();
-//    auto local_min = app_options.min<Bound>();
-//    auto local_max = app_options.max<Bound>();
-
-//    Subspace_t local_subspace(local_min, local_max);
         Subspace_t global_subspace(min, max);
 
         auto eig_num_divisions = app_options.num_divisions<State>();
@@ -280,14 +279,11 @@ namespace mpl::demo {
                         eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
                 );
 
-        std::unordered_map<Subspace_t, int> neighborsToLambdaIdGlobal;
+        std::vector<std::pair<Subspace_t, int>> neighborsToLambdaIdGlobal;
         auto divisions = global_subspace.divide(num_divisions);
         for (int i=0; i < divisions.size(); ++i) {
-            neighborsToLambdaIdGlobal[divisions[i]] = i;
+            neighborsToLambdaIdGlobal.push_back(std::make_pair(divisions[i], i));
         }
-        //for (auto& [n, i] : neighborsToLambdaIdGlobal) {
-        //	JI_LOG(INFO) << n << " lambda id" << i;
-        //}
         JI_LOG(INFO) << "Total number of lambdas " << neighborsToLambdaIdGlobal.size();
         auto local_subspace = divisions[app_options.lambdaId()];
 
@@ -328,13 +324,13 @@ namespace mpl::demo {
                         eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
                 );
 
-        std::unordered_map<Subspace_t, int> neighborsToLambdaIdGlobal;
+        std::vector<std::pair<Subspace_t, int>> neighborsToLambdaIdGlobal;
         auto divisions = global_subspace.divide(num_divisions);
         for (int i=0; i < divisions.size(); ++i) {
-	    if (i != app_options.lambdaId()) neighborsToLambdaIdGlobal[divisions[i]] = i;
+            neighborsToLambdaIdGlobal.push_back(std::make_pair(divisions[i], i));
         }
+        JI_LOG(INFO) << "Total number of lambdas " << neighborsToLambdaIdGlobal.size();
         auto local_subspace = divisions[app_options.lambdaId()];
-
 
         JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
 	app_options.correct_goal_ = "-1.07,0.16,0.88,0,0,0";

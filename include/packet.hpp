@@ -211,23 +211,23 @@ namespace mpl::packet {
     class Vertices {
     private:
         // Assume each vertex has ID of form {lambdaId}_{vertexId} where both IDs are std::uint64_t
-        static constexpr std::size_t vertexSize_ = buffer_size_v<State> + 2 * buffer_size_v<std::uint64_t>;
+        static constexpr std::size_t vertexSize_ = buffer_size_v<State> + buffer_size_v<std::uint16_t> + buffer_size_v<std::uint32_t>;
         std::vector<Vertex> vertices_;
         bool destination_; // 0 means append to coordinator graph, 1 means send to lambdaId
-        std::uint64_t destination_lambdaId_;
+        std::uint16_t destination_lambdaId_;
 
-        static inline std::pair<std::uint64_t, std::uint64_t> stringIdToNumerics(const std::string &id) {
-            int pos = id.find("_");
-            std::uint64_t lambdaId = std::stoull(id.substr(0, pos));
-            std::uint64_t vertexId = std::stoull(id.substr(pos + 1));
-            return std::make_pair(lambdaId, vertexId);
-        }
+        //static inline std::pair<std::uint64_t, std::uint64_t> stringIdToNumerics(const std::string &id) {
+        //    int pos = id.find("_");
+        //    std::uint64_t lambdaId = std::stoull(id.substr(0, pos));
+        //    std::uint64_t vertexId = std::stoull(id.substr(pos + 1));
+        //    return std::make_pair(lambdaId, vertexId);
+        //}
 
-        static inline std::string numericalIdToString(const std::uint64_t &lambdaId, const std::uint64_t &vertexId) {
-            std::ostringstream oStream;
-            oStream << lambdaId << "_" << vertexId;
-            return oStream.str();
-        }
+        //static inline std::string numericalIdToString(const std::uint64_t &lambdaId, const std::uint64_t &vertexId) {
+        //    std::ostringstream oStream;
+        //    oStream << lambdaId << "_" << vertexId;
+        //    return oStream.str();
+        //}
 
     public:
 
@@ -244,7 +244,7 @@ namespace mpl::packet {
 
         inline Vertices(Type type, BufferView buf)
                 : destination_(buf.get<bool>())
-                , destination_lambdaId_(buf.get<std::uint64_t>())
+                , destination_lambdaId_(buf.get<std::uint16_t>())
         {
             if (buf.remaining() % vertexSize_ != 0)
                 throw protocol_error("invalid vertices packet size: " + std::to_string(buf.remaining()));
@@ -253,27 +253,25 @@ namespace mpl::packet {
             vertices_.reserve(n);
             while (vertices_.size() < n) {
                 State state = buf.get<State>();
-                std::uint64_t lambdaId = buf.get<std::uint64_t>();
-                std::uint64_t vertexId = buf.get<std::uint64_t>();
-                vertices_.emplace_back(Vertex{numericalIdToString(lambdaId, vertexId), state});
+                auto lambdaId = buf.get<std::uint16_t>();
+                auto vertexId = buf.get<std::uint32_t>();
+                vertices_.emplace_back(Vertex{std::make_pair(lambdaId, vertexId), state});
             }
         }
 
         inline operator Buffer () const {
             Size size = buffer_size_v<Type> + buffer_size_v<Size>
-                        + buffer_size_v<bool>
-                        + buffer_size_v<std::uint64_t>
+                        + buffer_size_v<bool> // destination
+                        + buffer_size_v<std::uint16_t> // destinationLambdaId
                         + vertexSize_ * vertices_.size();
             Buffer buf{size};
             buf.put(VERTICES);
             buf.put(size);
             buf.put(destination_);
             buf.put(destination_lambdaId_);
-            std::string id;
             for (const Vertex& v : vertices_) {
                 buf.put(v.state());
-                id = v.id();
-                auto [lambdaId, vertexId] = stringIdToNumerics(id);
+                auto& [lambdaId, vertexId] = v.id();
                 buf.put(lambdaId);
                 buf.put(vertexId);
             }
@@ -285,7 +283,7 @@ namespace mpl::packet {
             return destination_;
         };
 
-        std::uint64_t destinationLambdaId() const {
+        std::uint16_t destinationLambdaId() const {
             return destination_lambdaId_;
         };
 
@@ -305,20 +303,20 @@ namespace mpl::packet {
     private:
         std::vector<Edge> edges_;
 
-        static inline std::pair<std::uint64_t, std::uint64_t> stringIdToNumerics(const std::string &id) {
-            int pos = id.find("_");
-            std::uint64_t lambdaId = std::stoull(id.substr(0, pos));
-            std::uint64_t vertexId = std::stoull(id.substr(pos + 1));
-            return std::make_pair(lambdaId, vertexId);
-        }
+        //static inline std::pair<std::uint64_t, std::uint64_t> stringIdToNumerics(const std::string &id) {
+        //    int pos = id.find("_");
+        //    std::uint64_t lambdaId = std::stoull(id.substr(0, pos));
+        //    std::uint64_t vertexId = std::stoull(id.substr(pos + 1));
+        //    return std::make_pair(lambdaId, vertexId);
+        //}
 
-        static inline std::string numericalIdToString(const std::uint64_t &lambdaId, const std::uint64_t &vertexId) {
-            std::ostringstream oStream;
-            oStream << lambdaId << "_" << vertexId;
-            return oStream.str();
-        }
+        //static inline std::string numericalIdToString(const std::uint64_t &lambdaId, const std::uint64_t &vertexId) {
+        //    std::ostringstream oStream;
+        //    oStream << lambdaId << "_" << vertexId;
+        //    return oStream.str();
+        //}
     public:
-        static constexpr std::size_t edgeSize_ = buffer_size_v<Distance> + 4 * buffer_size_v<std::uint64_t>;
+        static constexpr std::size_t edgeSize_ = buffer_size_v<Distance> + 2 * buffer_size_v<std::uint16_t> + 2 * buffer_size_v<std::uint32_t>;
         static constexpr std::size_t edgeHeaderSize_ = buffer_size_v<Type> + buffer_size_v<Size>;
         static std::string name() {
             return "Edges";
@@ -338,12 +336,12 @@ namespace mpl::packet {
             edges_.reserve(n);
             while (edges_.size() < n) {
                 Distance distance = buf.get<Distance>();
-                std::uint64_t lambdaId = buf.get<std::uint64_t>();
-                std::uint64_t vertexId = buf.get<std::uint64_t>();
-                std::string u_id = numericalIdToString(lambdaId, vertexId);
-                lambdaId = buf.get<std::uint64_t>();
-                vertexId = buf.get<std::uint64_t>();
-                std::string v_id = numericalIdToString(lambdaId, vertexId);
+                auto lambdaId = buf.get<std::uint16_t>();
+                auto vertexId = buf.get<std::uint32_t>();
+                auto u_id = std::make_pair(lambdaId, vertexId);
+                lambdaId = buf.get<std::uint16_t>();
+                vertexId = buf.get<std::uint32_t>();
+                auto v_id = std::make_pair(lambdaId, vertexId);
                 edges_.emplace_back(Edge{distance, u_id, v_id});
             }
         }
@@ -357,12 +355,10 @@ namespace mpl::packet {
             std::string id;
             for (const Edge& e : edges_) {
                 buf.put(e.distance());
-                id = e.u();
-                auto [u_lambdaId, u_vertexId] = stringIdToNumerics(id);
+                auto& [u_lambdaId, u_vertexId] = e.u();
                 buf.put(u_lambdaId);
                 buf.put(u_vertexId);
-                id = e.v();
-                auto [v_lambdaId, v_vertexId] = stringIdToNumerics(id);
+                auto& [v_lambdaId, v_vertexId] = e.v();
                 buf.put(v_lambdaId);
                 buf.put(v_vertexId);
             }

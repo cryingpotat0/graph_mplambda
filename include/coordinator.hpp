@@ -12,7 +12,6 @@
 #include <sys/errno.h>
 #include <subspace.hpp>
 #include <graph.hpp>
-#include <tree.hpp>
 #include <prm_planner.hpp>
 #include <connection.hpp>
 #include <netinet/ip.h>
@@ -51,16 +50,15 @@ namespace mpl {
         using Subspace_t = Subspace<Bound, State, Scalar>;
         using Planner = mpl::PRMPlanner<Scenario, Scalar>;
         using Vertex = mpl::Vertex<State>;
+	using Vertex_ID = typename Vertex::ID;
         using Edge = mpl::Edge<typename Vertex::ID, Distance>;
         using Graph = UndirectedGraph<Vertex, Edge>;
         using Connection_t = Connection<CoordinatorFixedGraph>;
 
         std::vector<std::vector<Buffer>> buffered_data_; // Any data to be written if lambda is not up yet
         int smallest_number_of_neighbors;
-        std::unordered_map<std::pair<std::string, std::string>,
-                std::pair<bool, std::vector<std::string>>,
-                pair_hash<std::string, std::string>
-        > pathFromGoalToStarts;
+        std::unordered_map<std::pair<Vertex_ID, Vertex_ID>,
+                std::pair<bool, std::vector<Vertex_ID>>> pathFromGoalToStarts;
         demo::AppOptions app_options;
 
     private:
@@ -358,17 +356,18 @@ namespace mpl {
             // We can avoid querying each vertex to see if it is the start or the goal because we
             // add it to a lambda only if it contains it. Moreover, each lambda starts off by adding all the
             // start and goal points in the same order.
-            std::vector<int> lambda_current_vertex_id;
+            std::vector<std::uint32_t> lambda_current_vertex_id;
             std::vector<std::pair<Vertex, Vertex>> start_and_goal_vertex;
             lambda_current_vertex_id.resize(lambda_subspaces.size(), 0);
             for (auto& [start, goal] : starts_and_goals) {
-                std::string start_id, goal_id;
+		Vertex_ID start_id, goal_id;
                 for (int lambda_id=0; lambda_id < lambda_subspaces.size(); ++lambda_id) {
                     if (lambda_subspaces[lambda_id].contains(start)) {
-                        start_id = std::to_string(lambda_id) + "_" + std::to_string(lambda_current_vertex_id[lambda_id]++);
+                        start_id = std::make_pair(lambda_id, lambda_current_vertex_id[lambda_id]++);
                     }
                     if (lambda_subspaces[lambda_id].contains(goal)) {
-                        goal_id = std::to_string(lambda_id) + "_" + std::to_string(lambda_current_vertex_id[lambda_id]++);
+                        goal_id = std::make_pair(lambda_id, lambda_current_vertex_id[lambda_id]++);
+                        //goal_id = std::to_string(lambda_id) + "_" + std::to_string(lambda_current_vertex_id[lambda_id]++);
                     }
                 }
                 start_and_goal_vertex.push_back(std::make_pair(
@@ -387,7 +386,7 @@ namespace mpl {
             auto start_and_goal_vertices = getStartAndGoalVertices(start_and_goal_states);
             for (auto& [start_v, goal] : start_and_goal_vertices) {
                 JI_LOG(INFO) << "Using start " << start_v.id() << " and goal " << goal.id();
-                pathFromGoalToStarts[std::make_pair(start_v.id(), goal.id())] = std::make_pair(false, std::vector<std::string>());
+                pathFromGoalToStarts[std::make_pair(start_v.id(), goal.id())] = std::make_pair(false, std::vector<Vertex_ID>());
             }
 
             auto start_time = std::chrono::high_resolution_clock::now();

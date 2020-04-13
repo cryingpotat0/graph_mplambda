@@ -1,4 +1,4 @@
-//
+///
 // Created by Raghav Anand on 2020-03-19.
 //
 
@@ -11,20 +11,31 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <queue>
 
-namespace mpl {
-    template<class T1, class T2>
-    struct pair_hash {
-        std::size_t operator() (const std::pair<T1, T2> &pair) const
-        {
+namespace std {
+    template <class T1, class T2>
+    struct hash<std::pair<T1, T2>> {
+        size_t operator()(const std::pair<T1, T2>& pair) const noexcept {
             return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
         }
     };
+}
+
+namespace mpl {
+    //template<class T1, class T2>
+    //struct pair_hash {
+    //    std::size_t operator() (const std::pair<T1, T2> &pair) const
+    //    {
+    //        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    //    }
+    //};
 
 
     template <class State>
     struct Vertex {
-        using ID = std::string;
+        //using ID = std::string;
+	using ID = std::pair<std::uint16_t, std::uint32_t>; // <lambda_id, vertex_id>
         ID id_;
         State state_;
 
@@ -98,7 +109,8 @@ namespace mpl {
         std::unordered_map<VertexID, std::unordered_set<VertexID>> adjacency_list;
         std::unordered_map<VertexID, Vertex> vertex_properties;
         typedef std::pair<VertexID, VertexID> EdgeID;
-        std::unordered_map<EdgeID, Edge, pair_hash<VertexID, VertexID>> edge_properties;
+        //std::unordered_map<EdgeID, Edge, pair_hash<VertexID, VertexID>> edge_properties;
+        std::unordered_map<EdgeID, Edge> edge_properties;
 
     public:
         UndirectedGraph() = default;

@@ -45,7 +45,7 @@ namespace mpl {
         uint64_t num_samples_;
         std::vector<Vertex_t> new_vertices;
         std::vector<Edge_t> new_edges;
-        std::uint64_t lambda_id_; // To create vertex IDs that work across computers
+        std::uint16_t lambda_id_; // To create vertex IDs that work across computers
         RNG rng;
         Scalar rPRM;
 
@@ -56,7 +56,7 @@ namespace mpl {
 
     public:
 
-        explicit PRMPlanner(Scenario scenario_, void* lambda_, std::uint64_t lambda_id)
+        explicit PRMPlanner(Scenario scenario_, void* lambda_, std::uint16_t lambda_id)
                 : scenario(scenario_),
                   lambda(lambda_),
                   maxDistance(scenario_.maxSteering()),
@@ -125,7 +125,8 @@ namespace mpl {
 
         void addSample(State& s, bool print_id=false) {
             if (!scenario.isValid(s)) return;
-            std::string id = std::to_string(lambda_id_) + "_" + std::to_string(num_samples_);
+            //std::string id = std::to_string(lambda_id_) + "_" + std::to_string(num_samples_);
+	    auto id = std::make_pair(lambda_id_, num_samples_);
             if (print_id) {
                 JI_LOG(INFO) << "Vertex id " << id;
             }

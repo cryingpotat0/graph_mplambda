@@ -4,7 +4,6 @@
 
 #include <vector>
 #include <iostream>
-#include <tree.hpp>
 
 namespace mpl {
     template <class Bound, class State, class Scalar>
@@ -58,42 +57,42 @@ namespace mpl {
             return subspaces;
         }
 
-        std::pair<Tree<Subspace>, Tree<Subspace>*> layered_divide(const std::vector<int> &num_divisions, const Subspace* find=nullptr) {
-            Tree<Subspace> root{Subspace(lower, upper)};
-            std::vector<Tree<Subspace> *> current_layer {&root};
-            Tree<Subspace> *found = nullptr;
-            for (auto i=0; i < num_divisions.size(); ++i) {
-                auto nd = num_divisions[i];
-                std::vector<Tree<Subspace>*> new_layer;
-                for (auto node : current_layer) {
-                    // split each child num_division times
-                    double increment = (node->getData().getUpper()[i] - node->getData().getLower()[i]) / (nd + 1);
-                    for (int j=0; j <= nd; ++j) {
-                        auto new_lower = node->getData().getLower();
-                        auto new_upper = node->getData().getUpper();
-                        new_lower[i] += increment * j;
-                        new_upper[i] = new_lower[i] + increment;
-                        Subspace child(new_lower, new_upper);
-                        node->addChild(child);
-                        if (i == num_divisions.size() - 1) JI_LOG(INFO) << child;
-                    }
-                }
-                for (auto node : current_layer) {
-                    for (auto c : node->getChildren()) {
-                        new_layer.push_back(c);
-                        if (c->getData() == (*find)) {
-                            found = c;
-                        }
-                    }
-                }
-                current_layer.clear();
-                for (auto c : new_layer) {
-                    current_layer.emplace_back(c);
-                } // TODO: I feel like I'm overcomplicating this too much
-//                current_layer = new_layer;
-            }
-            return std::make_pair(root, found);
-        }
+        //std::pair<Tree<Subspace>, Tree<Subspace>*> layered_divide(const std::vector<int> &num_divisions, const Subspace* find=nullptr) {
+        //    Tree<Subspace> root{Subspace(lower, upper)};
+        //    std::vector<Tree<Subspace> *> current_layer {&root};
+        //    Tree<Subspace> *found = nullptr;
+        //    for (auto i=0; i < num_divisions.size(); ++i) {
+        //        auto nd = num_divisions[i];
+        //        std::vector<Tree<Subspace>*> new_layer;
+        //        for (auto node : current_layer) {
+        //            // split each child num_division times
+        //            double increment = (node->getData().getUpper()[i] - node->getData().getLower()[i]) / (nd + 1);
+        //            for (int j=0; j <= nd; ++j) {
+        //                auto new_lower = node->getData().getLower();
+        //                auto new_upper = node->getData().getUpper();
+        //                new_lower[i] += increment * j;
+        //                new_upper[i] = new_lower[i] + increment;
+        //                Subspace child(new_lower, new_upper);
+        //                node->addChild(child);
+        //                if (i == num_divisions.size() - 1) JI_LOG(INFO) << child;
+        //            }
+        //        }
+        //        for (auto node : current_layer) {
+        //            for (auto c : node->getChildren()) {
+        //                new_layer.push_back(c);
+        //                if (c->getData() == (*find)) {
+        //                    found = c;
+        //                }
+        //            }
+        //        }
+        //        current_layer.clear();
+        //        for (auto c : new_layer) {
+        //            current_layer.emplace_back(c);
+        //        } // TODO: I feel like I'm overcomplicating this too much
+//      //          current_layer = new_layer;
+        //    }
+        //    return std::make_pair(root, found);
+        //}
 
         std::vector<Subspace> divide_until(int num_objects) {
             // TODO
@@ -214,14 +213,20 @@ std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
     return out;
 }
 
-
-namespace std {
-    template <class Bound, class State, class Scalar>
-    struct hash<mpl::Subspace<Bound, State, Scalar> > {
-        size_t operator()(const mpl::Subspace<Bound, State, Scalar>& s) const noexcept {
-            return 0; //std::hash<Bound>(s.getLower()) ^ std::hash<Bound>(s.getUpper()); // TODO: implement good hash
-        }
-    };
+template <typename T1, typename T2>
+std::ostream& operator<< (std::ostream& out, const std::pair<T1, T2>& v) {
+    out << v.first << "," << v.second;
+    return out;
 }
+
+
+//namespace std {
+//    template <class Bound, class State, class Scalar>
+//    struct hash<mpl::Subspace<Bound, State, Scalar> > {
+//        size_t operator()(const mpl::Subspace<Bound, State, Scalar>& s) const noexcept {
+//            return 0; //std::hash<Bound>(s.getLower()) ^ std::hash<Bound>(s.getUpper()); // TODO: implement good hash
+//        }
+//    };
+//}
 
 #endif
