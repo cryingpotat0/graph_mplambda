@@ -20,6 +20,7 @@
 #include <demo/png_2d_scenario.hpp>
 #include <comm.hpp>
 #include <demo/fetch_scenario.hpp>
+#include <demo/mpl_robot.hpp>
 
 
 namespace mpl::demo {
@@ -95,31 +96,36 @@ namespace mpl::demo {
             //// Then add the callback to track these neighbors
             planner.addValidSampleCallback(trackValidSamples);
 
-            //// Add start and goal samples
-            auto s = std::chrono::high_resolution_clock::now();
-            for (auto& [start, goal] : app_options.getStartsAndGoals<State>()) {
-                JI_LOG(INFO) << "Testing start " << start;
-                if (local_subspace.contains(start)) {
-                    if (!scenario.isValid(start)) {
-                        JI_LOG(ERROR) << "Start " << start << " is not valid";
-                        continue;
-                    }
+            //// Add start and goal samples. For now assume a single start position that you want to add, and 
+	    //// the goals are sampled later by the coordinator.
+	    auto start = app_options.start<State>();
+	    JI_LOG(INFO) << "Testing start " << start;
+	    if (local_subspace.contains(start) && scenario.isValid(start)) {
 		    planner.addSample(start, true);
-                }
+	    }
+            //auto s = std::chrono::high_resolution_clock::now();
+            //for (auto& [start, goal] : app_options.getStartsAndGoals<State>()) {
+            //    if (local_subspace.contains(start)) {
+            //        if (!scenario.isValid(start)) {
+            //            JI_LOG(ERROR) << "Start " << start << " is not valid";
+            //            continue;
+            //        }
+	    //        planner.addSample(start, true);
+            //    }
 
-                JI_LOG(INFO) << "Testing goal " << goal;
-                if (local_subspace.contains(goal)) {
-                    if (!scenario.isValid(goal)) {
-                        JI_LOG(ERROR) << "Goal " << goal << " is not valid";
-                        continue;
-                    }
-                    JI_LOG(INFO) << "Printing goal id";
-                    planner.addSample(goal, true);
-                }
-            }
-	    auto e = std::chrono::high_resolution_clock::now();
-            auto start_goal_time = std::chrono::duration_cast<std::chrono::milliseconds>(e - s);
-	    JI_LOG(INFO) << "Time to check starts and goals " << start_goal_time;
+            //    JI_LOG(INFO) << "Testing goal " << goal;
+            //    if (local_subspace.contains(goal)) {
+            //        if (!scenario.isValid(goal)) {
+            //            JI_LOG(ERROR) << "Goal " << goal << " is not valid";
+            //            continue;
+            //        }
+            //        JI_LOG(INFO) << "Printing goal id";
+            //        planner.addSample(goal, true);
+            //    }
+            //}
+	    //auto e = std::chrono::high_resolution_clock::now();
+            //auto start_goal_time = std::chrono::duration_cast<std::chrono::milliseconds>(e - s);
+	    //JI_LOG(INFO) << "Time to check starts and goals " << start_goal_time;
 
             //auto min_subspace_size = std::numeric_limits<Scalar>::max();
             //for (int i=0; i < local_subspace.dimension(); ++i) {
@@ -222,83 +228,10 @@ namespace mpl::demo {
         }
 
 	const std::uint64_t& lambdaId() const {
-		return lambda_id;
+	    return lambda_id;
 	}
 
     };
-
-    template <class Scalar>
-    void runPngScenario(AppOptions &app_options) {
-        if (app_options.env(false).empty()) {
-            app_options.env_ = "./resources/png_planning_input.png";
-        }
-
-        using Scenario = typename mpl::demo::PNG2dScenario<Scalar>;
-        using Planner = typename mpl::PRMPlanner<Scenario, Scalar>;
-        using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
-        using State = typename Scenario::State;
-        using Bound = typename Scenario::Bound;
-        using Subspace_t = typename Lambda::Subspace_t;
-
-        std::vector<FilterColor> filters;
-
-        if (app_options.env() == "resources/png_planning_input.png") {
-            filters.emplace_back(FilterColor(126, 106, 61, 15));
-            filters.emplace_back(FilterColor(61, 53, 6, 15));
-            filters.emplace_back(FilterColor(255, 255, 255, 5));
-        } else if (app_options.env() == "resources/house_layout.png") {
-            filters.emplace_back(FilterColor(0, 0, 0, 5));
-            filters.emplace_back(FilterColor(224, 224, 224, 5));
-            filters.emplace_back(FilterColor(255, 255, 255, 5));
-        }
-
-        //auto startState = app_options.start<State>(); // 430, 1300;
-        //auto goalState = app_options.goal<State>(); // 3150, 950
-
-        JI_LOG(INFO) << "Lambda ID" << app_options.lambdaId();
-        JI_LOG(INFO) << "Using env " << app_options.env();
-
-        auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
-        JI_LOG(INFO) << "Loaded env " << app_options.env();
-
-        if (app_options.global_min_.empty()) {
-            app_options.global_min_ = "0,0";
-        }
-        if (app_options.global_max_.empty()) {
-            app_options.global_max_ = mpl::util::ToString(width) + "," + mpl::util::ToString(height);
-        }
-
-        auto min = app_options.globalMin<Bound>();
-        auto max = app_options.globalMax<Bound>();
-        Subspace_t global_subspace(min, max);
-
-        auto eig_num_divisions = app_options.num_divisions<State>();
-        std::vector<int> num_divisions =
-                std::vector<int>(
-                        eig_num_divisions.data(),
-                        eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
-                );
-
-        std::vector<std::pair<Subspace_t, int>> neighborsToLambdaIdGlobal;
-        auto divisions = global_subspace.divide(num_divisions);
-        for (int i=0; i < divisions.size(); ++i) {
-            neighborsToLambdaIdGlobal.push_back(std::make_pair(divisions[i], i));
-        }
-        JI_LOG(INFO) << "Total number of lambdas " << neighborsToLambdaIdGlobal.size();
-        auto local_subspace = divisions[app_options.lambdaId()];
-
-        JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
-
-        Scenario scenario(width, height, local_subspace.getLower(), local_subspace.getUpper(), obstacles);
-        Lambda lambda(app_options, scenario, local_subspace, global_subspace, neighborsToLambdaIdGlobal);
-        for(;;) {
-            lambda.do_work();
-            if (lambda.isDone()) break;
-        }
-	lambda.shutdown();
-        JI_LOG(INFO) << "Finished";
-
-    }
 
 
     template <class Scalar>
@@ -350,6 +283,50 @@ namespace mpl::demo {
         }
     }
 
+    template <class Scenario, class Scalar>
+    void runScenario(Scenario& scenario, AppOptions& app_options) {
+        using Planner = typename mpl::PRMPlanner<Scenario, Scalar>;
+        using State = typename Scenario::State;
+        using Bound = typename Scenario::Bound;
+        using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
+        using Subspace_t = typename Lambda::Subspace_t;
+
+        JI_LOG(INFO) << "Lambda ID" << app_options.lambdaId();
+
+	// Construct local and global subspaces
+        auto min = app_options.globalMin<Bound>();
+        auto max = app_options.globalMax<Bound>();
+        Subspace_t global_subspace(min, max);
+
+        auto eig_num_divisions = app_options.num_divisions<State>();
+        std::vector<int> num_divisions =
+                std::vector<int>(
+                        eig_num_divisions.data(),
+                        eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
+                );
+
+        std::vector<std::pair<Subspace_t, int>> subspaceToLambdaId;
+        auto divisions = global_subspace.divide(num_divisions);
+        for (int i=0; i < divisions.size(); ++i) {
+            subspaceToLambdaId.push_back(std::make_pair(divisions[i], i));
+        }
+        JI_LOG(INFO) << "Total number of lambdas " << subspaceToLambdaId.size();
+        auto local_subspace = divisions[app_options.lambdaId()];
+
+        JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
+	// End subspace construction
+
+	scenario.setMin(local_subspace.getLower());
+	scenario.setMax(local_subspace.getUpper());
+        Lambda lambda(app_options, scenario, local_subspace, global_subspace, subspaceToLambdaId);
+        for(;;) {
+            lambda.do_work();
+            if (lambda.isDone()) break;
+        }
+	lambda.shutdown();
+        JI_LOG(INFO) << "Finished";
+    }
+
 
     void runSelectPlanner(AppOptions& app_options) {
         using Scalar = double; // TODO: add single precision code
@@ -371,10 +348,15 @@ namespace mpl::demo {
         JI_LOG(INFO) << "Using coordinator " << app_options.coordinator()
                      << " with communicator " << app_options.communicator();
 
+
+
         if (app_options.scenario() == "png") {
-            runPngScenario<Scalar>(app_options);
+            //runPngScenario<Scalar>(app_options, local_subspace, global_subspace, subspaceToLambdaId);
+	    using Scenario = PNG2dScenario<Scalar>;
+	    Scenario scenario = initPngScenario<Scalar>(app_options);
+	    runScenario<Scenario, Scalar>(scenario, app_options);
         } else if (app_options.scenario() == "fetch") {
-            runFetchScenario<Scalar>(app_options);
+            //runFetchScenario<Scalar>(app_options);
         } else {
             throw std::invalid_argument("Invalid scenario");
         }

@@ -426,6 +426,7 @@ namespace mpl::demo {
             return parse<T>("goal", goal_);
         }
 
+
         template <class T>
         T correct_goal() const {
             return parse<T>("correct_goal", correct_goal_);
@@ -454,6 +455,15 @@ namespace mpl::demo {
         template <class T>
         T globalMax() const {
             return parse<T>("global_max", global_max_);
+        }
+
+        template <class T>
+        std::vector<T> goals() const {
+            std::vector<T> goals;
+            for (int i=0; i < goals_.size(); ++i) {
+                goals.push_back(parse<T>("goal", goals_[i]));
+            }
+            return goals;
         }
 
         template <class T>

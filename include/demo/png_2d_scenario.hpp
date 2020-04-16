@@ -88,7 +88,7 @@ namespace mpl::demo
         Space space_;
         Bound min_;
         Bound max_;
-        //State goal_;
+        State goal_;
         std::vector<bool> isObstacle_;
         static constexpr Scalar PI = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620L;
 
@@ -143,6 +143,22 @@ namespace mpl::demo
         {
             return max_;
         }
+
+	void setMin(const Bound &min) {
+	    min_ = min;
+	}
+
+	void setMax(const Bound &max) {
+	    max_ = max;
+	}
+
+	void setGoal(const State& q) {
+	    goal_ = q;
+	}
+
+	bool isGoal(const State& q) const {
+	    return (goal_ - q).isMuchSmallerThan(5, 1); // Tolerance of 5 pixels each way
+	}
 
         //const State &goal() const
         //{

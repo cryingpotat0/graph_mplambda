@@ -161,7 +161,7 @@ namespace mpl {
             adjacency_list[u].insert(v);
         }
 
-        std::pair<bool, std::vector<VertexID>> djikstras(const VertexID& start, const VertexID& end) {
+        std::pair<bool, std::vector<VertexID>> djikstras(const VertexID& start, const VertexID& end) const {
             using Distance = typename Edge::Distance_t;
             using DistVertexPair = typename std::pair<Distance, VertexID>;
             std::priority_queue<DistVertexPair, std::vector<DistVertexPair>, std::greater<DistVertexPair>> pq;
@@ -174,7 +174,9 @@ namespace mpl {
                 pq.pop();
                 if (u == end) break;
 //                JI_LOG(TRACE) << "Len of adjacency list for " << u << " is " << std::to_string(adjacency_list[u].size());
-                for (auto& v : adjacency_list[u]) {
+		auto outgoing_edges = adjacency_list.find(u);
+		if (outgoing_edges == adjacency_list.end()) continue;
+                for (auto& v : outgoing_edges->second) {
 //                    JI_LOG(TRACE) << "u: " << u << " v: " << v;
                     auto edge = getEdge(u, v);
                     if (dists.find(v) == dists.end()) dists[v] = std::numeric_limits<Distance>::max();
@@ -199,6 +201,57 @@ namespace mpl {
             std::reverse(path.begin(), path.end());
             return std::make_pair(true, path);
         }
+
+	template <class GoalFn> // TODO: replace this with a lambda instead
+        std::pair<bool, std::vector<VertexID>> djikstras(const VertexID& start, const GoalFn&& goalFn) const {
+            using Distance = typename Edge::Distance_t;
+            using DistVertexPair = typename std::pair<Distance, VertexID>;
+            std::priority_queue<DistVertexPair, std::vector<DistVertexPair>, std::greater<DistVertexPair>> pq;
+            std::unordered_map<VertexID, Distance> dists;
+            std::unordered_map<VertexID, VertexID> prev;
+            pq.push(std::make_pair(0, start));
+	    VertexID end;
+	    bool goalFound{false};
+//            JI_LOG(INFO) << "Num edges " << edge_properties.size();
+            while (!pq.empty()) {
+                auto [curr_dist, u] = pq.top();
+                pq.pop();
+		//auto curr_state = getVertex(u).state();
+                //if (scenario.isGoal(curr_state)) {
+		if (goalFn(getVertex(u))) {
+		    end = u;
+		    goalFound = true;
+		    break;
+		}
+//                JI_LOG(TRACE) << "Len of adjacency list for " << u << " is " << std::to_string(adjacency_list[u].size());
+		auto outgoing_edges = adjacency_list.find(u);
+		if (outgoing_edges == adjacency_list.end()) continue;
+                for (auto& v : outgoing_edges->second) {
+//                    JI_LOG(TRACE) << "u: " << u << " v: " << v;
+                    auto edge = getEdge(u, v);
+                    if (dists.find(v) == dists.end()) dists[v] = std::numeric_limits<Distance>::max();
+
+                    if (dists[v] > dists[u] + edge.distance()) {
+                        dists[v] = dists[u] + edge.distance();
+                        prev[v] = u;
+                        pq.push(std::make_pair(dists[v], v));
+                    }
+                }
+            }
+            if (!goalFound) {
+                return std::make_pair(false, std::vector<VertexID>());
+            }
+            auto curr = end;
+            std::vector<VertexID> path;
+            while (curr != start) {
+                path.push_back(curr);
+                curr = prev[curr];
+            }
+            path.push_back(start);
+            std::reverse(path.begin(), path.end());
+            return std::make_pair(true, path);
+        }
+	
 
 
 //        struct Vertex {

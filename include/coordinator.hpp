@@ -56,9 +56,8 @@ namespace mpl {
         using Connection_t = Connection<CoordinatorFixedGraph>;
 
         std::vector<std::vector<Buffer>> buffered_data_; // Any data to be written if lambda is not up yet
-        int smallest_number_of_neighbors;
-        std::unordered_map<std::pair<Vertex_ID, Vertex_ID>,
-                std::pair<bool, std::vector<Vertex_ID>>> pathFromGoalToStarts;
+        //std::unordered_map<std::pair<Vertex_ID, Vertex_ID>,
+        //        std::pair<bool, std::vector<Vertex_ID>>> pathFromGoalToStarts;
         demo::AppOptions app_options;
 
     private:
@@ -183,11 +182,12 @@ namespace mpl {
                         "--time-limit", std::to_string(app_options.timeLimit()),
                         "--env", app_options.env(false),
                         "--env-frame", app_options.envFrame_,
-                        "--num_divisions", app_options.num_divisions_
+                        "--num_divisions", app_options.num_divisions_,
+                        "--start", app_options.start_
                 };
-                for (int i=0; i < app_options.starts_.size(); ++i) {
-                    args.push_back("--start");
-                    args.push_back(app_options.starts_[i]);
+                for (int i=0; i < app_options.goals_.size(); ++i) {
+                    //args.push_back("--start");
+                    //args.push_back(app_options.starts_[i]);
                     args.push_back("--goal");
                     args.push_back(app_options.goals_[i]);
                 }
@@ -227,7 +227,6 @@ namespace mpl {
                 app_options(app_options_),
                 global_subspace(Subspace_t(app_options_.globalMin<Bound>(), app_options_.globalMax<Bound>()))
         {
-            smallest_number_of_neighbors = (int) (pow(2, global_subspace.dimension()) - 1);
 #if HAS_AWS_SDK
             if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
                 JI_LOG(INFO) << "initializing lambda client";
@@ -288,6 +287,10 @@ namespace mpl {
         }
 
         const Graph& getGraph() const {
+            return graph;
+        };
+
+        Graph& getGraph() {
             return graph;
         };
 
@@ -352,6 +355,7 @@ namespace mpl {
             JI_LOG(INFO) << "Subspaces: " << lambda_subspaces;
         }
 
+	/*
         std::vector<std::pair<Vertex, Vertex>> getStartAndGoalVertices(const std::vector<std::pair<State, State>> &starts_and_goals) {
             // We can avoid querying each vertex to see if it is the start or the goal because we
             // add it to a lambda only if it contains it. Moreover, each lambda starts off by adding all the
@@ -377,17 +381,26 @@ namespace mpl {
             }
             return start_and_goal_vertex;
         }
+	*/
+        Vertex getStartVertex(const State start) const {
+	    // The lambda first adds the start vertex, so it will be the vertex with id 0
+	    Vertex_ID start_id;
+	    for (int lambda_id=0; lambda_id < lambda_subspaces.size(); ++lambda_id) {
+		    if (lambda_subspaces[lambda_id].contains(start)) {
+			    start_id = std::make_pair(lambda_id, 0);
+			    return Vertex{start_id, start};
+		    }
+	    }
+	    throw syserr("start vertex should be in one of the lambdas");
+        }
 
         void loop() {
-            // Do communication stuff// TODO: handle case where other connection not initiated
+            // Do communication stuff
             int done_ = 0;
 	    JI_LOG(INFO) << "loop started";
-            auto start_and_goal_states = app_options.getStartsAndGoals<State>();
-            auto start_and_goal_vertices = getStartAndGoalVertices(start_and_goal_states);
-            for (auto& [start_v, goal] : start_and_goal_vertices) {
-                JI_LOG(INFO) << "Using start " << start_v.id() << " and goal " << goal.id();
-                pathFromGoalToStarts[std::make_pair(start_v.id(), goal.id())] = std::make_pair(false, std::vector<Vertex_ID>());
-            }
+            auto start = app_options.start<State>(); // Test case: single start moving from goal to goal
+            auto start_vertex = getStartVertex(start);
+	    JI_LOG(INFO) << "Using start " << start_vertex.id() << " and goal ";
 
             auto start_time = std::chrono::high_resolution_clock::now();
             for(;;) {
@@ -412,31 +425,12 @@ namespace mpl {
                 pfds.back().fd = listen_;
                 pfds.back().events = POLLIN;
 
-//                JI_LOG(TRACE) << "polling " << pfds.size();
                 int nReady = ::poll(pfds.data(), pfds.size(), 1);
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
                 if (duration.count() > app_options.timeLimit() * 1000) { // specified time limit in ms
 		    if (!done_) done_ = 1;
                 }
-//                bool all_found = true;
-//                for (auto it=pathFromGoalToStarts.begin(); it != pathFromGoalToStarts.end(); it++) {
-//                    const auto& [start, goal] = it->first;
-//                    const auto& [found, path] = it->second;
-//                    if (found) {
-//                        JI_LOG(INFO) << "Path found for start " << start << " goal " << goal;
-//                    }
-//                    auto start_djikstras = std::chrono::high_resolution_clock::now();
-//                    pathFromGoalToStarts[it->first] = graph.djikstras(start, goal);
-//                    auto end_djikstras = std::chrono::high_resolution_clock::now();
-//                    all_found = false;
-//                    JI_LOG(INFO) << "Time to do djikstras for start " << start << " goal " << goal
-//                        << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_djikstras - start_djikstras);;
-//                }
-//                if (all_found) done_ = 2; // TODO: Do this better, set a flag
-
-
-//                JI_LOG(TRACE) << "poll returned " << nReady;
 
                 if (nReady == -1) {
                     if (errno == EAGAIN || errno == EINTR) {
@@ -455,8 +449,6 @@ namespace mpl {
                         ++cit;
                     } else {
                         int stat = 0;
-                        // if (::waitpid(cit->first, &stat, 0) == -1)
-                        //     JI_LOG(WARN) << "waitpid failed with error: " << errno;
                         if (::close(cit->second) == -1)
                             JI_LOG(WARN) << "close failed with error: " << errno;
                         JI_LOG(INFO) << "child process " << cit->first << " exited with status " << stat;
@@ -467,7 +459,6 @@ namespace mpl {
                 for (auto cit = connections_.begin(); cit != connections_.end(); ++pit) {
                     assert(pit != pfds.end());
 
-		    //cit->perform_delayed_vertices_write();
                     if (cit->process(*pit)) {
                         //JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " << cit->recvHello();
 			if (cit->recvDone()) {
@@ -522,7 +513,6 @@ namespace mpl {
                 }
 
                 if (done_) {
-
 		    if (connections_.size() == 0) break;
 		    if (done_ == 1) {
 			    for (auto& c : connections_) {
@@ -532,52 +522,42 @@ namespace mpl {
 			JI_LOG(INFO) << "Sending done to all connections";
 		    }
 		    break; // Don't wait for lambda queues to finish
-	
                 }
-
-
-
-                // Get new vertices and edges from lambdas
-//            auto vector_new_vertices= comm.template get<VectorMessage<Vertex>>("graph_vertices");
-//            auto vector_new_edges = comm.template get<VectorMessage<Edge>>(std::string("graph_edges"));
-
-                // Compute new rPRM
-                // Ensure vertices broadcast to all lambdas
-
             }
             JI_LOG(INFO) << "Loop done";
-            connections_.clear();
+
             // Handle cleaning up lambdas
+            connections_.clear();
 
             //if (done_ == 2) {
 	    auto stop = std::chrono::high_resolution_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
-		JI_LOG(INFO) << "Loop finished in " << duration;
-		JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
-		JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
-		JI_LOG(INFO) << "Final samples per lambda " << num_samples_per_lambda_;
-            //}
+	    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+	    JI_LOG(INFO) << "Loop finished in " << duration;
+	    JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
+	    JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
+	    JI_LOG(INFO) << "Final samples per lambda " << num_samples_per_lambda_;
+	    //}
             // Do a final djikstras
-            for (auto it=pathFromGoalToStarts.begin(); it != pathFromGoalToStarts.end(); it++) {
-                const auto& [start, goal] = it->first;
-                auto start_djikstras = std::chrono::high_resolution_clock::now();
-                const auto& [found, path] = graph.djikstras(start, goal);
-                auto end_djikstras = std::chrono::high_resolution_clock::now();
-                JI_LOG(INFO) << "Time to do djikstras for start " << start << " goal " << goal
-                        << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_djikstras - start_djikstras);;
-                if (found) {
-                    Distance d = 0;
-                    for (auto it=path.begin(); it < path.end() - 1; it++) {
-                        auto u = (*it);
-                        auto v = (*(it+1));
-                        d += graph.getEdge(u, v).distance();
-                    }
-                    JI_LOG(INFO) << "Path found for start " << graph.getVertex(start).state() << " goal " << graph.getVertex(goal).state() << " with distance " << d;
-                } else {
-                    JI_LOG(INFO) << "No Path found for start " << graph.getVertex(start).state() << " goal " << graph.getVertex(goal).state() << " with distance inf";
-		}
-                pathFromGoalToStarts[it->first] = std::make_pair(found, path);
-            }
+            //for (auto it=pathFromGoalToStarts.begin(); it != pathFromGoalToStarts.end(); it++) {
+            //    const auto& [start, goal] = it->first;
+            //    auto start_djikstras = std::chrono::high_resolution_clock::now();
+            //    const auto& [found, path] = graph.djikstras(start, goal);
+            //    auto end_djikstras = std::chrono::high_resolution_clock::now();
+            //    JI_LOG(INFO) << "Time to do djikstras for start " << start << " goal " << goal
+            //            << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_djikstras - start_djikstras);;
+            //    if (found) {
+            //        Distance d = 0;
+            //        for (auto it=path.begin(); it < path.end() - 1; it++) {
+            //            auto u = (*it);
+            //            auto v = (*(it+1));
+            //            d += graph.getEdge(u, v).distance();
+            //        }
+            //        JI_LOG(INFO) << "Path found for start " << graph.getVertex(start).state() << " goal " << graph.getVertex(goal).state() << " with distance " << d;
+            //    } else {
+            //        JI_LOG(INFO) << "No Path found for start " << graph.getVertex(start).state() << " goal " << graph.getVertex(goal).state() << " with distance inf";
+	    //    }
+            //    pathFromGoalToStarts[it->first] = std::make_pair(found, path);
+            //}
         }
 
         void init_lambdas() {
