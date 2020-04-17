@@ -183,11 +183,12 @@ namespace mpl {
                         "--env", app_options.env(false),
                         "--env-frame", app_options.envFrame_,
                         "--num_divisions", app_options.num_divisions_,
-                        "--start", app_options.start_
                 };
+                for (int i=0; i < app_options.starts_.size(); ++i) {
+                    args.push_back("--start");
+                    args.push_back(app_options.starts_[i]);
+                }
                 for (int i=0; i < app_options.goals_.size(); ++i) {
-                    //args.push_back("--start");
-                    //args.push_back(app_options.starts_[i]);
                     args.push_back("--goal");
                     args.push_back(app_options.goals_[i]);
                 }
@@ -355,11 +356,11 @@ namespace mpl {
             JI_LOG(INFO) << "Subspaces: " << lambda_subspaces;
         }
 
-	/*
-        std::vector<std::pair<Vertex, Vertex>> getStartAndGoalVertices(const std::vector<std::pair<State, State>> &starts_and_goals) {
+        std::vector<std::pair<Vertex, Vertex>> getStartAndGoalVertices() const {
             // We can avoid querying each vertex to see if it is the start or the goal because we
             // add it to a lambda only if it contains it. Moreover, each lambda starts off by adding all the
             // start and goal points in the same order.
+	    std::vector<std::pair<State, State>> starts_and_goals = app_options.getStartsAndGoals<State>();
             std::vector<std::uint32_t> lambda_current_vertex_id;
             std::vector<std::pair<Vertex, Vertex>> start_and_goal_vertex;
             lambda_current_vertex_id.resize(lambda_subspaces.size(), 0);
@@ -381,7 +382,7 @@ namespace mpl {
             }
             return start_and_goal_vertex;
         }
-	*/
+
         Vertex getStartVertex(const State start) const {
 	    // The lambda first adds the start vertex, so it will be the vertex with id 0
 	    Vertex_ID start_id;
@@ -398,9 +399,9 @@ namespace mpl {
             // Do communication stuff
             int done_ = 0;
 	    JI_LOG(INFO) << "loop started";
-            auto start = app_options.start<State>(); // Test case: single start moving from goal to goal
-            auto start_vertex = getStartVertex(start);
-	    JI_LOG(INFO) << "Using start " << start_vertex.id() << " and goal ";
+            //auto start = app_options.start<State>(); // Test case: single start moving from goal to goal
+            //auto start_vertex = getStartVertex();
+	    //JI_LOG(INFO) << "Using start " << start_vertex.id() << " and goal ";
 
             auto start_time = std::chrono::high_resolution_clock::now();
             for(;;) {

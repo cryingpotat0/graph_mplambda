@@ -44,7 +44,7 @@ if (${APPLE})
 	target_link_libraries(mpl_coordinator PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${RABBITMQ_LIBRARIES} ${PNG_LIBRARIES})
 
 	add_executable(mpl_test src/test.cpp src/comm.cpp src/write_queue.cpp )
-	target_link_libraries(mpl_coordinator PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${RABBITMQ_LIBRARIES} ${PNG_LIBRARIES})
+	target_link_libraries(mpl_test PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${RABBITMQ_LIBRARIES} ${PNG_LIBRARIES})
 else ()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAS_AWS_SDK")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAS_AWS_SDK")

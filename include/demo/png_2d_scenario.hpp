@@ -157,7 +157,7 @@ namespace mpl::demo
 	}
 
 	bool isGoal(const State& q) const {
-	    return (goal_ - q).isMuchSmallerThan(5, 1); // Tolerance of 5 pixels each way
+	    return (goal_ - q).isMuchSmallerThan(30, 1); // Tolerance of 5 pixels each way
 	}
 
         //const State &goal() const

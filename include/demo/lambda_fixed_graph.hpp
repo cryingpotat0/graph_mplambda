@@ -50,7 +50,7 @@ namespace mpl::demo {
 	bool done_ = false;
 	double time_limit = 100.0; // Set safety maximum limit so we don't get charged on AWS
 
-        LocalLambdaFixedGraph();
+	LocalLambdaFixedGraph();
 
         static void trackValidSamples(Vertex_t& validSample, void* lambda) {
             auto localLambdaFixedGraph = static_cast<LocalLambdaFixedGraph *>(lambda);
@@ -98,22 +98,32 @@ namespace mpl::demo {
 
             //// Add start and goal samples. For now assume a single start position that you want to add, and 
 	    //// the goals are sampled later by the coordinator.
-	    auto start = app_options.start<State>();
-	    JI_LOG(INFO) << "Testing start " << start;
-	    if (local_subspace.contains(start) && scenario.isValid(start)) {
-		    planner.addSample(start, true);
-	    }
-            //auto s = std::chrono::high_resolution_clock::now();
-            //for (auto& [start, goal] : app_options.getStartsAndGoals<State>()) {
-            //    if (local_subspace.contains(start)) {
-            //        if (!scenario.isValid(start)) {
-            //            JI_LOG(ERROR) << "Start " << start << " is not valid";
-            //            continue;
-            //        }
+	    //auto start = app_options.start<State>();
+	    //JI_LOG(INFO) << "Testing start " << start;
+	    //if (local_subspace.contains(start) && scenario.isValid(start)) {
 	    //        planner.addSample(start, true);
-            //    }
+	    //}
+            auto s = std::chrono::high_resolution_clock::now();
+            for (auto& [start, goal] : app_options.getStartsAndGoals<State>()) {
+                if (local_subspace.contains(start)) {
+                    if (!scenario.isValid(start)) {
+                        JI_LOG(ERROR) << "Start " << start << " is not valid";
+                        continue;
+                    }
+	            planner.addSample(start, true);
+                }
 
-            //    JI_LOG(INFO) << "Testing goal " << goal;
+                JI_LOG(INFO) << "Testing goal " << goal;
+                if (local_subspace.contains(goal)) {
+                    if (!scenario.isValid(goal)) {
+                        JI_LOG(ERROR) << "Goal " << goal << " is not valid";
+                        continue;
+                    }
+                    JI_LOG(INFO) << "Printing goal id";
+                    planner.addSample(goal, true);
+                }
+            }
+	    //for (auto& goal: app_options.goals<State>()) {
             //    if (local_subspace.contains(goal)) {
             //        if (!scenario.isValid(goal)) {
             //            JI_LOG(ERROR) << "Goal " << goal << " is not valid";
@@ -122,10 +132,10 @@ namespace mpl::demo {
             //        JI_LOG(INFO) << "Printing goal id";
             //        planner.addSample(goal, true);
             //    }
-            //}
-	    //auto e = std::chrono::high_resolution_clock::now();
-            //auto start_goal_time = std::chrono::duration_cast<std::chrono::milliseconds>(e - s);
-	    //JI_LOG(INFO) << "Time to check starts and goals " << start_goal_time;
+	    //}
+	    auto e = std::chrono::high_resolution_clock::now();
+            auto start_goal_time = std::chrono::duration_cast<std::chrono::milliseconds>(e - s);
+	    JI_LOG(INFO) << "Time to check starts and goals " << start_goal_time;
 
             //auto min_subspace_size = std::numeric_limits<Scalar>::max();
             //for (int i=0; i < local_subspace.dimension(); ++i) {
@@ -234,54 +244,6 @@ namespace mpl::demo {
     };
 
 
-    template <class Scalar>
-    void runFetchScenario(AppOptions &app_options) {
-        if (app_options.env(false).empty()) {
-        }
-
-        using Scenario = mpl::demo::FetchScenario<Scalar>;
-        using Planner = typename mpl::PRMPlanner<Scenario, Scalar>;
-        using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
-        using State = typename Scenario::State;
-        using Bound = typename Scenario::Bound;
-        using Subspace_t = typename Lambda::Subspace_t;
-
-        auto min = app_options.globalMin<Bound>();
-        auto max = app_options.globalMax<Bound>();
-        Subspace_t global_subspace(min, max);
-
-        auto eig_num_divisions = app_options.num_divisions<State>();
-        std::vector<int> num_divisions =
-                std::vector<int>(
-                        eig_num_divisions.data(),
-                        eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
-                );
-
-        std::vector<std::pair<Subspace_t, int>> neighborsToLambdaIdGlobal;
-        auto divisions = global_subspace.divide(num_divisions);
-        for (int i=0; i < divisions.size(); ++i) {
-            neighborsToLambdaIdGlobal.push_back(std::make_pair(divisions[i], i));
-        }
-        JI_LOG(INFO) << "Total number of lambdas " << neighborsToLambdaIdGlobal.size();
-        auto local_subspace = divisions[app_options.lambdaId()];
-
-        JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
-	app_options.correct_goal_ = "-1.07,0.16,0.88,0,0,0";
-	app_options.goalRadius_ = "0.01,0.01,0.01,0.01,0.01,3.14";
-        auto startState = app_options.start<State>();
-        using State = typename Scenario::State;
-        using Frame = typename Scenario::Frame;
-        using GoalRadius = Eigen::Matrix<Scalar, 6, 1>;
-        Frame envFrame = app_options.envFrame<Frame>();
-        Frame goal = app_options.correct_goal<Frame>();
-        GoalRadius goalRadius = app_options.goalRadius<GoalRadius>();
-        Scenario scenario(envFrame, app_options.env(), goal, goalRadius, local_subspace.getLower(), local_subspace.getUpper(), app_options.checkResolution(0.1));
-        Lambda lambda(app_options, scenario, local_subspace, global_subspace, neighborsToLambdaIdGlobal);
-        for(;;) {
-            lambda.do_work();
-            if (lambda.isDone()) break;
-        }
-    }
 
     template <class Scenario, class Scalar>
     void runScenario(Scenario& scenario, AppOptions& app_options) {
@@ -351,12 +313,13 @@ namespace mpl::demo {
 
 
         if (app_options.scenario() == "png") {
-            //runPngScenario<Scalar>(app_options, local_subspace, global_subspace, subspaceToLambdaId);
 	    using Scenario = PNG2dScenario<Scalar>;
 	    Scenario scenario = initPngScenario<Scalar>(app_options);
 	    runScenario<Scenario, Scalar>(scenario, app_options);
         } else if (app_options.scenario() == "fetch") {
-            //runFetchScenario<Scalar>(app_options);
+	    using Scenario = FetchScenario<Scalar>;
+	    Scenario scenario = initFetchScenario<Scalar>(app_options);
+	    runScenario<Scenario, Scalar>(scenario, app_options);
         } else {
             throw std::invalid_argument("Invalid scenario");
         }

@@ -30,8 +30,8 @@ namespace mpl::demo {
         Mesh environment_;
         Frame envFrame_;
 
-	const Bound min_;
-	const Bound max_;
+	Bound min_;
+	Bound max_;
 
         Frame goal_;
         Eigen::Matrix<S, 6, 1> goalL_;
@@ -92,6 +92,14 @@ namespace mpl::demo {
         State randomSample(RNG& rng) {
             return Robot::randomConfig(rng, min_, max_);
         }
+
+	void setMin(const Bound &min) {
+	    min_ = min;
+	}
+
+	void setMax(const Bound &max) {
+	    max_ = max;
+	}
 
         template <class RNG>
         std::optional<State> sampleGoal(RNG& rng) {

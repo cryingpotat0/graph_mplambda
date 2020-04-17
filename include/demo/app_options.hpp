@@ -469,13 +469,22 @@ namespace mpl::demo {
         template <class T>
         std::vector<std::pair<T, T>> getStartsAndGoals() const {
             std::vector<std::pair<T, T>> starts_and_goals;
-            assert(starts_.size() == goals_.size());
-            for (int i=0; i < starts_.size(); ++i) {
-              starts_and_goals.push_back(std::make_pair(
-                      parse<T>("start", starts_[i]),
-                      parse<T>("goal", goals_[i])
-                    ));
-            }
+	    if (starts_.size() == 1 && goals_.size() > 1) {
+                for (int i=0; i < goals_.size(); ++i) {
+                  starts_and_goals.push_back(std::make_pair(
+                          parse<T>("start", starts_[0]),
+                          parse<T>("goal", goals_[i])
+                        ));
+                }
+	    } else {
+                assert(starts_.size() == goals_.size());
+                for (int i=0; i < starts_.size(); ++i) {
+                  starts_and_goals.push_back(std::make_pair(
+                          parse<T>("start", starts_[i]),
+                          parse<T>("goal", goals_[i])
+                        ));
+                }
+	    }
             return starts_and_goals;
         }
 

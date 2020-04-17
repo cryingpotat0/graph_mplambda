@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
                 using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
 		Coordinator coord(app_options);
 		runCoordinator(coord);
-		//fetchPostProcessing<Coordinator, Scenario>(coord, app_options);
+		fetchPostProcessing<Coordinator, Scalar>(coord, app_options);
             }
         }
         else {
