@@ -85,13 +85,13 @@ def graph_size_processing(reuse=False):
             all_data["max_global_samples"].append(max_global_samples)
             all_data["actual_time"].append(get_loop_runtime(name))
         df = pd.DataFrame(all_data)
-        df = df.groupby(['time_limit', 'num_lambdas', 'num_samples'], as_index=False).agg({'total_size': ['mean', 'std'], 'num_vertices': ['mean',], 'num_edges': ['mean'], 'max_global_samples': ['mean'], 'actual_time': ['min', 'max']})
-        df = df[['time_limit', 'num_lambdas', 'num_samples', 'total_size', 'num_vertices', 'num_edges', 'max_global_samples', 'actual_time']]
-        df.columns = ['time_limit', 'num_lambdas', 'num_samples', 'total_size_mean', 'total_size_std', 'num_vertices', 'num_edges', 'max_global_samples', 'actual_time_min', 'actual_time_max']
-
-        df = df.sort_values(by=["time_limit", "max_global_samples", "num_lambdas"])
-        print(df)
         df.to_csv('outputs/graph_size_data.csv')
+    df = df.groupby(['time_limit', 'num_lambdas', 'num_samples'], as_index=False).agg({'total_size': ['mean', 'std'], 'num_vertices': ['mean',], 'num_edges': ['mean'], 'max_global_samples': ['mean'], 'actual_time': ['min', 'max']})
+    df = df[['time_limit', 'num_lambdas', 'num_samples', 'total_size', 'num_vertices', 'num_edges', 'max_global_samples', 'actual_time']]
+    df.columns = ['time_limit', 'num_lambdas', 'num_samples', 'total_size_mean', 'total_size_std', 'num_vertices', 'num_edges', 'max_global_samples', 'actual_time_min', 'actual_time_max']
+
+    df = df.sort_values(by=["time_limit", "max_global_samples", "num_lambdas"])
+    print(df)
     for time_limit, time_group in df.groupby(['time_limit']):
         print("------------- time_limit {} ----------------".format(time_limit))
         #min_total_size_mean = min(group["total_size_mean"])
@@ -126,11 +126,11 @@ def path_length_processing(reuse=False):
                 all_data["num_lambdas"].append(num_lambdas)
                 all_data["num_samples"].append(num_samples)
         df = pd.DataFrame(all_data)
-        df = df.groupby(['start', 'goal', 'time_limit', 'num_lambdas', 'num_samples'], as_index=False).agg({'distance': ['mean', 'count']})
-        df.columns = ['start', 'goal', 'time_limit', 'num_lambdas', 'num_samples', 'distance_mean', 'distance_count']
-
-        df = df.sort_values(by=["time_limit", "start", "goal",  "distance_mean", "num_lambdas"])
         df.to_csv('outputs/path_length_data.csv')
+    df = df.groupby(['start', 'goal', 'time_limit', 'num_lambdas', 'num_samples'], as_index=False).agg({'distance': ['median', 'count']})
+    df.columns = ['start', 'goal', 'time_limit', 'num_lambdas', 'num_samples', 'distance_mean', 'distance_count']
+
+    df = df.sort_values(by=["time_limit", "start", "goal",  "distance_mean", "num_lambdas"])
     print(df)
     for time_limit, time_group in df.groupby(['time_limit']):
         print("------------- time_limit {} ----------------".format(time_limit))
@@ -181,7 +181,7 @@ def image_processing_2d():
 
 
 if __name__=="__main__":
-    #image_processing_2d()
+    image_processing_2d()
     graph_size_processing()
     path_length_processing()
     #exit(0)
