@@ -7,6 +7,8 @@
 #include <nigh/auto_strategy.hpp>
 #include <string>
 #include <iostream>
+#include <time.h>
+
 
 namespace mpl {
     template <class Scenario, class Scalar>
@@ -62,7 +64,8 @@ namespace mpl {
                   maxDistance(scenario_.maxSteering()),
                   rPRM(scenario_.prmRadius()),
                   lambda_id_(lambda_id),
-                  num_samples_(0)
+                  num_samples_(0),
+		  rng(time(NULL))
         {}
 
 //        explicit PRMPlanner(Scenario scenario_, void* lambda_, Graph existing_graph)

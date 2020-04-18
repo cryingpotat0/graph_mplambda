@@ -50,23 +50,24 @@ goals = [
 
 if __name__ == "__main__":
     #time_limits = [5, 10, 20] #, 2, 3]
-    time_limits = [1, 2, 5] #[0.2, 0.5, ]#1]
+    time_limits = [1, 5, 10, 20, 30] #[0.2, 0.5, ]#1]
     num_samples = [1, ] #10, 20, 40]
     num_divisions = [
         #(0,0),
         #(1,1),
         #(2,2),
         (0,0,0,0,0,0,0,0),  #1
-        (1,0,0,0,0,0,0,0),  #2
+        #(1,0,0,0,0,0,0,0),  #2
         (1,1,0,0,0,0,0,0),  #4
         #(2,1,0,0,0,0,0,0),  #6
         (1,1,1,0,0,0,0,0),  #8
-        #(1,1,1,1,1,0,0,0),  #32
-        #(1,1,1,1,1,1,0,0),  #64
+        (1,1,1,1,0,0,0,0),  #16
+        (1,1,1,1,1,0,0,0),  #32
+        (1,1,1,1,1,1,0,0),  #64
         #(1,1,1,1,1,1,1,0),  #128
 
     ]
-    num_trials = 10
+    num_trials = 30
     for time_limit in time_limits:
         for num_sample in num_samples:
             for num_division_tup in num_divisions:
@@ -88,14 +89,14 @@ if __name__ == "__main__":
                         for i, g in enumerate(goal):
                             command += str(g)
                             if i != len(goal) - 1: command += ","
-                    #command += " --lambda_type aws --coordinator 54.188.233.199 --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} &> {file_name}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, file_name=file_name)
-                    command += " --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} ".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, )
+                    command += " --lambda_type aws --coordinator 54.188.233.199 --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit)
+                    #command += " --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit} ".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, )
 
                     #command = "rm -f png_2d_demo_output*; rm -f lambda-*; make -j8; ./mpl_coordinator --scenario png --global_min 0,0 --global_max 1403,1404 --env resources/house_layout.png --start 1301,332 --goal 600,1034 --goal 275,87 --goal 789,709 --goal 533,822 --goal 357,142 --goal 884,1173 --goal 446,898 --goal 82,478 --goal 952,339 --goal 6,394 --lambda_type local --coordinator localhost --num_samples {num_samples} --num_divisions {num_divisions} --time-limit {time_limit}".format(num_samples=num_sample, num_divisions=num_division, time_limit=time_limit, )
                     print(command)
                     print(file_name)
                     subprocess.call(command, shell=True, stderr=open(file_name, 'w'))
-                    subprocess.call("mkdir {folder_name}; mv lambda-* {folder_name}".format(folder_name=file_name[:-4]), shell=True)
+                    #subprocess.call("mkdir {folder_name}; mv lambda-* {folder_name}".format(folder_name=file_name[:-4]), shell=True)
                     #subprocess.call("mkdir {folder_name}; mv png* {folder_name}; mv lambda-* {folder_name}".format(folder_name=file_name[:-4]), shell=True)
                     print("-------------------------------------------------------------------------------------")
                     time.sleep(2) 
