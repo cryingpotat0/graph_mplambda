@@ -3,6 +3,7 @@
 #include <jilog.hpp>
 #include <demo/app_options.hpp>
 #include <demo/mpl_robot.hpp>
+#include <graph.hpp>
 
 using namespace mpl::demo;
 
@@ -47,9 +48,39 @@ void findFetchGoalsWithConds(AppOptions& app_options) {
     }
 }
 
+void graphSaveAndLoadTest() {
+    using Scalar = double;
+    using Scenario = FetchScenario<Scalar>;
+    using State = typename Scenario::State;
+    using Distance = typename Scenario::Distance;
+    using Vertex = mpl::Vertex<State>;
+    using Edge = mpl::Edge<typename Vertex::ID, Distance>;
+    using Graph = mpl::UndirectedGraph<Vertex, Edge>;
+    Graph graph;
+
+    State q1; q1 << 1, 2, 3, 4, 5, 6, 7, 8; Vertex v1{std::make_pair(0,0), q1}; graph.addVertex(v1);
+    State q2; q2 << 1, 2, 3, 1.1, 0, 0, 0, 8; Vertex v2{std::make_pair(1,2), q2}; graph.addVertex(v2);
+    State q3; q3 << 1, 2, 3, 4.123231123, 5, 6, 7, 8; Vertex v3{std::make_pair(3,7), q3}; graph.addVertex(v3);
+    
+    Edge e1{1.0, v1.id(), v2.id()}; graph.addEdge(e1);
+    Edge e2{2.0, v2.id(), v3.id()}; graph.addEdge(e2);
+    Edge e3{3.0, v1.id(), v3.id()}; graph.addEdge(e3);
+
+    std::ofstream file("graph_test.txt");
+    graph.serialize(file);
+    
+    std::ifstream file_in("graph_test.txt");
+    auto graph_copy = Graph::deserialize(file_in);
+    std::ofstream file_copy("graph_copy_test.txt");
+    graph_copy.serialize(file_copy);
+    
+}
+
 int main(int argc, char* argv[]) {
-   mpl::demo::AppOptions app_options(argc, argv);
-   findFetchGoalsWithConds(app_options);
-   return 0;
+    mpl::demo::AppOptions app_options(argc, argv);
+    //isApproxTest();
+    //findFetchGoalsWithConds(app_options);
+    graphSaveAndLoadTest();
+    return 0;
 }
 

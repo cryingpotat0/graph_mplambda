@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <iostream>
+#include <util.hpp>
 
 namespace mpl {
     template <class Bound, class State, class Scalar>
@@ -190,14 +191,6 @@ namespace mpl {
 
 }
 
-
-namespace mpl::util {
-    const static Eigen::IOFormat CommaInitFormat(
-            Eigen::StreamPrecision, Eigen::DontAlignCols,
-            ", ", ",",
-            "", "", "", ";");
-
-}
 
 template <class Bound, class State, class Scalar>
 std::ostream &operator<<(std::ostream &os, const mpl::Subspace<Bound, State, Scalar> &subspace) {

@@ -50,7 +50,7 @@ namespace mpl {
         using Subspace_t = Subspace<Bound, State, Scalar>;
         using Planner = mpl::PRMPlanner<Scenario, Scalar>;
         using Vertex = mpl::Vertex<State>;
-	using Vertex_ID = typename Vertex::ID;
+        using Vertex_ID = typename Vertex::ID;
         using Edge = mpl::Edge<typename Vertex::ID, Distance>;
         using Graph = UndirectedGraph<Vertex, Edge>;
         using Connection_t = Connection<CoordinatorFixedGraph>;
