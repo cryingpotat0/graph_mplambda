@@ -206,11 +206,6 @@ std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
     return out;
 }
 
-template <typename T1, typename T2>
-std::ostream& operator<< (std::ostream& out, const std::pair<T1, T2>& v) {
-    out << v.first << "," << v.second;
-    return out;
-}
 
 
 //namespace std {

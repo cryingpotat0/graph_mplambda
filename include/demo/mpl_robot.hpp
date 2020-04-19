@@ -7,6 +7,7 @@
 #include <demo/fetch_scenario.hpp>
 #include <list>
 #include <chrono>
+#include <prm_planner.hpp>
 
 namespace mpl::demo {
     template <class Coordinator, class State, class Paths>
@@ -184,7 +185,7 @@ namespace mpl::demo {
         }
 
     template <class Coordinator, class Scalar>
-        void pngPostProcessing(const Coordinator& coord, AppOptions& app_options) {
+        void pngPostProcessing(Coordinator& coord, AppOptions& app_options) {
             using Scenario = PNG2dScenario<Scalar>;
             using State = typename Scenario::State;
 
@@ -192,16 +193,61 @@ namespace mpl::demo {
             auto start = app_options.start<State>();
 
             savePngImages<Coordinator, State>(coord, app_options);
-            auto paths = findPathsFromStartToGoals(coord.getGraph(), scenario, coord.getStartAndGoalVertices(), app_options);
+            auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord);
+            auto paths = findPathsFromStartToGoals(coord.getGraph(), scenario, startsAndGoals, app_options);
             saveSolutionPaths<Coordinator, State>(coord, app_options, paths);
         }
 
     template <class Coordinator, class Scalar>
-        void fetchPostProcessing(const Coordinator& coord, AppOptions& app_options) {
+        void fetchPostProcessing(Coordinator& coord, AppOptions& app_options) {
             using Scenario = FetchScenario<Scalar>;
             using State = typename Scenario::State;
+            using Vertex = typename Coordinator::Vertex;
             Scenario scenario = initFetchScenario<Scalar>(app_options);
-            findPathsFromStartToGoals(coord.getGraph(), scenario, coord.getStartAndGoalVertices(), app_options);
+            auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord);
+            auto paths = findPathsFromStartToGoals(coord.getGraph(), scenario, startsAndGoals, app_options);
+        }
+
+    template <class Scenario, class Coordinator>
+        decltype(auto) connectStartsAndGoals(Scenario& scenario, AppOptions& app_options, Coordinator& coord) {
+            using State = typename Scenario::State;
+            using Scalar = double; // TODO: don't hardcode this
+            using Vertex = typename Coordinator::Vertex;
+            
+            auto& graph = coord.getGraph();
+
+            std::vector<std::pair<Vertex, Vertex>> start_goal_vertices;
+            auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1); // Use -1 as the standard prefix
+            planner.clearVertices(); planner.clearEdges();
+            int dimension = app_options.globalMin<State>().size();
+            planner.updatePrmRadius(coord.getGlobalNumUniformSamples(), dimension);
+            for (auto& [v_id, connections]: graph.getAdjacencyList()) {
+                auto vertex = graph.getVertex(v_id);
+                planner.addExistingVertex(vertex);
+            }
+
+            Vertex curr_start, curr_goal;
+            for (auto& [start, goal] : app_options.getStartsAndGoals<State>()) {
+                auto start_time = std::chrono::high_resolution_clock::now();
+                planner.addSample(start);
+                curr_start = planner.getNewVertices()[0]; // should always exist
+                coord.addVertices(planner.getNewVertices());
+                coord.addEdges(planner.getNewEdges());
+                planner.clearVertices(); planner.clearEdges();
+
+                planner.addSample(goal);
+                curr_goal = planner.getNewVertices()[0]; // should always exist
+                coord.addVertices(planner.getNewVertices());
+                coord.addEdges(planner.getNewEdges());
+                planner.clearVertices(); planner.clearEdges();
+
+                auto end_time = std::chrono::high_resolution_clock::now();
+                JI_LOG(INFO) << "Time to add start " << curr_start.id() << ": " << start
+                                           << "; goal " << curr_goal.id() << ": " << goal 
+                                           << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+                start_goal_vertices.emplace_back(std::make_pair(curr_start, curr_goal));
+            }
+            return start_goal_vertices;
         }
 }
 

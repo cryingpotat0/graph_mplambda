@@ -39,44 +39,27 @@ namespace mpl {
         };
 
         Scenario scenario;
-        void* lambda; // TODO: extremely hacky, have to resolve the circular dependence here. Implement template fix later.
-        Graph graph_;
-        std::vector<void (*) (Vertex_t&, void*)> validSampleCallbacks;
+        std::vector<std::function<void(Vertex_t&)>> validSampleCallbacks;
         unc::robotics::nigh::Nigh<Vertex_t, Space, KeyFn, Concurrency, NNStrategy> nn;
-        Distance maxDistance;
         uint64_t num_samples_;
         std::vector<Vertex_t> new_vertices;
         std::vector<Edge_t> new_edges;
-        std::uint16_t lambda_id_; // To create vertex IDs that work across computers
+        std::uint16_t id_prefix_; // To create vertex IDs that work across computers
         RNG rng;
         Scalar rPRM;
 
-        void addRandomSample() {
-            State s = scenario.randomSample(rng);
-            addSample(s);
-        }
 
     public:
 
-        explicit PRMPlanner(Scenario scenario_, void* lambda_, std::uint16_t lambda_id)
+        explicit PRMPlanner(Scenario scenario_, std::uint16_t id_prefix)
                 : scenario(scenario_),
-                  lambda(lambda_),
-                  maxDistance(scenario_.maxSteering()),
                   rPRM(scenario_.prmRadius()),
-                  lambda_id_(lambda_id),
+                  id_prefix_(id_prefix),
                   num_samples_(0),
-		  rng(time(NULL))
+                  rng(time(NULL))
         {}
 
-//        explicit PRMPlanner(Scenario scenario_, void* lambda_, Graph existing_graph)
-//                : scenario(scenario_),
-//                  lambda(lambda_),
-//                  graph_(existing_graph),
-//                  maxDistance(scenario_.maxSteering()),
-//                  rPRM(scenario_.prmRadius())
-//        {}
-
-        void addValidSampleCallback(void (*f)(Vertex_t&, void*)) {
+        void addValidSampleCallback(std::function<void(Vertex_t&)> f) {
             validSampleCallbacks.push_back(f);
         }
 
@@ -98,14 +81,6 @@ namespace mpl {
             }
         }
 
-        void addGraph(Graph other) {
-            graph_.merge(other);
-        }
-
-        void findPath() {
-            // TODO
-        }
-
         void clearVertices() {
             new_vertices.clear();
         }
@@ -122,43 +97,6 @@ namespace mpl {
             return new_edges;
         }
 
-        const Graph& getGraph() const {
-            return graph_;
-        }
-
-        void addSample(State& s, bool print_id=false) {
-            if (!scenario.isValid(s)) return;
-            //std::string id = std::to_string(lambda_id_) + "_" + std::to_string(num_samples_);
-	    auto id = std::make_pair(lambda_id_, num_samples_);
-            if (print_id) {
-                JI_LOG(INFO) << "Vertex id " << id;
-            }
-            //else {
-            //    JI_LOG(INFO) << "state " << s;
-            //}
-            Vertex_t v{id, s};
-            std::vector<std::pair<Vertex_t, Scalar>> nbh;
-            auto k = std::numeric_limits<std::size_t>::max();
-
-            // add to graph
-            // add to nearest neighbor structure
-            new_vertices.push_back(v);
-            // add valid edges
-            nn.nearest(nbh, v.state(), k, rPRM);
-            for(auto &[other, dist] : nbh) {
-                // Other ones must be valid and in the graph by definition
-                if (scenario.isValid(v.state(), other.state())) {
-                    Edge_t e{dist, v.id_, other.id_};
-                    new_edges.push_back(std::move(e));
-                }
-            }
-            nn.insert(v);
-            for (auto fn : validSampleCallbacks) {
-                fn(v, lambda);
-            }
-            ++num_samples_;
-        }
-
         void updatePrmRadius(std::uint64_t num_samples, int dimension) {
             auto new_radius = scenario.prmRadius() * pow(log( num_samples) / (1.0 * num_samples), 1.0 / dimension);
             if (new_radius > 0 && new_radius < rPRM) {
@@ -167,29 +105,71 @@ namespace mpl {
             }
         }
 
+        void addRandomSample() {
+            State s = scenario.randomSample(rng);
+            addSample(s);
+        }
+
+        void addSample(State& s, bool print_id=false) {
+            if (!scenario.isValid(s)) return;
+            auto id = std::make_pair(id_prefix_, num_samples_);
+            if (print_id) {
+                JI_LOG(INFO) << "Vertex id " << id;
+            }
+            Vertex_t v{id, s};
+            new_vertices.push_back(v);
+
+
+            // add valid edges
+            connectVertex(v);
+            //std::vector<std::pair<Vertex_t, Scalar>> nbh;
+            //auto k = std::numeric_limits<std::size_t>::max();
+            //nn.nearest(nbh, v.state(), k, rPRM);
+            //for(auto &[other, dist] : nbh) {
+            //    // Other ones must be valid and in the graph by definition
+            //    if (scenario.isValid(v.state(), other.state())) {
+            //        Edge_t e{dist, v.id_, other.id_};
+            //        new_edges.push_back(std::move(e));
+            //    }
+            //}
+            // add to nearest neighbor structure
+            nn.insert(v);
+            for (auto fn : validSampleCallbacks) {
+                fn(v);
+            }
+            ++num_samples_;
+        }
+
+        //void addExistingVertex(Vertex_t& v) {
+        //    if (!scenario.isValid(v.state())) return;
+        //    connectVertex(v);
+
+        //    //std::vector<std::pair<Vertex_t, Scalar>> nbh;
+        //    //auto k = std::numeric_limits<std::size_t>::max();
+        //    //nn.nearest(nbh, v.state(), k, rPRM);
+        //    //for(auto &[other, dist] : nbh) {
+        //    //    // Other ones must be valid and in the graph by definition
+        //    //    if (scenario.isValid(v.state(), other.state())) {
+        //    //        Edge_t e{dist, v.id_, other.id_};
+        //    //        new_edges.push_back(std::move(e));
+        //    //    }
+        //    //}
+        //}
         void addExistingVertex(Vertex_t& v) {
-            if (!scenario.isValid(v.state())) return;
+            nn.insert(v);
+        }
+        
+        void connectVertex(Vertex_t& v) {
             std::vector<std::pair<Vertex_t, Scalar>> nbh;
             auto k = std::numeric_limits<std::size_t>::max();
-
-            // add to graph
-//            graph_.addVertex(v);
-            // add to nearest neighbor structure
-            // add valid edges
-//            nn.nearest(nbh, Scenario::scale(v.state()), k, rPRM);
             nn.nearest(nbh, v.state(), k, rPRM);
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition
                 if (scenario.isValid(v.state(), other.state())) {
                     Edge_t e{dist, v.id_, other.id_};
-//                    graph_.addEdge(e);
                     new_edges.push_back(std::move(e));
                 }
             }
-            //nn.insert(v);
-            //for (auto fn : validSampleCallbacks) {
-            //    fn(v, lambda);
-            //}
         }
     };
 }

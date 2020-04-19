@@ -148,7 +148,7 @@ namespace mpl::demo {
         std::string scenario_;
         std::string algorithm_;
         std::string coordinator_;
-        std::string communicator_;
+        //std::string communicator_;
         std::string lambdaType_;
         unsigned long jobs_{4};
 
@@ -173,6 +173,7 @@ namespace mpl::demo {
         std::string global_min_;
         std::string global_max_;
         std::string num_divisions_;
+        std::string load_graph_ = "";
 
 
         double timeLimit_{std::numeric_limits<double>::infinity()};
@@ -187,7 +188,6 @@ namespace mpl::demo {
                   -S, --scenario=(png|se3|fetch)    Set the scenario to run
                   -a, --algorithm=(prm_fixed_graph|prm_variable_graph) Set the algorithm to run
                   -c, --coordinator=HOST:PORT   Specify the coordinator's host.  Port is optional.
-                  -C, --communicator=(rmq) Specify the coordinator's host.  Port is optional.
                   -j, --jobs=COUNT              Specify the number of simultaneous lambdas to run
                   -I, --problem-id=ID           (this is for internal use only)
                   -t, --time-limit=TIME         Specify the time limit of each lambda in seconds
@@ -223,12 +223,11 @@ namespace mpl::demo {
                     { "scenario", required_argument, NULL, 'S' },
                     { "algorithm", required_argument, NULL, 'a' },
                     { "coordinator", required_argument, NULL, 'c' },
-                    { "communicator", required_argument, NULL, 'C' },
+                    //{ "communicator", required_argument, NULL, 'C' },
                     { "jobs", required_argument, NULL, 'j' },
                     { "env", required_argument, NULL, 'e' },
                     { "env-frame", required_argument, NULL, 'E' },
                     { "robot", required_argument, NULL, 'r' },
-                    //{ "correct_goal", required_argument, NULL, 'z' },
                     { "goal", required_argument, NULL, 'g' },
                     { "goal-radius", required_argument, NULL, 'G' },
                     { "start", required_argument, NULL, 's' },
@@ -245,6 +244,7 @@ namespace mpl::demo {
                     { "check-resolution", required_argument, NULL, 'd' },
                     { "discretization", required_argument, NULL, 'd' }, // less-descriptive alieas
                     { "float", no_argument, NULL, 'f' },
+                    { "load_graph", required_argument, NULL, 'R' },
                     { NULL, 0, NULL, 0 }
             };
 
@@ -261,9 +261,9 @@ namespace mpl::demo {
                     case 'c':
                         coordinator_ = optarg;
                         break;
-                    case 'C':
-                        communicator_ = optarg;
-                        break;
+                    //case 'C':
+                    //    communicator_ = optarg;
+                    //    break;
                     case 'j':
                         jobs_ = strtoul(optarg, &endp, 10);
                         if (endp == optarg || *endp || jobs_ == 0 || jobs_ > MAX_JOBS)
@@ -331,8 +331,12 @@ namespace mpl::demo {
                     case 'f':
                         singlePrecision_ = true;
                         break;
-		    case 'z':
-			correct_goal_ = optarg;
+                    case 'R':
+                        load_graph_ = optarg;
+                        break;
+                    case 'z':
+                        correct_goal_ = optarg;
+                        break;
                     default:
                         usage(argv[0]);
                         throw std::invalid_argument("see above");
@@ -360,12 +364,12 @@ namespace mpl::demo {
             return coordinator_;
         }
 
-        const std::string& communicator(bool required = true) const {
-            if (required && communicator_.empty()) {
-                throw std::invalid_argument("--communicator is required");
-            }
-            return communicator_;
-        }
+        //const std::string& communicator(bool required = true) const {
+        //    if (required && communicator_.empty()) {
+        //        throw std::invalid_argument("--communicator is required");
+        //    }
+        //    return communicator_;
+        //}
 
         const std::string& lambdaType(bool required = true) const {
             if (required && lambdaType_.empty()) {
@@ -376,6 +380,10 @@ namespace mpl::demo {
 
         const std::uint64_t problemId() const {
             return problemId_;
+        }
+
+        const std::string& loadGraph() const {
+            return load_graph_;
         }
 
         const std::uint64_t lambdaId() const {
@@ -469,22 +477,22 @@ namespace mpl::demo {
         template <class T>
         std::vector<std::pair<T, T>> getStartsAndGoals() const {
             std::vector<std::pair<T, T>> starts_and_goals;
-	    if (starts_.size() == 1 && goals_.size() > 1) {
+            if (starts_.size() == 1 && goals_.size() > 1) {
                 for (int i=0; i < goals_.size(); ++i) {
-                  starts_and_goals.push_back(std::make_pair(
-                          parse<T>("start", starts_[0]),
-                          parse<T>("goal", goals_[i])
-                        ));
+                    starts_and_goals.push_back(std::make_pair(
+                                parse<T>("start", starts_[0]),
+                                parse<T>("goal", goals_[i])
+                                ));
                 }
-	    } else {
+            } else {
                 assert(starts_.size() == goals_.size());
                 for (int i=0; i < starts_.size(); ++i) {
-                  starts_and_goals.push_back(std::make_pair(
-                          parse<T>("start", starts_[i]),
-                          parse<T>("goal", goals_[i])
-                        ));
+                    starts_and_goals.push_back(std::make_pair(
+                                parse<T>("start", starts_[i]),
+                                parse<T>("goal", goals_[i])
+                                ));
                 }
-	    }
+            }
             return starts_and_goals;
         }
 

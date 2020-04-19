@@ -166,17 +166,15 @@ namespace mpl {
                 }
                 
                 void serialize(std::ofstream &file) {
-                    JI_LOG(INFO) << "Serializing";
                     file << "vertices\n";
                     for (auto& [id, vertex]: vertex_properties) {
                         vertex.serialize(file);
-                        JI_LOG(INFO) << id;
                     }
                     file << "edges\n";
                     for (auto& [id, edge]: edge_properties) {
                         edge.serialize(file);
                     }
-                    file.close();
+                    //file.close();
                 }
                 
                 static UndirectedGraph deserialize(std::ifstream &file) {
@@ -199,7 +197,7 @@ namespace mpl {
                             g.addEdge(Edge::deserialize(line));
                         }
                     }
-                    file.close();
+                    //file.close();
                     return g;
                 }
 
@@ -301,9 +299,6 @@ namespace mpl {
                         std::reverse(path.begin(), path.end());
                         return std::make_pair(true, path);
                     }
-
-
-
 
         };
 
