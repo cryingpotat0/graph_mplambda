@@ -10,16 +10,17 @@ STARTS_GOALS_DISTANCE_REGEX = re.compile(".*Path found for start \[(.*)\]\^T goa
 #MAX_GLOBAL_SAMPLES = re.compile(".* \(\/home\/ec2-user\/graph_mplambda\/include\/coordinator\.hpp:279\) (.*)")
 EDGES_REGEX = re.compile(".*Num edges in graph ([0-9]*)")
 VERTICES_REGEX = re.compile(".*Num vertices in graph ([0-9]*)")
-MAX_GLOBAL_SAMPLES = re.compile(".*Final samples per lambda (.*)")
+MAX_GLOBAL_SAMPLES = re.compile(".*Final global_num_samples (.*)")
 LOOP_ACTUAL_RUNTIME = re.compile(".*Loop finished in (.*) s")
 
-#parser = argparse.ArgumentParser(description='Process some integers.')
-#parser.add_argument("--root")
+parser = argparse.ArgumentParser(description='Process some integers.')
+parser.add_argument("--root", required=True)
+args = parser.parse_args()
 
 def get_starts_goals_distances(fil):
     tracking = {}
     with open(fil, 'r') as f:
-        req_lines = f.readlines()[-40:] # if nothing errors, the last 10 lines contain what we need
+        req_lines = f.readlines()[-200:] # if nothing errors, the last few lines contain what we need
         for line in req_lines:
             ret = STARTS_GOALS_DISTANCE_REGEX.match(line)
             if ret is not None: 
@@ -39,7 +40,7 @@ def get_loop_runtime(fil):
 def get_total_number_of_edges_and_vertices(fil):
     num_vertices, num_edges, max_global_samples = 0, 0, 0
     with open(fil, 'r') as f:
-        for line in f.readlines()[-60:]:
+        for line in f.readlines()[-200:]:
             ret = VERTICES_REGEX.match(line)
             if ret is not None:
                 num_vertices = int(ret.group(1))
@@ -49,14 +50,14 @@ def get_total_number_of_edges_and_vertices(fil):
             ret = MAX_GLOBAL_SAMPLES.match(line)
             if ret is not None:
                 #import ipdb; ipdb.set_trace()
-                nums = [int(val) for val in ret.group(1).split(";")[:-1]]
-                max_global_samples = min(nums) * len(nums)
-                #max_global_samples = max(int(ret.group(1)), max_global_samples)
+                #nums = [int(val) for val in ret.group(1).split(";")[:-1]]
+                #max_global_samples = min(nums) * len(nums)
+                max_global_samples = int(ret.group(1))
     return num_vertices, num_edges, max_global_samples
 
 def graph_size_processing(reuse=False):
-    if reuse and os.exists('outputs/path_length_data.csv'):
-        df = pd.read_csv('outputs/path_length_data.csv')
+    if reuse and os.exists('{}/path_length_data.csv'.format(args.root)):
+        df = pd.read_csv('{}/path_length_data.csv'.format(args.root))
     else:
         all_data = {
                 "num_vertices": [],
@@ -69,9 +70,9 @@ def graph_size_processing(reuse=False):
                 "actual_time": []
                 }
         #args = parser.parse_args()
-        for name in glob.glob("./outputs/*.txt"):
+        for name in glob.glob("./{}/*/out.txt".format(args.root)):
             num_vertices, num_edges, max_global_samples = get_total_number_of_edges_and_vertices(name)
-            label = name.split("/")[-1][:-4]
+            label = name.split("/")[-2]
             _, num_lambdas_str, time_limit_str, _, num_samples_str = label.split("__")
             num_lambdas = int(num_lambdas_str.split("=")[1])
             num_samples = int(num_samples_str.split("=")[1])
@@ -85,7 +86,7 @@ def graph_size_processing(reuse=False):
             all_data["max_global_samples"].append(max_global_samples)
             all_data["actual_time"].append(get_loop_runtime(name))
         df = pd.DataFrame(all_data)
-        df.to_csv('outputs/graph_size_data.csv')
+        df.to_csv('{}/graph_size_data.csv'.format(args.root))
     df = df.groupby(['time_limit', 'num_lambdas', 'num_samples'], as_index=False).agg({'total_size': ['mean', 'std'], 'num_vertices': ['mean',], 'num_edges': ['mean'], 'max_global_samples': ['mean'], 'actual_time': ['min', 'max']})
     df = df[['time_limit', 'num_lambdas', 'num_samples', 'total_size', 'num_vertices', 'num_edges', 'max_global_samples', 'actual_time']]
     df.columns = ['time_limit', 'num_lambdas', 'num_samples', 'total_size_mean', 'total_size_std', 'num_vertices', 'num_edges', 'max_global_samples', 'actual_time_min', 'actual_time_max']
@@ -99,8 +100,8 @@ def graph_size_processing(reuse=False):
         print(printable_grp)
 
 def path_length_processing(reuse=False):
-    if reuse and os.exists('outputs/path_length_data.csv'):
-        df = pd.read_csv('outputs/path_length_data.csv')
+    if reuse and os.exists('{}/path_length_data.csv'.format(args.root)):
+        df = pd.read_csv('{}/path_length_data.csv'.format(args.root))
     else:
         all_data = {
                 "start": [],
@@ -111,9 +112,9 @@ def path_length_processing(reuse=False):
                 "num_samples": [],
                 }
         #args = parser.parse_args()
-        for name in glob.glob("./outputs/*.txt"):
+        for name in glob.glob("./{}/*/out.txt".format(args.root)):
             curr_data = get_starts_goals_distances(name)
-            label = name.split("/")[-1][:-4]
+            label = name.split("/")[-2]
             _, num_lambdas_str, time_limit_str, _, num_samples_str = label.split("__")
             num_lambdas = int(num_lambdas_str.split("=")[1])
             num_samples = int(num_samples_str.split("=")[1])
@@ -126,7 +127,7 @@ def path_length_processing(reuse=False):
                 all_data["num_lambdas"].append(num_lambdas)
                 all_data["num_samples"].append(num_samples)
         df = pd.DataFrame(all_data)
-        df.to_csv('outputs/path_length_data.csv')
+        df.to_csv('{}/path_length_data.csv'.format(args.root))
     df = df.groupby(['start', 'goal', 'time_limit', 'num_lambdas', 'num_samples'], as_index=False).agg({'distance': ['median', 'count']})
     df.columns = ['start', 'goal', 'time_limit', 'num_lambdas', 'num_samples', 'distance_mean', 'distance_count']
 
@@ -156,7 +157,7 @@ def path_length_processing(reuse=False):
         print(average_percentage_performance)
 
 def image_processing_2d():
-    for name in glob.glob("./outputs/*"):
+    for name in glob.glob("./{}/*".format(args.root)):
         if not os.path.isdir(name): continue
         #shutil.copytree("../resources", "{}/resource".format(name))
         copy_tree("../resources", "{}/resources".format(name))

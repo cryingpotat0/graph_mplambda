@@ -535,7 +535,8 @@ namespace mpl {
                         JI_LOG(INFO) << "Loop finished in " << duration;
                         JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
                         JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
-                        JI_LOG(INFO) << "Final samples per lambda " << num_samples_per_lambda_;
+                        JI_LOG(INFO) << "Final samples_per_lambda " << num_samples_per_lambda_;
+                        JI_LOG(INFO) << "Final global_num_samples " << getGlobalNumUniformSamples();
                     }
                     
                     
@@ -563,7 +564,7 @@ namespace mpl {
                         file.close();
                         JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
                         JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
-                        JI_LOG(INFO) << "Final samples per lambda " << num_samples_per_lambda_;
+                        JI_LOG(INFO) << "Final global_num_samples " << global_num_uniform_samples;
                     }
 
                     void init_lambdas() {
