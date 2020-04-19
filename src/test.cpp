@@ -4,6 +4,7 @@
 #include <demo/app_options.hpp>
 #include <demo/mpl_robot.hpp>
 #include <graph.hpp>
+#include <time.h>
 
 using namespace mpl::demo;
 
@@ -21,7 +22,7 @@ void findFetchGoalsWithConds(AppOptions& app_options) {
     using RNG = std::mt19937_64;
     using Robot = FetchRobot<Scalar>;
     using Frame = typename Robot::Frame;
-    RNG rng;
+    RNG rng(time(NULL));
     Scenario scenario = initFetchScenario<Scalar>(app_options);
 
     auto start = app_options.start<State>();
@@ -40,9 +41,10 @@ void findFetchGoalsWithConds(AppOptions& app_options) {
         auto ee_frame_goal = curr.getEndEffectorFrame();
         Eigen::Matrix<Scalar, 3, 1> ee_pos_goal;
         ee_pos_goal << ee_frame_goal(0, 3), ee_frame_goal(1, 3), ee_frame_goal(2,3);
+        if (ee_pos_goal[0] < 0.3) continue; // x coordinate is front of the robot
         //JI_LOG(INFO) << "Goal EE: " << ee_pos_goal;
         //JI_LOG(INFO) << (ee_pos_goal - ee_pos).norm();
-        if ((ee_pos_goal - ee_pos).norm() < 0.75) continue;
+        if ((ee_pos_goal - ee_pos).norm() < 1.0) continue;
         JI_LOG(INFO) << rand;
         num_goals++;
     }
@@ -79,8 +81,8 @@ void graphSaveAndLoadTest() {
 int main(int argc, char* argv[]) {
     mpl::demo::AppOptions app_options(argc, argv);
     //isApproxTest();
-    //findFetchGoalsWithConds(app_options);
-    graphSaveAndLoadTest();
+    findFetchGoalsWithConds(app_options);
+    //graphSaveAndLoadTest();
     return 0;
 }
 
