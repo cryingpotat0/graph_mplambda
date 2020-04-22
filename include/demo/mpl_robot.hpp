@@ -205,6 +205,7 @@ namespace mpl::demo {
             using State = typename Scenario::State;
             using Scalar = double; // TODO: don't hardcode this
 
+            JI_LOG(INFO) << "Final global_num_samples " << global_num_uniform_samples;
             std::vector<std::pair<Vertex, Vertex>> start_goal_vertices;
             auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1); // Use -1 as the standard prefix
             planner.clearVertices(); planner.clearEdges();
