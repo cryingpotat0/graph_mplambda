@@ -178,6 +178,12 @@ namespace mpl::demo {
                     auto stop = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
+                    // Even if we have no vertices to send, tell the coordinator we are done sampling
+                    auto new_vertices = planner.getNewVertices();
+                    JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
+                    comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
+                    planner.clearVertices();
+
                     JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to sample " << samples_per_run << " points is " << duration;
                     auto new_edges = planner.getNewEdges();
                     auto edgeSize = packet::Edges<Edge_t, Distance>::edgeSize_;
@@ -200,12 +206,7 @@ namespace mpl::demo {
                         planner.clearEdges();
                     }
 
-                    auto new_vertices = planner.getNewVertices();
 
-                    // Even if we have no vertices to send, tell the coordinator we are done sampling
-                    JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
-                    comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
-                    planner.clearVertices();
 
                     for (auto &[lambdaId, vertices] : samples_to_send) {
                         if (vertices.size() > 0) {
@@ -249,67 +250,186 @@ namespace mpl::demo {
 
         };
 
+    template <class Comm, class Scenario, class Planner, class Scalar>
+        class LocalLambdaCommonSeed {
+            public:
+                using State = typename Scenario::State;
+                using Bound = typename Scenario::Bound;
+                using Distance = typename Scenario::Distance;
+                using Subspace_t = typename mpl::Subspace<Bound, State, Scalar>;
+                using Vertex_t = typename Planner::Vertex_t;
+                using Edge_t = typename Planner::Edge_t;
+
+            private:
+
+                std::uint64_t lambda_id;
+                std::uint64_t num_lambdas;
+                int samples_per_run;
+                Comm comm;
+                Scenario scenario;
+                Planner planner;
+                std::chrono::high_resolution_clock::time_point start_time;
+                bool done_ = false;
+                double time_limit = 100.0; // Set safety maximum limit so we don't get charged on AWS
+
+                LocalLambdaCommonSeed();
+
+            public:
+                LocalLambdaCommonSeed(
+                        AppOptions &app_options,
+                        Scenario &scenario_
+                        )
+                    : lambda_id(app_options.lambdaId()),
+                    scenario(scenario_),
+                    planner(Planner(scenario_, 0)),
+                    samples_per_run(app_options.numSamples()),
+                    num_lambdas(app_options.jobs()) // TODO: make sure jobs is passed through to lambda
+                    {
+                        comm.setLambdaId(lambda_id);
+                        comm.connect(app_options.coordinator());
+                        comm.template process<Edge_t, Distance, Vertex_t, State>();
+                        start_time = std::chrono::high_resolution_clock::now();
+                        planner.setSeed(app_options.randomSeed());
+                        // TODO: set planner seed
+                }
+
+                inline bool isDone() {
+                    return comm.isDone() || done_;
+                }
+
+
+                void shutdown() {
+                    comm.sendDone();
+                    JI_LOG(INFO) << "Sent done" ;
+                }
+
+                void do_work() {
+                    auto start = std::chrono::high_resolution_clock::now();
+                    auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time);
+                    if (lambda_running_for.count() > time_limit || comm.isDone()) {
+                        done_ = true;
+                        return;
+                    }
+                    for (int i=0; i < samples_per_run; ++i) {
+                    planner.addRandomSample(
+                        [&] (Vertex_t& vertex) {
+                            return vertex.id().second % num_lambdas == lambda_id;
+                        },
+                        [&] (Edge_t& edge) {
+                            return true;
+                        });
+                    }
+                    auto stop = std::chrono::high_resolution_clock::now();
+                    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+                    JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to sample " << samples_per_run << " points is " << duration;
+
+                    auto new_vertices = planner.getNewVertices();
+                    JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
+                    comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator. TODO: everyone sends vertices to coordinator for now, this is to deal with inconsistent sampling. This can be made more efficient.
+
+                    auto new_edges = planner.getNewEdges();
+                    auto edgeSize = packet::Edges<Edge_t, Distance>::edgeSize_;
+                    auto edgeHeaderSize = packet::Edges<Edge_t, Distance>::edgeHeaderSize_;
+                    auto maxPacketSize = mpl::packet::MAX_PACKET_SIZE;
+                    if (new_edges.size() > 0) {
+                        JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
+                        if (edgeSize * new_edges.size() + edgeHeaderSize < maxPacketSize) {
+                            comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
+                        } else {
+                            auto freePacketSpace = maxPacketSize - edgeHeaderSize;
+                            int numEdgesPerPacket = freePacketSpace / edgeSize;
+                            for (int i=0; i < new_edges.size(); i+= numEdgesPerPacket) {
+                                auto end_val = std::min( (int) new_edges.size(), i + numEdgesPerPacket);
+                                std::vector<Edge_t> newEdgesPartial(new_edges.begin() + i, new_edges.begin() + end_val);
+                                JI_LOG(INFO) << "Sending " << newEdgesPartial.size() << " partial new edges";
+                                comm.template sendEdges<Edge_t, Distance>(std::move(newEdgesPartial));
+                            }
+                        }
+                        planner.clearEdges();
+                    }
+
+                    planner.clearVertices();
+                    comm.template process<Edge_t, Distance, Vertex_t, State>(); // Only sends and no receives for this strategy
+                }
+
+                const Planner& getPlanner() const {
+                    return planner;
+                }
+
+                const std::uint64_t& lambdaId() const {
+                    return lambda_id;
+                }
+	};
+
 
 
     template <class Scenario, class Scalar>
         void runScenario(Scenario& scenario, AppOptions& app_options) {
+            JI_LOG(INFO) << "Lambda ID" << app_options.lambdaId();
+
             using Planner = typename mpl::PRMPlanner<Scenario, Scalar>;
             using State = typename Scenario::State;
             using Bound = typename Scenario::Bound;
-            using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
-            using Subspace_t = typename Lambda::Subspace_t;
+            if (app_options.algorithm() == "prm_fixed_graph") {
+                using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
+                using Subspace_t = typename Lambda::Subspace_t;
 
-            JI_LOG(INFO) << "Lambda ID" << app_options.lambdaId();
 
-            // Construct local and global subspaces
-            auto min = app_options.globalMin<Bound>();
-            auto max = app_options.globalMax<Bound>();
-            Subspace_t global_subspace(min, max);
+                // Construct local and global subspaces
+                auto min = app_options.globalMin<Bound>();
+                auto max = app_options.globalMax<Bound>();
+                Subspace_t global_subspace(min, max);
 
-            auto eig_num_divisions = app_options.num_divisions<State>();
-            std::vector<int> num_divisions =
-                std::vector<int>(
-                        eig_num_divisions.data(),
-                        eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
-                        );
+                auto eig_num_divisions = app_options.num_divisions<State>();
+                std::vector<int> num_divisions =
+                    std::vector<int>(
+                            eig_num_divisions.data(),
+                            eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
+                            );
 
-            std::vector<std::pair<Subspace_t, int>> subspaceToLambdaId;
-            auto divisions = global_subspace.divide(num_divisions);
-            for (int i=0; i < divisions.size(); ++i) {
-                subspaceToLambdaId.push_back(std::make_pair(divisions[i], i));
+                std::vector<std::pair<Subspace_t, int>> subspaceToLambdaId;
+                auto divisions = global_subspace.divide(num_divisions);
+                for (int i=0; i < divisions.size(); ++i) {
+                    subspaceToLambdaId.push_back(std::make_pair(divisions[i], i));
+                }
+                JI_LOG(INFO) << "Total number of lambdas " << subspaceToLambdaId.size();
+                auto local_subspace = divisions[app_options.lambdaId()];
+
+                JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
+                // End subspace construction
+
+                scenario.setMin(local_subspace.getLower());
+                scenario.setMax(local_subspace.getUpper());
+                Lambda lambda(app_options, scenario, local_subspace, global_subspace, subspaceToLambdaId);
+                runLambda(lambda);
+            } else if (app_options.algorithm() == "prm_common_seed") {
+                using Lambda = typename mpl::demo::LocalLambdaCommonSeed<mpl::Comm, Scenario, Planner, Scalar>;
+                Lambda lambda(app_options, scenario);
+                runLambda(lambda);
             }
-            JI_LOG(INFO) << "Total number of lambdas " << subspaceToLambdaId.size();
-            auto local_subspace = divisions[app_options.lambdaId()];
+        }
 
-            JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
-            // End subspace construction
-
-            scenario.setMin(local_subspace.getLower());
-            scenario.setMax(local_subspace.getUpper());
-            Lambda lambda(app_options, scenario, local_subspace, global_subspace, subspaceToLambdaId);
+    template <class Lambda>
+        void runLambda(Lambda& lambda) {
             for(;;) {
                 lambda.do_work();
                 if (lambda.isDone()) break;
             }
             lambda.shutdown();
             JI_LOG(INFO) << "Finished";
+
         }
 
 
     void runSelectPlanner(AppOptions& app_options) {
         using Scalar = double; // TODO: add single precision code
 
-        //if (app_options.communicator(false).empty()) {
-        //    app_options.communicator_ = "rabbitmq";
-        //}
-
         if (app_options.coordinator(false).empty()) {
             app_options.coordinator_ = "localhost";
         }
 
         // set defaults outside
-
-
         if (app_options.scenario() == "png") {
             using Scenario = PNG2dScenario<Scalar>;
             Scenario scenario = initPngScenario<Scalar>(app_options);

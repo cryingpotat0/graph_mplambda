@@ -115,6 +115,99 @@ namespace mpl {
             }
         };
 
+    template <class State>
+        struct TimedVertex {
+            //using ID = std::string;
+            using ID = std::pair<std::uint16_t, std::uint32_t>; // <lambda_id, vertex_id>
+            ID id_;
+            State state_;
+            std::uint64_t timestamp_millis_;
+
+            const ID& id() const { return id_; }
+            ID id() { return id_; }
+
+            const State& state() const { return state_; }
+            State state() { return state_; }
+
+            const std::uint64_t& timestamp_millis() const { return timestamp_millis_; }
+            std::uint64_t& timestamp_millis() { return timestamp_millis_; }
+
+            inline void serialize(std::ofstream &file) {
+                file << "id=" << id_.first << "," << id_.second
+                     << ";state=" << state_.format(mpl::util::FullPrecisionCommaInitFormat) 
+                     << ";timestamp=" << timestamp_millis_
+                     << "\n"; 
+            }
+
+            inline static TimedVertex deserialize(std::string& line) {
+                std::vector<std::string> results;
+                mpl::util::string_split(results, line, ";");
+
+                std::vector<std::string> vec_split;
+                auto vec_portion = results[1].substr(6);
+                mpl::util::string_split(vec_split, vec_portion, ",");
+                State q;
+                assert(q.size() == vec_split.size());
+                for (int i=0; i < vec_split.size(); ++i) {
+                    q[i] = std::stod(vec_split[i]);
+                }
+
+                auto timestamp_millis_val = std::stoull(results[2].substr(10));
+
+                std::string id_portion = results[0].substr(3);
+                ID curr_id = deserializeID(id_portion);
+                return TimedVertex{curr_id, q, timestamp_millis_val};
+            }
+
+            inline static ID deserializeID(std::string &id_str) {
+                std::vector<std::string> id_split;
+                mpl::util::string_split(id_split, id_str, ",");
+                return std::make_pair(std::stoul(id_split[0]), std::stoul(id_split[1]));
+            }
+        };
+
+    template<class VertexID, class Distance>
+        struct TimedEdge {
+            using Distance_t = Distance;
+            Distance distance_;
+            VertexID u_;
+            VertexID v_;
+            std::uint64_t timestamp_millis_;
+
+            const VertexID& u() const { return u_; }
+            const VertexID& v() const { return v_; }
+
+            const Distance& distance() const { return distance_; }
+            Distance distance() { return distance_; }
+
+            const std::uint64_t& timestamp_millis() const { return timestamp_millis_; }
+            std::uint64_t& timestamp_millis() { return timestamp_millis_; }
+
+            inline void serialize(std::ofstream &file) {
+                file << "u=" << u_
+                    << ";v=" << v_
+                    << ";distance=" << distance_
+                    << ";timestamp=" << timestamp_millis_
+                    << "\n";
+            }
+
+            inline static TimedEdge deserialize(std::string &v) {
+                std::vector<std::string> results;
+                mpl::util::string_split(results, v, ";");
+                auto u_val = results[0].substr(2);
+                auto v_val = results[1].substr(2);
+                auto dist_val = std::stod(results[2].substr(9));
+                auto timestamp_millis_val = std::stoull(results[3].substr(10));
+                return TimedEdge{dist_val, deserializeID(u_val), deserializeID(v_val), timestamp_millis_val};
+            }
+
+            inline static VertexID deserializeID(std::string &id_str) { // Maybe need a separate class for ID, duplicated method for now
+                std::vector<std::string> id_split;
+                mpl::util::string_split(id_split, id_str, ",");
+                return std::make_pair(std::stoul(id_split[0]), std::stoul(id_split[1]));
+            }
+        };
+
 
     template <class Vertex, class Edge>
         class UndirectedGraph {
@@ -153,7 +246,8 @@ namespace mpl {
                 }
 
                 void addVertex(Vertex v) {
-                    vertex_properties[v.id()] = v;
+                    if (vertex_properties.find(v.id()) == vertex_properties.end())
+                        vertex_properties[v.id()] = v;
                 }
 
                 const Vertex& getVertex(const VertexID& id) const {
@@ -210,7 +304,7 @@ namespace mpl {
                     edge_properties[forward] = e;
                     EdgeID backward(v, u);
                     //            JI_LOG(TRACE) << "Adding u: " << v << " v: " << u;
-                    edge_properties[backward] = Edge{e.distance(), v, u};
+                    edge_properties[backward] = e;
                     adjacency_list[v].insert(u);
                     adjacency_list[u].insert(v);
                 }

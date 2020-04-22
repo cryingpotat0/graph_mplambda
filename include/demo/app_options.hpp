@@ -155,6 +155,7 @@ namespace mpl::demo {
         std::uint64_t num_samples_;
         std::uint64_t problemId_;
         std::uint64_t lambdaId_;
+        std::uint64_t randomSeed_{0};
 
         std::string env_;
         std::string robot_;
@@ -245,10 +246,11 @@ namespace mpl::demo {
                     { "discretization", required_argument, NULL, 'd' }, // less-descriptive alieas
                     { "float", no_argument, NULL, 'f' },
                     { "load_graph", required_argument, NULL, 'R' },
+                    { "random_seed", required_argument, NULL, 'Z' },
                     { NULL, 0, NULL, 0 }
             };
 
-            for (int ch ; (ch = getopt_long(argc, argv, "S:a:c:C:j:e:E:r:g:G:s:m:M:I:t:d:f", longopts, NULL)) != -1 ; ) {
+            for (int ch ; (ch = getopt_long(argc, argv, "S:a:c:C:j:e:E:r:g:G:s:m:M:I:t:d:f:R:Z", longopts, NULL)) != -1 ; ) {
                 char *endp;
 
                 switch (ch) {
@@ -334,6 +336,9 @@ namespace mpl::demo {
                     case 'R':
                         load_graph_ = optarg;
                         break;
+                    case 'Z':
+                        randomSeed_ = strtoull(optarg, &endp, 0);
+                        break;
                     case 'z':
                         correct_goal_ = optarg;
                         break;
@@ -388,6 +393,10 @@ namespace mpl::demo {
 
         const std::uint64_t lambdaId() const {
             return lambdaId_;
+        }
+        
+        const std::uint64_t randomSeed() const {
+            return randomSeed_;
         }
 
         const std::string& env(bool required = true) const {

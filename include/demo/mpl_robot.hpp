@@ -10,8 +10,8 @@
 #include <prm_planner.hpp>
 
 namespace mpl::demo {
-    template <class Coordinator, class State, class Paths>
-        void saveSolutionPaths(const Coordinator& coord, const AppOptions &app_options, const Paths& paths) {
+    template <class Coordinator, class State, class Paths, class Graph>
+        void saveSolutionPaths(const Coordinator& coord, const AppOptions &app_options, const Paths& paths, const Graph& graph) {
 
             std::vector<FilterColor> filters;
 
@@ -27,8 +27,6 @@ namespace mpl::demo {
                 shape::startSvg(file, width, height);
                 shape::addBackgroundImg(file, app_options.env());
 
-                using Graph = typename Coordinator::Graph;
-                auto graph = coord.getGraph();
                 shape::addStartState(file, start[0], start[1], 20);
                 shape::addGoalState(file, goal[0], goal[1], 20);
 
@@ -94,8 +92,8 @@ namespace mpl::demo {
         }
 
 
-    template <class Coordinator, class State>
-        void savePngImages(const Coordinator& coord, AppOptions &app_options) {
+    template <class Coordinator, class State, class Graph>
+        void savePngImages(const Coordinator& coord, AppOptions &app_options, Graph& graph) {
 
             std::vector<FilterColor> filters;
 
@@ -116,8 +114,6 @@ namespace mpl::demo {
                         shape::Color(0, 255, 0));
             }
 
-            using Graph = typename Coordinator::Graph;
-            auto graph = coord.getGraph();
             for (auto& [v_id, u_ids] : graph.getAdjacencyList()) {
                 auto start = graph.getVertex(v_id);
                 for (auto u_id : u_ids) {
@@ -184,43 +180,36 @@ namespace mpl::demo {
             return pathsFromStartToGoals;
         }
 
-    template <class Coordinator, class Scalar>
-        void pngPostProcessing(Coordinator& coord, AppOptions& app_options) {
-            using Scenario = PNG2dScenario<Scalar>;
-            using State = typename Scenario::State;
-
-            Scenario scenario = initPngScenario<Scalar>(app_options);
-            auto start = app_options.start<State>();
-
-            savePngImages<Coordinator, State>(coord, app_options);
-            auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord);
-            auto paths = findPathsFromStartToGoals(coord.getGraph(), scenario, startsAndGoals, app_options);
-            saveSolutionPaths<Coordinator, State>(coord, app_options, paths);
+    template <class Graph, class TimedGraph, class Vertex, class Edge>
+        void getGraphAtTime(const TimedGraph& graph, Graph& return_graph, std::uint64_t time_limit) {
+            auto adjacency_list = graph.getAdjacencyList();
+            for (auto &[curr_id, others] : adjacency_list) {
+                auto v = graph.getVertex(curr_id);
+                if (v.timestamp_millis() > time_limit) continue;
+                return_graph.addVertex(Vertex{v.id(), v.state()});
+                for (auto& u : others) {
+                    auto& curr_edge = graph.getEdge(curr_id, u);
+                    //if (curr_edge.timestamp_millis() < v.timestamp_millis()) {
+                    //    JI_LOG(ERROR) << "BIG ERROR, VERTICES SHOULD BE ADDED BEFORE EDGES " << curr_edge.timestamp_millis() << " " << v.timestamp_millis() << " " << graph.getVertex(u).timestamp_millis();
+                    //} // Test to make sure nothing was broken
+                    if (curr_edge.timestamp_millis() > time_limit) continue;
+                    return_graph.addEdge(Edge{curr_edge.distance(), curr_edge.u(), curr_edge.v()});
+                }
+            }
+            JI_LOG(INFO) << "Num vertices in graph " << return_graph.vertexCount();
+            JI_LOG(INFO) << "Num edges in graph " << return_graph.edgeCount();
         }
 
-    template <class Coordinator, class Scalar>
-        void fetchPostProcessing(Coordinator& coord, AppOptions& app_options) {
-            using Scenario = FetchScenario<Scalar>;
-            using State = typename Scenario::State;
-            using Vertex = typename Coordinator::Vertex;
-            Scenario scenario = initFetchScenario<Scalar>(app_options);
-            auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord);
-            auto paths = findPathsFromStartToGoals(coord.getGraph(), scenario, startsAndGoals, app_options);
-        }
-
-    template <class Scenario, class Coordinator>
-        decltype(auto) connectStartsAndGoals(Scenario& scenario, AppOptions& app_options, Coordinator& coord) {
+    template <class Scenario, class Graph, class Vertex>
+        decltype(auto) connectStartsAndGoals(Scenario& scenario, AppOptions& app_options, Graph& graph, std::uint64_t global_num_uniform_samples) {
             using State = typename Scenario::State;
             using Scalar = double; // TODO: don't hardcode this
-            using Vertex = typename Coordinator::Vertex;
-            
-            auto& graph = coord.getGraph();
 
             std::vector<std::pair<Vertex, Vertex>> start_goal_vertices;
             auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1); // Use -1 as the standard prefix
             planner.clearVertices(); planner.clearEdges();
             int dimension = app_options.globalMin<State>().size();
-            planner.updatePrmRadius(coord.getGlobalNumUniformSamples(), dimension);
+            planner.updatePrmRadius(global_num_uniform_samples, dimension);
             for (auto& [v_id, connections]: graph.getAdjacencyList()) {
                 auto vertex = graph.getVertex(v_id);
                 planner.addExistingVertex(vertex);
@@ -231,14 +220,14 @@ namespace mpl::demo {
                 auto start_time = std::chrono::high_resolution_clock::now();
                 planner.addSample(start);
                 curr_start = planner.getNewVertices()[0]; // should always exist
-                coord.addVertices(planner.getNewVertices());
-                coord.addEdges(planner.getNewEdges());
+                graph.addVertex(curr_start);
+                for (auto& e: planner.getNewEdges()) graph.addEdge(e);
                 planner.clearVertices(); planner.clearEdges();
 
                 planner.addSample(goal);
                 curr_goal = planner.getNewVertices()[0]; // should always exist
-                coord.addVertices(planner.getNewVertices());
-                coord.addEdges(planner.getNewEdges());
+                graph.addVertex(curr_goal);
+                for (auto& e: planner.getNewEdges()) graph.addEdge(e);
                 planner.clearVertices(); planner.clearEdges();
 
                 auto end_time = std::chrono::high_resolution_clock::now();
@@ -249,6 +238,59 @@ namespace mpl::demo {
             }
             return start_goal_vertices;
         }
+
+    template <class Coordinator, class Scalar>
+        void pngPostProcessing(Coordinator& coord, AppOptions& app_options) {
+            using Scenario = PNG2dScenario<Scalar>;
+            using State = typename Scenario::State;
+            using Vertex = typename Coordinator::Vertex;
+            using Edge = typename Coordinator::Edge;
+            using Graph = typename mpl::UndirectedGraph<Vertex, Edge>;
+            using TimedGraph = typename Coordinator::TimedGraph;
+
+            Scenario scenario = initPngScenario<Scalar>(app_options);
+            
+            int resolution = 10;
+            for (int i=1; i <= resolution; ++i) {
+                std::uint64_t current_time_limit = app_options.timeLimit() * 1000 / i; // Time limit specified in seconds
+                JI_LOG(INFO) << "Current time limit: " << current_time_limit;
+                Graph graph;
+                getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit); 
+                auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
+                auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+                if (i==1) {
+                    savePngImages<Coordinator, State>(coord, app_options, graph);
+                    saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
+                }
+            }
+        }
+
+    template <class Coordinator, class Scalar>
+        void fetchPostProcessing(Coordinator& coord, AppOptions& app_options) {
+            using Scenario = FetchScenario<Scalar>;
+            using State = typename Scenario::State;
+            using Vertex = typename Coordinator::Vertex;
+            using Edge = typename Coordinator::Edge;
+            using Graph = typename mpl::UndirectedGraph<Vertex, Edge>;
+            using TimedGraph = typename Coordinator::TimedGraph;
+            Scenario scenario = initFetchScenario<Scalar>(app_options);
+            Graph graph;
+            getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, app_options.timeLimit() * 1000); // Time limit specified in seconds
+            int resolution = 20;
+            for (int i=1; i <= resolution; ++i) {
+                std::uint64_t current_time_limit = app_options.timeLimit() * 1000 / i;
+                JI_LOG(INFO) << "Current time limit: " << current_time_limit;
+                Graph graph;
+                getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit); // Time limit specified in seconds
+                auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
+                auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+            }
+            //auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord, graph);
+            //auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+        }
+
+
+
 }
 
 #endif 

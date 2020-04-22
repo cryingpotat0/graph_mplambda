@@ -110,25 +110,18 @@ namespace mpl {
                     coordinator_.update_num_samples(lambdaId_, pkt.vertices().size());
                     coordinator_.addVertices(std::move(pkt.vertices()));
                 } else {
-                    auto destinationLambdaId = pkt.destinationLambdaId();
-                    auto other_connection = coordinator_.getConnection(destinationLambdaId);
-                    if (other_connection != nullptr) {
-			JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
-                        // TODO: do a buffered write, the lambdas are receiving too many packets. Merge vertices from many outputs together.
-                        //other_connection->delayed_vertices_write(std::move(pkt));
-                        other_connection->write(std::move(pkt));
-                    } else {
-		    	JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
-                        coordinator_.buffered_data_[destinationLambdaId].push_back(std::move(pkt));
-                    }
+                    coordinator_.writePacketToLambda(lambdaId_, pkt.destinationLambdaId(), std::move(pkt));
+                    //auto destinationLambdaId = pkt.destinationLambdaId();
+                    //auto other_connection = coordinator_.getConnection(destinationLambdaId);
+                    //if (other_connection != nullptr) {
+                    //    JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
+                    //    other_connection->write(std::move(pkt));
+                    //} else {
+                    //    JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << lambdaId_;
+                    //    coordinator_.buffered_data_[destinationLambdaId].push_back(std::move(pkt));
+                    //}
                 }
             }
-        }
-
-        template <class Vertex, class State>
-        void delayed_vertices_write(packet::Vertices<Vertex, State>&& pkt) {
-            vertices_to_send.push_back(std::move(pkt.vertices()));
-            perform_delayed_vertices_write();
         }
 
         template <class Edge, class Distance>
@@ -200,29 +193,6 @@ namespace mpl {
         operator struct pollfd () const {
             return { socket_, static_cast<short>(writeQueue_.empty() ? POLLIN : (POLLIN | POLLOUT)), 0 };
         }
-
-        void perform_delayed_vertices_write() {
-            auto now = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_send_of_vertices);
-            if ((vertices_to_send.size() >= coordinator_.smallest_number_of_neighbors) ||
-                    (vertices_to_send.size() > 0 && duration.count() > milliseconds_before_next_send)) { // TODO: unverified strategy
-                std::size_t total_size = 0;
-                for (const auto& sub : vertices_to_send)
-                    total_size += sub.size();
-                std::vector<typename Coordinator::Vertex> result;
-                result.reserve(total_size);
-                for (const auto& sub : vertices_to_send)
-                    result.insert(result.end(), sub.begin(), sub.end());
-                JI_LOG(INFO) << "Writing " << result.size() << " vertices to " << lambdaId_;
-                auto pkt = packet::Vertices<
-                        typename Coordinator::Vertex,
-                        typename Coordinator::State>(0, 0, std::move(result));
-                write(std::move(pkt));
-                vertices_to_send.clear();
-                last_send_of_vertices = std::chrono::high_resolution_clock::now();
-            }
-        }
-
 
         bool recvHello() {
             return recvHello_;
