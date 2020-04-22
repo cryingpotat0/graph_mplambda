@@ -250,18 +250,19 @@ namespace mpl::demo {
 
             Scenario scenario = initPngScenario<Scalar>(app_options);
             
-            int resolution = 10;
-            for (int i=1; i <= resolution; ++i) {
-                std::uint64_t current_time_limit = app_options.timeLimit() * 1000 / i; // Time limit specified in seconds
+            int evaluate_every_millis = 100;
+            std::uint64_t current_time_limit = app_options.timeLimit() * 1000;
+            while (current_time_limit > 0) {
                 JI_LOG(INFO) << "Current time limit: " << current_time_limit;
                 Graph graph;
                 getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit); 
                 auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
                 auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
-                if (i==1) {
+                if (current_time_limit == app_options.timeLimit() * 1000) {
                     savePngImages<Coordinator, State>(coord, app_options, graph);
                     saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
                 }
+                current_time_limit -= evaluate_every_millis;
             }
         }
 
@@ -276,14 +277,15 @@ namespace mpl::demo {
             Scenario scenario = initFetchScenario<Scalar>(app_options);
             Graph graph;
             getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, app_options.timeLimit() * 1000); // Time limit specified in seconds
-            int resolution = 20;
-            for (int i=1; i <= resolution; ++i) {
-                std::uint64_t current_time_limit = app_options.timeLimit() * 1000 / i;
+            int evaluate_every_millis = 1000;
+            std::uint64_t current_time_limit = app_options.timeLimit() * 1000;
+            while (current_time_limit > 0) {
                 JI_LOG(INFO) << "Current time limit: " << current_time_limit;
                 Graph graph;
                 getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit); // Time limit specified in seconds
                 auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
                 auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+                current_time_limit -= evaluate_every_millis;
             }
             //auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord, graph);
             //auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
