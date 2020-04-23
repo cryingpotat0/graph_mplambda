@@ -23,7 +23,7 @@ void mpl::WriteQueue::writeTo(int socket) {
     //struct sockaddr_in dest;
     //ssize_t n = ::sendmsg(socket, &mh, MSG_NOSIGNAL);
 
-    JI_LOG(TRACE) << "wrote " << n << " bytes to " << socket;
+    //JI_LOG(TRACE) << "wrote " << n << " bytes to " << socket;
     if (n == -1) {
         if (errno == EAGAIN)
             return;

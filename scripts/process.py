@@ -1,4 +1,4 @@
-import glob, re, argparse, os, shutil
+import glob, re, argparse, os, shutil, subprocess
 import pandas as pd 
 import numpy as np
 from distutils.dir_util import copy_tree
@@ -12,6 +12,7 @@ EDGES_REGEX = re.compile(".*Num edges in graph ([0-9]*)")
 VERTICES_REGEX = re.compile(".*Num vertices in graph ([0-9]*)")
 MAX_GLOBAL_SAMPLES = re.compile(".*Final global_num_samples (.*)")
 LOOP_ACTUAL_RUNTIME = re.compile(".*Loop finished in (.*) s")
+CURRENT_TIME = re.compile(".*Current time limit: (.*)")
 
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument("--root", required=True)
@@ -180,10 +181,130 @@ def image_processing_2d():
         f.close()
 
 
+def truncate_files_to_last(fil, n=100000):
+    dirname = os.path.dirname(fil)
+    old_file_path = "{}/full_out.txt".format(dirname)
+    subprocess.call("mv {} {}".format(fil, old_file_path), shell=True)
+    subprocess.call("tail -n {} {} > {}".format(n, old_file_path, fil), shell=True)
+    subprocess.call("rm {}".format(old_file_path), shell=True)
+
+def truncate_all_files():
+    for fil in glob.glob(args.root + "/*/*/*/out.txt"):
+        truncate_files_to_last(fil)
+
+def path_length_processing_new():
+
+    all_data = {
+            "start": [],
+            "goal": [],
+            "distance": [],
+            "time_limit": [],
+            "num_lambdas": [],
+            "num_samples": [],
+            "scenario": [],
+            "algorithm": []
+            }
+    for fil in glob.glob(args.root + "/*/*/*/out.txt"):
+        split_fil = fil.split("/")
+        label = split_fil[-2]
+        scenario = split_fil[-3]
+        algorithm = split_fil[-4]
+        _, num_lambdas_str, time_limit_str, _, num_samples_str = label.split("__")
+        num_lambdas = int(num_lambdas_str.split("=")[1])
+        num_samples = int(num_samples_str.split("=")[1])
+        time_limit = float(time_limit_str.split("=")[1])
+        curr_time = None
+        with open(fil, 'r') as f:
+            for line in f.readlines():
+                time_match = CURRENT_TIME.match(line)
+                if time_match is not None:
+                    curr_time = float(time_match.group(1))
+                    continue
+
+                ret = STARTS_GOALS_DISTANCE_REGEX.match(line)
+                if ret is not None: 
+                    if curr_time is None: raise Exception("no time available!!")
+                    start, goal, dist = ret.group(1), ret.group(2), float(ret.group(3))
+                    all_data["start"].append(start)
+                    all_data["goal"].append(goal)
+                    all_data["distance"].append(dist)
+                    all_data["time_limit"].append(curr_time / 1000)
+                    all_data["num_lambdas"].append(num_lambdas)
+                    all_data["num_samples"].append(num_samples)
+                    all_data["scenario"].append(scenario)
+                    all_data["algorithm"].append(algorithm)
+
+    df = pd.DataFrame(all_data)
+    import ipdb; ipdb.set_trace()
+    df.to_csv('{}/path_length_data.csv'.format(args.root))
+
+def graph_size_processing_new():
+    
+    all_data = {
+            "num_vertices": [],
+            "num_edges": [],
+            "total_size": [],
+            "time_limit": [],
+            "num_lambdas": [],
+            "num_samples": [],
+            "max_global_samples": [],
+            "scenario": [],
+            "algorithm": []
+            }
+    for fil in glob.glob(args.root + "/*/*/*/out.txt"):
+        split_fil = fil.split("/")
+        label = split_fil[-2]
+        scenario = split_fil[-3]
+        algorithm = split_fil[-4]
+        _, num_lambdas_str, time_limit_str, _, num_samples_str = label.split("__")
+        num_lambdas = int(num_lambdas_str.split("=")[1])
+        num_samples = int(num_samples_str.split("=")[1])
+        time_limit = float(time_limit_str.split("=")[1])
+        curr_time, curr_vertices, curr_edges, curr_global_samples = None, None, None, None
+        with open(fil, 'r') as f:
+            for line in f.readlines():
+            
+                #if "Current time" in line: import ipdb; ipdb.set_trace()
+                time_match = CURRENT_TIME.match(line)
+                if time_match is not None:
+                    curr_time = float(time_match.group(1))
+                    continue
+                if curr_time is None: continue
+
+                ret = VERTICES_REGEX.match(line)
+                if ret is not None:
+                    curr_vertices = int(ret.group(1))
+
+                ret = EDGES_REGEX.match(line)
+                if ret is not None:
+                    curr_edges = int(ret.group(1))
+
+                ret = MAX_GLOBAL_SAMPLES.match(line)
+                if ret is not None:
+                    curr_global_samples = int(ret.group(1))
+                    if None in [curr_time, curr_vertices, curr_edges, curr_global_samples]: raise Exception("Should not happen")
+                    all_data["num_vertices"].append(curr_vertices)
+                    all_data["num_edges"].append(curr_edges)
+                    all_data["total_size"].append(curr_vertices + curr_edges)
+                    all_data["time_limit"].append(curr_time / 1000) # ms to s
+                    all_data["scenario"].append(scenario)
+                    all_data["algorithm"].append(algorithm)
+                    all_data["num_lambdas"].append(num_lambdas)
+                    all_data["num_samples"].append(num_samples)
+                    all_data["max_global_samples"].append(curr_global_samples)
+
+                    curr_time, curr_vertices, curr_edges, curr_global_samples = None, None, None, None
+
+    df = pd.DataFrame(all_data)
+    df.to_csv('{}/graph_size_data.csv'.format(args.root))
 
 if __name__=="__main__":
-    image_processing_2d()
+    #image_processing_2d()
     #graph_size_processing()
     #path_length_processing()
+    # above are old style functions, new ones below
+    #truncate_all_files()
+    graph_size_processing_new()
+    path_length_processing_new()
     #exit(0)
 

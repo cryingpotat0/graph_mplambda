@@ -294,6 +294,7 @@ namespace mpl::demo {
                         start_time = std::chrono::high_resolution_clock::now();
 
                         JI_LOG(INFO) << "Using seed: " << app_options.randomSeed();
+			JI_LOG(INFO) << "Num jobs: " << app_options.jobs();
                         planner.setSeed(app_options.randomSeed());
                     }
 

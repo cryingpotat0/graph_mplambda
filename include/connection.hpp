@@ -45,7 +45,7 @@ namespace mpl {
             assert(rBuf_.remaining() > 0); // we may need to grow the buffer
 
             ssize_t n = ::recv(socket_, rBuf_.begin(), rBuf_.remaining(), 0);
-            JI_LOG(INFO) << "recv " << n;
+            //JI_LOG(INFO) << "recv " << n;
             if (n <= 0) {
 
                 return (n < 0) ? throw syserr("recv") : false;
