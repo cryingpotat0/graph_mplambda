@@ -336,9 +336,9 @@ namespace mpl::demo {
                     for (auto& v : validSamples_) {
                         JI_LOG(INFO) << "State for rng test " << v.state();
                         if (v.id().second % num_lambdas == lambda_id) {
-                            JI_LOG(INFO) << "Lambda " << lambda_id << " processing vertex " << v.id();
+                            //JI_LOG(INFO) << "Lambda " << lambda_id << " processing vertex " << v.id();
                             planner.connectVertex(v, [] (Edge_t& edge) {
-                                        if (edge.u().second > edge.v().second) JI_LOG(INFO) << "Processing edge " << edge.u() << "-" << edge.v();
+                                        //if (edge.u().second > edge.v().second) JI_LOG(INFO) << "Processing edge " << edge.u() << "-" << edge.v();
                                         return edge.u().second > edge.v().second; // Connect 0-1, 0-2, 0-3, 1-2, 1-3, 2-3... lambda-0 is likely to start befor other lambdas so give it more work, have to validate this logic.
                                     });
                         }

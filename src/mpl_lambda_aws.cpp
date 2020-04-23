@@ -69,6 +69,8 @@ invocation_response my_handler(invocation_request const& request) try {
     set(options.checkResolution_, v, "check-resolution");
     set(options.lambdaId_, v, "lambda_id");
     set(options.num_divisions_, v, "num_divisions");
+    set(options.randomSeed_, v, "random_seed");
+    set(options.jobs_, v, "jobs");
     set(options.num_samples_, v, "num_samples");
     options.starts_ = createVectorOfStrings(v, "start");
     options.goals_ = createVectorOfStrings(v, "goal");

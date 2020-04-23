@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <list>
 #include <util.hpp>
+#include <time.h>
 
 #if HAS_AWS_SDK
 #include <aws/lambda-runtime/runtime.h>
@@ -670,7 +671,8 @@ namespace mpl {
                             "time-limit", std::to_string(app_options.timeLimit()),
                             "env", app_options.env(false),
                             "env-frame", app_options.envFrame_,
-                            "--jobs", std::to_string(app_options.jobs_),
+                            "jobs", std::to_string(app_options.jobs_),
+			    "random_seed", std::to_string(app_options.randomSeed_)
                         };
                         args.push_back("start");
                         std::string starts;
@@ -746,6 +748,7 @@ namespace mpl {
                             "--env", app_options.env(false),
                             "--env-frame", app_options.envFrame_,
                             "--jobs", std::to_string(app_options.jobs_),
+			    "--random_seed", std::to_string(app_options.randomSeed_)
                         };
                         for (int i=0; i < app_options.starts_.size(); ++i) {
                             args.push_back("--start");
@@ -1083,6 +1086,7 @@ namespace mpl {
                 }
 
                 void init_lambdas() {
+		    app_options.randomSeed_ = time(NULL); // Random seed initialization
                     if (app_options.lambdaType() == LambdaType::LAMBDA_PSEUDO) {
                         init_local_lambdas();
                     } else if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
