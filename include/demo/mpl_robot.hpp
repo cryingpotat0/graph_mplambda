@@ -277,7 +277,7 @@ namespace mpl::demo {
             Scenario scenario = initFetchScenario<Scalar>(app_options);
             Graph graph;
             getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, app_options.timeLimit() * 1000); // Time limit specified in seconds
-            int evaluate_every_millis = 1000;
+            int evaluate_every_millis = 3000;
             std::uint64_t current_time_limit = app_options.timeLimit() * 1000;
             while (current_time_limit > 0) {
                 JI_LOG(INFO) << "Current time limit: " << current_time_limit;

@@ -6,7 +6,7 @@ parser.add_argument('--num_samples', default="1")
 parser.add_argument('--time_limits', default="1,5,10")
 parser.add_argument('--algorithm', action='append', required=True)
 parser.add_argument('--scenario', action='append', required=True)
-parser.add_argument('--local', type=bool, default=True)
+parser.add_argument('--aws', dest='local', action='store_false', default=True)
 parser.add_argument('--load_graph', dest='load_graph', action='store_true', default=False)
 
 args = parser.parse_args()
@@ -229,8 +229,8 @@ if __name__ == "__main__":
                     #(2,1,0,0,0,0,0,0),  #6
                     (1,1,1,0,0,0,0,0),  #8
                     #(1,1,1,1,0,0,0,0),  #16
-                    #(1,1,1,1,1,0,0,0),  #32
-                    #(1,1,1,1,1,1,0,0),  #64
+                    (1,1,1,1,1,0,0,0),  #32
+                    (1,1,1,1,1,1,0,0),  #64
                     #(1,1,1,1,1,1,1,0),  #128
 
                 ]
