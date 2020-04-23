@@ -246,7 +246,7 @@ namespace mpl {
                 }
 
                 void addVertex(Vertex v) {
-                    if (vertex_properties.find(v.id()) == vertex_properties.end())
+                    if (vertex_properties.find(v.id()) == vertex_properties.end()) // Only add if it doesn't exist already. No overwriting.
                         vertex_properties[v.id()] = v;
                 }
 

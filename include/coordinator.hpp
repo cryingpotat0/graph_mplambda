@@ -610,26 +610,35 @@ namespace mpl {
                 using State = typename Scenario::State;
                 using Bound = typename Scenario::Bound;
                 using Distance = typename Scenario::Distance;
+                using Subspace_t = Subspace<Bound, State, Scalar>;
                 using Planner = mpl::PRMPlanner<Scenario, Scalar>;
                 using Vertex = mpl::Vertex<State>;
                 using Vertex_ID = typename Vertex::ID;
                 using Edge = mpl::Edge<typename Vertex::ID, Distance>;
-                using Graph = UndirectedGraph<Vertex, Edge>;
+                //using Graph = UndirectedGraph<Vertex, Edge>;
+
+                using TimedVertex = mpl::TimedVertex<State>;
+                using TimedEdge = mpl::TimedEdge<typename Vertex::ID, Distance>;
+                using TimedGraph = UndirectedGraph<TimedVertex, TimedEdge>;
                 using Connection_t = Connection<CoordinatorCommonSeed>;
 
+                std::vector<std::vector<Buffer>> buffered_data_; // Any data to be written if lambda is not up yet
                 demo::AppOptions app_options;
+                std::chrono::high_resolution_clock::time_point start_time;
 
             private:
                 std::vector<std::uint64_t> num_samples_per_lambda_;
                 std::uint64_t global_min_samples{0};
                 std::uint64_t global_num_uniform_samples_{0};
+                std::vector<std::pair<std::uint64_t, std::uint64_t>> timed_global_num_uniform_samples_;
+                std::vector<Subspace_t> lambda_subspaces;
                 int listen_{-1};
                 int port_{0x415E};
                 std::vector<struct pollfd> pfds;
                 std::list<Connection_t> connections_;
                 std::list<std::pair<int, int>> childProcesses_;
                 std::vector<Connection_t*> lambdaId_to_connection_;
-                Graph graph;
+                TimedGraph graph;
 #if HAS_AWS_SDK
                 static constexpr const char* ALLOCATION_TAG = "mplLambdaAWS";
                 std::shared_ptr<Aws::Lambda::LambdaClient> lambdaClient_;
@@ -713,67 +722,65 @@ namespace mpl {
                 }
 
                 void init_local_lambdas() {
-                    //for (int i=0; i < app_options.jobs() ; ++i) {
-                    //    int p[2];
-                    //    if (::pipe(p) == -1)
-                    //        throw std::system_error(errno, std::system_category(), "Pipe");
-                    //    if (int pid = ::fork()) {
-                    //        // parent process
-                    //        ::close(p[1]);
-                    //        continue;
-                    //    }
-                    //    ::close(p[0]);
+                    for (int i=0; i < app_options.jobs() ; ++i) {
+                        int p[2];
+                        if (::pipe(p) == -1)
+                            throw std::system_error(errno, std::system_category(), "Pipe");
+                        if (int pid = ::fork()) {
+                            // parent process
+                            ::close(p[1]);
+                            continue;
+                        }
+                        ::close(p[0]);
 
-                    //    std::string program = "./mpl_lambda_fixed_graph";
-                    //    auto lambdaId = std::to_string(i);
-                    //    auto lambda_min = lambda_subspaces[i].getLower();
-                    //    auto lambda_max = lambda_subspaces[i].getUpper();
-                    //    std::vector<std::string> args = {
-                    //        "--scenario", app_options.scenario(),
-                    //        "--global_min", app_options.global_min_,
-                    //        "--global_max", app_options.global_max_,
-                    //        "--lambda_id", lambdaId,
-                    //        "--algorithm", app_options.algorithm(),
-                    //        "--coordinator", app_options.coordinator(),
-                    //        //"--communicator", app_options.communicator(),
-                    //        "--num_samples", std::to_string(app_options.numSamples()),
-                    //        "--time-limit", std::to_string(app_options.timeLimit()),
-                    //        "--env", app_options.env(false),
-                    //        "--env-frame", app_options.envFrame_,
-                    //        "--num_divisions", app_options.num_divisions_,
-                    //    };
-                    //    for (int i=0; i < app_options.starts_.size(); ++i) {
-                    //        args.push_back("--start");
-                    //        args.push_back(app_options.starts_[i]);
-                    //    }
-                    //    for (int i=0; i < app_options.goals_.size(); ++i) {
-                    //        args.push_back("--goal");
-                    //        args.push_back(app_options.goals_[i]);
-                    //    }
+                        std::string program = "./mpl_lambda_fixed_graph";
+                        auto lambdaId = std::to_string(i);
+                        std::vector<std::string> args = {
+                            "--scenario", app_options.scenario(),
+                            "--global_min", app_options.global_min_,
+                            "--global_max", app_options.global_max_,
+                            "--lambda_id", lambdaId,
+                            "--algorithm", app_options.algorithm(),
+                            "--coordinator", app_options.coordinator(),
+                            //"--communicator", app_options.communicator(),
+                            "--num_samples", std::to_string(app_options.numSamples()),
+                            "--time-limit", std::to_string(app_options.timeLimit()),
+                            "--env", app_options.env(false),
+                            "--env-frame", app_options.envFrame_,
+                            "--jobs", std::to_string(app_options.jobs_),
+                        };
+                        for (int i=0; i < app_options.starts_.size(); ++i) {
+                            args.push_back("--start");
+                            args.push_back(app_options.starts_[i]);
+                        }
+                        for (int i=0; i < app_options.goals_.size(); ++i) {
+                            args.push_back("--goal");
+                            args.push_back(app_options.goals_[i]);
+                        }
 
 
-                    //    std::vector <const char *> argv;
+                        std::vector <const char *> argv;
 
-                    //    char file[20];
-                    //    snprintf(file, sizeof(file), "lambda-%d.out", i);
+                        char file[20];
+                        snprintf(file, sizeof(file), "lambda-%d.out", i);
 
-                    //    argv.push_back(program.c_str());
-                    //    std::string command = program;
+                        argv.push_back(program.c_str());
+                        std::string command = program;
 
-                    //    for (auto ind=0; ind < args.size(); ++ind) {
-                    //        argv.push_back(args[ind].c_str());
-                    //        command += " " + args[ind];
-                    //    }
-                    //    argv.push_back(nullptr); // <-- required terminator
-                    //    JI_LOG(TRACE) << "Running lambda" << lambdaId << " file " << file << ": " << command;
+                        for (auto ind=0; ind < args.size(); ++ind) {
+                            argv.push_back(args[ind].c_str());
+                            command += " " + args[ind];
+                        }
+                        argv.push_back(nullptr); // <-- required terminator
+                        JI_LOG(TRACE) << "Running lambda" << lambdaId << " file " << file << ": " << command;
 
-                    //    int fd = ::open(file, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-                    //    dup2(fd, 1); // make stdout write to file
-                    //    dup2(fd, 2); // make stderr write to file
-                    //    close(fd); // close fd, dups remain open
-                    //    execv(argv[0], const_cast<char*const*>(argv.data()));
-                    //    throw std::system_error(errno, std::system_category(), "Lambda died");
-                    //}
+                        int fd = ::open(file, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+                        dup2(fd, 1); // make stdout write to file
+                        dup2(fd, 2); // make stderr write to file
+                        close(fd); // close fd, dups remain open
+                        execv(argv[0], const_cast<char*const*>(argv.data()));
+                        throw std::system_error(errno, std::system_category(), "Lambda died");
+                    }
 
                 }
             public:
@@ -809,29 +816,52 @@ namespace mpl {
                 }
 
                 void addVertices(const std::vector<Vertex>& vertices) {
+                    auto stop = std::chrono::high_resolution_clock::now();
+                    std::uint64_t curr_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time).count();
                     for (auto& v : vertices) {
-                        graph.addVertex(v);
+                        //JI_LOG(INFO) << "Adding " << v.id() << " at " << curr_time;
+                        graph.addVertex(TimedVertex{v.id(), v.state(), curr_time});
+                    }
+                }
+
+                void addEdges(const std::vector<Edge>& edges) {
+                    auto stop = std::chrono::high_resolution_clock::now();
+                    std::uint64_t curr_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time).count();
+                    for (auto& e : edges) {
+                        //JI_LOG(INFO) << "Adding " << e.u() << "-" << e.v() << " at " << curr_time;
+                        graph.addEdge(TimedEdge{e.distance(), e.u(), e.v(), curr_time});
                     }
                 }
 
                 void update_num_samples(std::uint64_t lambdaId, size_t successful_samples) {
-                }
+                    num_samples_per_lambda_[lambdaId] += app_options.numSamples(); // Regardless of how many successful samples, each lambda tries to sample these many points
+                    auto curr_min_samples = std::min_element(
+                            num_samples_per_lambda_.begin(),
+                            num_samples_per_lambda_.end()
+                            );
+                    if ((*curr_min_samples) > global_min_samples) {
+                        global_min_samples = *curr_min_samples;
+                        global_num_uniform_samples_ = global_min_samples;
+                        JI_LOG(INFO) << "Updating global_num_samples to " << global_num_uniform_samples_;
+                        auto stop = std::chrono::high_resolution_clock::now();
+                        std::uint64_t curr_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time).count();
+                        timed_global_num_uniform_samples_.push_back(std::make_pair(curr_time, global_num_uniform_samples_));
+                    } else {
+                        JI_LOG(INFO) << "Not updating global_num_samples " << global_min_samples << " from curr_min " << *curr_min_samples;
 
-                void addEdges(const std::vector<Edge>& edges) {
-                    for (auto& e : edges) {
-                        graph.addEdge(e);
                     }
+                    JI_LOG(INFO) << num_samples_per_lambda_;
                 }
 
-                const Graph& getGraph() const {
+
+                const TimedGraph& getGraph() const {
                     return graph;
                 };
 
-                Graph& getGraph() {
+                TimedGraph& getGraph() {
                     return graph;
                 };
-
-
+                
                 void start_socket() {
                     if ((listen_ = ::socket(PF_INET, SOCK_STREAM, 0)) == -1)
                         throw syserr("socket()");
@@ -865,12 +895,13 @@ namespace mpl {
                     JI_LOG(INFO) << "Num lambdas: " << app_options.jobs();
                 }
 
+
                 void loop() {
                     // Do communication stuff
                     int done_ = 0;
                     JI_LOG(INFO) << "loop started";
 
-                    auto start_time = std::chrono::high_resolution_clock::now();
+                    start_time = std::chrono::high_resolution_clock::now(); // class variable
                     for(;;) {
 
 
@@ -896,7 +927,7 @@ namespace mpl {
                         int nReady = ::poll(pfds.data(), pfds.size(), 1);
                         auto stop = std::chrono::high_resolution_clock::now();
                         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
-                        if (duration.count() > app_options.timeLimit() * 1000) { // specified time limit in ms
+                        if (duration.count() > app_options.timeLimit() * 1000) { // specified time limit in s
                             if (!done_) done_ = 1;
                         }
 
@@ -940,6 +971,11 @@ namespace mpl {
                                     stop = std::chrono::high_resolution_clock::now();
                                     auto duration_to_lambda = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
                                     JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda.count() << " milliseconds";
+                                    for (auto& buf: buffered_data_[cit->lambdaId()]) {
+                                        JI_LOG(INFO) << "Writing buffered_data of num buffers " << buffered_data_[cit->lambdaId()].size();
+                                        cit->write_buf(std::move(buf));
+                                    }
+                                    buffered_data_[cit->lambdaId()].clear();
                                 } else {
                                     //JI_LOG(INFO) << "Existing lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " " << (lambdaId_to_connection_[cit->lambdaId()] == nullptr);
                                 }
@@ -1006,9 +1042,24 @@ namespace mpl {
                     return global_num_uniform_samples_;
                 }
 
+                const std::uint64_t getGlobalNumUniformSamples(std::uint64_t time_limit) const {
+                    std::uint64_t prev = 0;
+                    for (auto& [time, global_num_uniform_samples_curr] : timed_global_num_uniform_samples_) {
+                        if (time > time_limit) break;
+                        prev = global_num_uniform_samples_curr;
+                    }
+                    return prev;
+                }
+
                 void saveGraph(std::string filename) {
                     std::ofstream file(filename);
-                    file << "num_global_uniform_samples:" << getGlobalNumUniformSamples() << "\n";
+                    for (auto& [time, global_num_uniform_samples_curr] : timed_global_num_uniform_samples_) {
+                        file << "num_global_uniform_samples;" 
+                            << time << ";" 
+                            << global_num_uniform_samples_curr 
+                            << "\n";
+}
+                    file << "end_num_global_uniform_samples" << "\n";
                     graph.serialize(file);
                     file.close();
                 }
@@ -1016,13 +1067,17 @@ namespace mpl {
                 void loadGraph(std::string filename) {
                     std::ifstream file(filename);
                     // First get the num_global_uniform_samples
-                    std::string line;
-                    std::getline(file, line);
-                    auto pos = line.find(":");
-                    global_num_uniform_samples_ = std::stoull(line.substr(pos + 1));
+                    timed_global_num_uniform_samples_.clear();
+                    for(std::string line; std::getline(file, line); ) {
+                        if (line == "end_num_global_uniform_samples") break;
+                        std::vector<std::string> results;
+                        mpl::util::string_split(results, line, ";");
+                        timed_global_num_uniform_samples_.push_back(std::make_pair(std::stoull(results[1]), std::stoull(results[2])));
+                        global_num_uniform_samples_ = std::stoull(results[2]);
+                    }
 
                     // Then read the graph
-                    graph = Graph::deserialize(file);
+                    graph = TimedGraph::deserialize(file);
                     file.close();
                     JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
                     JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
@@ -1039,6 +1094,7 @@ namespace mpl {
                     int num_lambdas = app_options.jobs();
                     num_samples_per_lambda_.resize(num_lambdas, 0);
                     lambdaId_to_connection_.resize(num_lambdas, nullptr);
+                    buffered_data_.resize(num_lambdas);
                 }
 
                 Connection_t* getConnection(std::uint64_t lambdaId) {
@@ -1048,10 +1104,18 @@ namespace mpl {
                 int accept(struct sockaddr *addr, socklen_t * addrLen) {
                     return ::accept(listen_, addr, addrLen);
                 }
+                
+                template <class Packet>
+                void writePacketToLambda(int sourceLambdaId, int destinationLambdaId, Packet&& pkt) {
+                    JI_LOG(ERROR) << "Should not send vertices for this algorithm";
+                }
 
-
+                const std::vector<Subspace_t> getSubspaces() const {
+                    std::vector<Subspace_t> subspaces;
+                    subspaces.push_back(Subspace_t(app_options.globalMin<Bound>(), app_options.globalMax<Bound>()));
+                    return subspaces;
+                }
         };
-
 
 }
 

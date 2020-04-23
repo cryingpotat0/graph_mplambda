@@ -63,12 +63,18 @@ namespace mpl {
             validSampleCallbacks.push_back(f);
         }
 
-        void setrPRM(Scalar rPRM_) {
-            rPRM = rPRM_;
-        }
-
         Scalar getrPRM() {
             return rPRM;
+        }
+
+        void updatePrmRadius(std::uint64_t num_samples) {
+            auto dimension = scenario.dimension();
+            if (num_samples == 0) return;
+            auto new_radius = scenario.prmRadius() * pow(log( num_samples) / (1.0 * num_samples), 1.0 / dimension);
+            if (new_radius > 0 && new_radius < rPRM) {
+                JI_LOG(INFO) << "New rPRM is " << new_radius;
+                rPRM = new_radius;
+            }
         }
 
         void plan(int num_samples) {
@@ -97,24 +103,28 @@ namespace mpl {
             return new_edges;
         }
 
-        void updatePrmRadius(std::uint64_t num_samples, int dimension) {
-            if (num_samples == 0) return;
-            auto new_radius = scenario.prmRadius() * pow(log( num_samples) / (1.0 * num_samples), 1.0 / dimension);
-            if (new_radius > 0 && new_radius < rPRM) {
-                JI_LOG(INFO) << "New rPRM is " << new_radius;
-                rPRM = new_radius;
-            }
-        }
 
         void addRandomSample() {
             State s = scenario.randomSample(rng);
             addSample(s);
         }
+        
+        // The three functions below facilitate different planning architectures called outside the PRM planner
+        State generateRandomSample() {
+            return scenario.randomSample(rng);
+        }
+
+        bool validateSample(State& s) {
+            return scenario.isValid(s);
+        }
+        
+        decltype(auto) generateVertexID() {
+            return std::make_pair(id_prefix_, num_samples_++);
+        }
 
         void addSample(State& s) {
             if (!scenario.isValid(s)) return;
-            auto id = std::make_pair(id_prefix_, num_samples_);
-            Vertex_t v{id, s};
+            Vertex_t v{generateVertexID(), s};
             new_vertices.push_back(v);
 
 
@@ -126,7 +136,6 @@ namespace mpl {
             for (auto fn : validSampleCallbacks) {
                 fn(v);
             }
-            ++num_samples_;
         }
 
         template <class ConnectVertexFn, class ConnectEdgeFn>

@@ -183,7 +183,7 @@ def image_processing_2d():
 
 if __name__=="__main__":
     image_processing_2d()
-    graph_size_processing()
-    path_length_processing()
+    #graph_size_processing()
+    #path_length_processing()
     #exit(0)
 

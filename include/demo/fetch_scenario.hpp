@@ -93,13 +93,17 @@ namespace mpl::demo {
             return Robot::randomConfig(rng, min_, max_);
         }
 
-	void setMin(const Bound &min) {
-	    min_ = min;
-	}
+        void setMin(const Bound &min) {
+            min_ = min;
+        }
 
-	void setMax(const Bound &max) {
-	    max_ = max;
-	}
+        void setMax(const Bound &max) {
+            max_ = max;
+        }
+
+        static const int dimension() {
+            return 8;
+        }
 
         template <class RNG>
         std::optional<State> sampleGoal(RNG& rng) {

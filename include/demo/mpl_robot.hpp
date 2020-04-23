@@ -209,8 +209,7 @@ namespace mpl::demo {
             std::vector<std::pair<Vertex, Vertex>> start_goal_vertices;
             auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1); // Use -1 as the standard prefix
             planner.clearVertices(); planner.clearEdges();
-            int dimension = app_options.globalMin<State>().size();
-            planner.updatePrmRadius(global_num_uniform_samples, dimension);
+            planner.updatePrmRadius(global_num_uniform_samples);
             for (auto& [v_id, connections]: graph.getAdjacencyList()) {
                 auto vertex = graph.getVertex(v_id);
                 planner.addExistingVertex(vertex);
@@ -251,7 +250,7 @@ namespace mpl::demo {
 
             Scenario scenario = initPngScenario<Scalar>(app_options);
             
-            int evaluate_every_millis = 100;
+            int evaluate_every_millis = 250;
             std::uint64_t current_time_limit = app_options.timeLimit() * 1000;
             while (current_time_limit > 0) {
                 JI_LOG(INFO) << "Current time limit: " << current_time_limit;

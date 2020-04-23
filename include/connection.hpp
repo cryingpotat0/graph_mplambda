@@ -104,7 +104,6 @@ namespace mpl {
         template <class Vertex, class State>
         void process(packet::Vertices<Vertex, State>&& pkt) {
             //JI_LOG(INFO) << "got VERTICES";
-            if (coordinator_.algorithm() == "prm_fixed_graph") {
                 if (pkt.destination() == 0) {
 		    JI_LOG(INFO) << "Received " << pkt.vertices().size() << " vertices from lambda " << lambdaId_;
                     coordinator_.update_num_samples(lambdaId_, pkt.vertices().size());
@@ -121,15 +120,12 @@ namespace mpl {
                     //    coordinator_.buffered_data_[destinationLambdaId].push_back(std::move(pkt));
                     //}
                 }
-            }
         }
 
         template <class Edge, class Distance>
         void process(packet::Edges<Edge, Distance>&& pkt) {
             JI_LOG(INFO) << "Received " << pkt.edges().size() << " edges from lambda " << lambdaId_;
-            if (coordinator_.algorithm() == "prm_fixed_graph") {
-                coordinator_.addEdges(std::move(pkt.edges()));
-            }
+            coordinator_.addEdges(std::move(pkt.edges()));
         }
 
 //        void process(packet::Problem&& pkt) {

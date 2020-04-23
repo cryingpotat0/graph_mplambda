@@ -129,6 +129,10 @@ namespace mpl::demo
             return validSegment(a, b);
         }
 
+        static const int dimension() {
+            return 2;
+        }
+
         const Space &space() const
         {
             return space_;
