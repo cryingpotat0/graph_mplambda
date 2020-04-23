@@ -648,75 +648,73 @@ namespace mpl {
 #if !HAS_AWS_SDK
                     throw std::invalid_argument("AWS SDK is not available");
 #else
-                    //for (int i=0; i < app_options.jobs() ; ++i) {
-                    //    Aws::Lambda::Model::InvokeRequest invokeRequest;
-                    //    invokeRequest.SetFunctionName("mpl_fixed_graph_aws");
-                    //    invokeRequest.SetInvocationType(Aws::Lambda::Model::InvocationType::Event);
-                    //    std::shared_ptr<Aws::IOStream> payload = Aws::MakeShared<Aws::StringStream>("PayloadData");
-                    //    Aws::Utils::Json::JsonValue jsonPayload;
+                    for (int i=0; i < app_options.jobs() ; ++i) {
+                        Aws::Lambda::Model::InvokeRequest invokeRequest;
+                        invokeRequest.SetFunctionName("mpl_fixed_graph_aws");
+                        invokeRequest.SetInvocationType(Aws::Lambda::Model::InvocationType::Event);
+                        std::shared_ptr<Aws::IOStream> payload = Aws::MakeShared<Aws::StringStream>("PayloadData");
+                        Aws::Utils::Json::JsonValue jsonPayload;
 
-                    //    //jsonPayload.WithString("algorithm", prob.algorithm() == 'r' ? "rrt" : "cforest");
+                        //jsonPayload.WithString("algorithm", prob.algorithm() == 'r' ? "rrt" : "cforest");
 
-                    //    auto lambdaId = std::to_string(i);
-                    //    auto lambda_min = lambda_subspaces[i].getLower();
-                    //    auto lambda_max = lambda_subspaces[i].getUpper();
-                    //    std::vector<std::string> args = {
-                    //        "scenario", app_options.scenario(),
-                    //        "global_min", app_options.global_min_,
-                    //        "global_max", app_options.global_max_,
-                    //        "lambda_id", lambdaId,
-                    //        "algorithm", app_options.algorithm(),
-                    //        "coordinator", app_options.coordinator(),
-                    //        //"communicator", app_options.communicator(),
-                    //        "num_samples", std::to_string(app_options.numSamples()),
-                    //        "time-limit", std::to_string(app_options.timeLimit()),
-                    //        "env", app_options.env(false),
-                    //        "env-frame", app_options.envFrame_,
-                    //        "num_divisions", app_options.num_divisions_
-                    //    };
-                    //    args.push_back("start");
-                    //    std::string starts;
-                    //    for (int i=0; i < app_options.starts_.size(); ++i) {
-                    //        starts += app_options.starts_[i];
-                    //        if (i != app_options.starts_.size() - 1) starts += ";";
-                    //    }
-                    //    args.push_back(starts);
+                        auto lambdaId = std::to_string(i);
+                        std::vector<std::string> args = {
+                            "scenario", app_options.scenario(),
+                            "global_min", app_options.global_min_,
+                            "global_max", app_options.global_max_,
+                            "lambda_id", lambdaId,
+                            "algorithm", app_options.algorithm(),
+                            "coordinator", app_options.coordinator(),
+                            //"communicator", app_options.communicator(),
+                            "num_samples", std::to_string(app_options.numSamples()),
+                            "time-limit", std::to_string(app_options.timeLimit()),
+                            "env", app_options.env(false),
+                            "env-frame", app_options.envFrame_,
+                            "--jobs", std::to_string(app_options.jobs_),
+                        };
+                        args.push_back("start");
+                        std::string starts;
+                        for (int i=0; i < app_options.starts_.size(); ++i) {
+                            starts += app_options.starts_[i];
+                            if (i != app_options.starts_.size() - 1) starts += ";";
+                        }
+                        args.push_back(starts);
 
-                    //    args.push_back("goal");
-                    //    std::string goals;
-                    //    for (int i=0; i < app_options.goals_.size(); ++i) {
-                    //        goals += app_options.goals_[i];
-                    //        if (i != app_options.goals_.size() - 1) goals += ";";
-                    //    }
-                    //    args.push_back(goals);
+                        args.push_back("goal");
+                        std::string goals;
+                        for (int i=0; i < app_options.goals_.size(); ++i) {
+                            goals += app_options.goals_[i];
+                            if (i != app_options.goals_.size() - 1) goals += ";";
+                        }
+                        args.push_back(goals);
 
-                    //    for (std::size_t i=0 ; i+1<args.size() ; i+=2) {
-                    //        const std::string& key = args[i];
-                    //        const std::string& val = args[i+1];
-                    //        jsonPayload.WithString(
-                    //                Aws::String(key.c_str(), key.size()),
-                    //                Aws::String(val.c_str(), val.size()));
-                    //    }
+                        for (std::size_t i=0 ; i+1<args.size() ; i+=2) {
+                            const std::string& key = args[i];
+                            const std::string& val = args[i+1];
+                            jsonPayload.WithString(
+                                    Aws::String(key.c_str(), key.size()),
+                                    Aws::String(val.c_str(), val.size()));
+                        }
 
-                    //    *payload << jsonPayload.View().WriteReadable();
-                    //    invokeRequest.SetBody(payload);
-                    //    invokeRequest.SetContentType("application/json");
+                        *payload << jsonPayload.View().WriteReadable();
+                        invokeRequest.SetBody(payload);
+                        invokeRequest.SetContentType("application/json");
 
-                    //    auto outcome = lambdaClient_->Invoke(invokeRequest);
-                    //    if (outcome.IsSuccess()) {
-                    //        auto &result = outcome.GetResult();
-                    //        Aws::IOStream& payload = result.GetPayload();
-                    //        Aws::String functionResult;
-                    //        std::getline(payload, functionResult);
-                    //        JI_LOG(INFO) << "Lambda result: " << functionResult;
-                    //    } else {
-                    //        auto &error = outcome.GetError();
-                    //        std::ostringstream msg;
-                    //        msg << "name: '" << error.GetExceptionName() << "', message: '" << error.GetMessage() << "'";
-                    //        throw std::runtime_error(msg.str());
+                        auto outcome = lambdaClient_->Invoke(invokeRequest);
+                        if (outcome.IsSuccess()) {
+                            auto &result = outcome.GetResult();
+                            Aws::IOStream& payload = result.GetPayload();
+                            Aws::String functionResult;
+                            std::getline(payload, functionResult);
+                            JI_LOG(INFO) << "Lambda result: " << functionResult;
+                        } else {
+                            auto &error = outcome.GetError();
+                            std::ostringstream msg;
+                            msg << "name: '" << error.GetExceptionName() << "', message: '" << error.GetMessage() << "'";
+                            throw std::runtime_error(msg.str());
 
-                    //    }
-                    //}
+                        }
+                    }
 #endif
 
                 }
