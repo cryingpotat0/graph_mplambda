@@ -292,6 +292,8 @@ namespace mpl::demo {
                         comm.connect(app_options.coordinator());
                         comm.template process<Edge_t, Distance, Vertex_t, State>();
                         start_time = std::chrono::high_resolution_clock::now();
+
+                        JI_LOG(INFO) << "Using seed: " << app_options.randomSeed();
                         planner.setSeed(app_options.randomSeed());
                     }
 
@@ -320,6 +322,7 @@ namespace mpl::demo {
                 void checkValidSamples() {
                     auto start = std::chrono::high_resolution_clock::now();
                     for (auto& s: randomSamples_) {
+                        //JI_LOG(INFO) << "State for rng test " << s;
                         if (planner.validateSample(s)) {
                             auto v = Vertex_t{planner.generateVertexID(), s};
                             validSamples_.push_back(v);
@@ -334,7 +337,6 @@ namespace mpl::demo {
                 void connectSamples() {
                     auto start = std::chrono::high_resolution_clock::now();
                     for (auto& v : validSamples_) {
-                        JI_LOG(INFO) << "State for rng test " << v.state();
                         if (v.id().second % num_lambdas == lambda_id) {
                             //JI_LOG(INFO) << "Lambda " << lambda_id << " processing vertex " << v.id();
                             planner.connectVertex(v, [] (Edge_t& edge) {
