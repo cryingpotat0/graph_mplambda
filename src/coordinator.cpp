@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
             Coordinator coord(app_options);
             runCoordinator(coord, app_options);
             fetchPostProcessing<Coordinator, Scalar>(coord, app_options);
-        } else if (app_options.algorithm() == "prm_common_seed") {
+        } else if (app_options.algorithm() == "prm_common_seed" || app_options.algorithm() == "prm_common_seed_equal_edge_dist") {
             using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
             Coordinator coord(app_options);
             runCoordinator(coord, app_options);

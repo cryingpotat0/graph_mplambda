@@ -263,6 +263,8 @@ namespace mpl::demo {
             private:
 
                 std::uint64_t total_samples_{0};
+                std::uint64_t total_valid_samples_{0};
+                std::uint64_t num_edges_connected_{0};
                 std::uint64_t lambda_id;
                 std::uint64_t num_lambdas;
                 std::vector<State> randomSamples_;
@@ -328,6 +330,7 @@ namespace mpl::demo {
                             auto v = Vertex_t{planner.generateVertexID(), s};
                             validSamples_.push_back(v);
                             planner.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
+                            ++total_valid_samples_;
                         }
                     }
                     auto stop = std::chrono::high_resolution_clock::now();
@@ -341,8 +344,8 @@ namespace mpl::demo {
                         if (v.id().second % num_lambdas == lambda_id) {
                             //JI_LOG(INFO) << "Lambda " << lambda_id << " processing vertex " << v.id();
                             planner.connectVertex(v, [] (Edge_t& edge) {
-                                        //if (edge.u().second > edge.v().second) JI_LOG(INFO) << "Processing edge " << edge.u() << "-" << edge.v();
-                                        return edge.u().second > edge.v().second; // Connect 0-1, 0-2, 0-3, 1-2, 1-3, 2-3... lambda-0 is likely to start befor other lambdas so give it more work, have to validate this logic.
+                                    //if (edge.u().second > edge.v().second) JI_LOG(INFO) << "Processing edge " << edge.u() << "-" << edge.v();
+                                    return edge.u().second > edge.v().second; // Connect 0-1, 0-2, 0-3, 1-2, 1-3, 2-3... lambda-0 is likely to start befor other lambdas so give it more work, have to validate this logic.
                                     });
                         }
                     }
@@ -368,6 +371,8 @@ namespace mpl::demo {
                     validSamples_.clear(); randomSamples_.clear();
 
                     auto new_edges = planner.getNewEdges();
+                    num_edges_connected_ += new_edges.size();
+                    JI_LOG(INFO) << "Total num edges connected " << num_edges_connected_;
                     auto edgeSize = packet::Edges<Edge_t, Distance>::edgeSize_;
                     auto edgeHeaderSize = packet::Edges<Edge_t, Distance>::edgeHeaderSize_;
                     auto maxPacketSize = mpl::packet::MAX_PACKET_SIZE;
