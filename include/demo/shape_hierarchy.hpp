@@ -156,7 +156,8 @@ namespace shape
              << addAttr("fill", "rgb(230, 230, 230)")
              << addAttr("stroke", "red")
              << addAttr("stroke-width", r / 5)
-             << closeTag();
+             << ">"
+             << closeTag("circle");
 
         // add the label
         file << "\t"
@@ -169,6 +170,52 @@ namespace shape
              << ">"
              << ' ' << c << ' '
              << closeTag("text");
+    }
+
+    inline void addAnimatedState(std::ofstream &file, double x, double y, double r, std::vector<std::vector<double>> path) {
+        // Assume we want to go through each part of the path in equal time
+        std::string keyTimes;
+        std::string cx_values;
+        std::string cy_values;
+        for (int i=0; i < path.size(); ++i) {
+            keyTimes += std::to_string(i * 1.0 / (path.size() - 1));
+            if (i < path.size() - 1) {
+                keyTimes += ";";
+            }
+        }
+        for (int i=0; i < path.size(); ++i) {
+            auto point = path[i];
+            cx_values += std::to_string(point[0]);
+            cy_values += std::to_string(point[1]);
+            if (i < path.size() - 1) {
+                cx_values += ";";
+                cy_values += ";";
+            }
+        }
+        file << "\t"
+             << startTag("circle")
+             << addAttr("cx", x)
+             << addAttr("cy", y)
+             << addAttr("r", r)
+             << addAttr("fill", "rgb(230, 0, 0)")
+             << addAttr("stroke", "red")
+             << addAttr("stroke-width", r / 5)
+             << ">"
+             << startTag("animate")
+             << addAttr("attributeName", "cx")
+             << addAttr("dur", "10s")
+             << addAttr("repeatCount", "indefinite")
+             << addAttr("values", cx_values)
+             << addAttr("keyTimes", keyTimes)
+             << closeTag()
+             << startTag("animate")
+             << addAttr("attributeName", "cy")
+             << addAttr("dur", "10s")
+             << addAttr("repeatCount", "indefinite")
+             << addAttr("values", cy_values)
+             << addAttr("keyTimes", keyTimes)
+             << closeTag()
+             << closeTag("circle");
     }
 
     inline void addStartState(std::ofstream &file, double x, double y, double r = 20)

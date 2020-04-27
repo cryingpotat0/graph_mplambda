@@ -89,10 +89,12 @@ int main(int argc, char *argv[]) {
             using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
             Coordinator coord(app_options);
             runCoordinator(coord, app_options);
+            multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
         } else if (app_options.algorithm() == "prm_common_seed") {
             using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
             Coordinator coord(app_options);
             runCoordinator(coord, app_options);
+            multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
         }
     }
     else {

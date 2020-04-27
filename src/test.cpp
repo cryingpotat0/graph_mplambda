@@ -82,18 +82,25 @@ void graphSaveAndLoadTest() {
 }
  */
 
-template <int num_agents=2>
 void multi_agent_png_test(AppOptions& app_options) {
     using Scalar = double;
-    using Scenario = MultiAgentPNG2DScenario<Scalar, num_agents>;
+    using Scenario = MultiAgentPNG2DScenario<Scalar, NUM_AGENTS>;
     using State = typename Scenario::State;
     using Distance = typename Scenario::Distance;
 
-    Scenario scenario = initMultiAgentPNG2DScenario<Scalar, num_agents>(app_options);
+    Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
+    using RNG = std::mt19937_64;
+    RNG rng;
+    int num_goals = 0;
+    while (num_goals < 2) {
+        auto rand = scenario.randomSample(rng);
+        if (!scenario.isValid(rand)) continue;
+        JI_LOG(INFO) << rand;
+        num_goals++;
+    }
 
     //State q;
     //q << 100, 100, 800, 800;
-    auto outputName = "multi_agent_png2d_scenario.svg";
     //scenario.visualizeAgentStates(q, app_options.env(), outputName);
 }
 

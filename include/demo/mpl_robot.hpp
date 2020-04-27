@@ -11,7 +11,7 @@
 #include <demo/multi_agent_png_2d_scenario.hpp>
 
 #ifndef NUM_AGENTS
-#define NUM_AGENTS 2
+#define NUM_AGENTS 3
 #endif
 
 namespace mpl::demo {
@@ -32,8 +32,8 @@ namespace mpl::demo {
             shape::startSvg(file, width, height);
             shape::addBackgroundImg(file, app_options.env());
 
-            shape::addStartState(file, start[0], start[1], 20);
-            shape::addGoalState(file, goal[0], goal[1], 20);
+            shape::addStartState(file, start[0], start[1], 10);
+            shape::addGoalState(file, goal[0], goal[1], 10);
 
             if (found) {
                 for (auto it=path.begin(); it < path.end() - 1; it++) {
@@ -48,7 +48,46 @@ namespace mpl::demo {
 
 
     template <class State, class Paths, class Graph>
-    void visualizeAgentPaths(const AppOptions &app_options, const Paths& paths, const Graph& graph) {
+    void visualizeMultiAgentPaths(const AppOptions &app_options, const Paths& paths, const Graph& graph) {
+        std::vector<FilterColor> filters;
+        auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
+        int j=0;
+        for (auto& [locs, info] : paths) {
+            JI_LOG(INFO) << "Visualizing path";
+            auto& [start, goal] = locs;
+            auto& [found, path] = info;
+            const std::string outputName = "png_2d_demo_output-" + std::to_string(j++) + ".svg";
+            //std::to_string(start.first) + "_" + std::to_string(start.second) + "-" +
+            //std::to_string(goal.first) + "_" + std::to_string(goal.second) + ".svg";
+            std::ofstream file(outputName);
+            shape::startSvg(file, width, height);
+            shape::addBackgroundImg(file, app_options.env());
+
+            for (int i=0; i < NUM_AGENTS; ++i) {
+                shape::addStartState(file, start[2*i], start[2*i+1], 10);
+                shape::addGoalState(file, goal[2*i], goal[2*i+1], 10);
+            }
+
+            if (found) {
+                std::vector<std::vector<std::vector<double>>> path_by_agent;
+                path_by_agent.resize(NUM_AGENTS);
+                for (auto it=path.begin(); it < path.end() - 1; it++) {
+                    auto u = graph.getVertex((*it));
+                    auto v = graph.getVertex(*(it+1));
+                    for (int i=0; i < NUM_AGENTS; ++i) {
+                        shape::addSolutionEdge(file, u.state()[2*i], u.state()[2*i+1], v.state()[2*i], v.state()[2*i + 1]);
+                        std::vector<double> curr = {u.state()[2*i], u.state()[2*i + 1]};
+                        path_by_agent[i].push_back(curr);
+                    }
+                }
+                for (int i=0; i < NUM_AGENTS; ++i) {
+                    std::vector<double> curr = {goal[2*i], goal[2*i + 1]};
+                    path_by_agent[i].push_back(curr);
+                    shape::addAnimatedState(file, start[2*i], start[2*i + 1], 10, path_by_agent[i]);
+                }
+            }
+            shape::endSvg(file);
+        }
         //std::ofstream file(outputName);
         //shape::startSvg(file, width_, height_);
         //shape::addBackgroundImg(file, backgroundImgPath);
@@ -321,8 +360,6 @@ namespace mpl::demo {
         using Graph = typename mpl::UndirectedGraph<Vertex, Edge>;
         using TimedGraph = typename Coordinator::TimedGraph;
         Scenario scenario = initFetchScenario<Scalar>(app_options);
-        Graph graph;
-        getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, app_options.timeLimit() * 1000); // Time limit specified in seconds
         int evaluate_every_millis = 3000;
         long int current_time_limit = app_options.timeLimit() * 1000;
         while (current_time_limit > 0) {
@@ -338,6 +375,24 @@ namespace mpl::demo {
     }
 
 
+    template <class Coordinator, class Scalar>
+    void multiAgentPngPostProcessing(Coordinator& coord, AppOptions& app_options) {
+        using Scenario = MultiAgentPNG2DScenario<Scalar, NUM_AGENTS>;
+        using State = typename Scenario::State;
+
+        using Vertex = typename Coordinator::Vertex;
+        using Edge = typename Coordinator::Edge;
+        using Graph = typename mpl::UndirectedGraph<Vertex, Edge>;
+        using TimedGraph = typename Coordinator::TimedGraph;
+        Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
+        long int current_time_limit = app_options.timeLimit() * 1000;
+        JI_LOG(INFO) << "Current time limit: " << current_time_limit;
+        Graph graph;
+        getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit); // Time limit specified in seconds
+        auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
+        auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+        visualizeMultiAgentPaths<State>(app_options, paths, graph);
+    }
 
 }
 

@@ -34,6 +34,7 @@ namespace mpl::demo {
         State goal_;
         std::vector<bool> isObstacle_;
         static constexpr Scalar PI = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620L;
+        static constexpr Scalar agentRadius = 20; // In pixels
 
     public:
         MultiAgentPNG2DScenario(
@@ -139,14 +140,15 @@ namespace mpl::demo {
 
         Scalar prmRadius()
         {
-            return 2 * pow(pow(width_ * height_, num_agents) / sphere_volume() * (1 + 1 / dimension()), 1 / dimension());
+            auto final_radius = 2 * pow(pow(width_ * height_, num_agents) / sphere_volume() * (1.0 + 1.0 / dimension()), 1.0 / dimension());
+            return final_radius;
         }
 
     private:
         Scalar sphere_volume()
         {
             // Volume of a unit sphere
-            double dim_over_2 = (double) dimension() / 2;
+            double dim_over_2 = (double) dimension() / 2.0;
             return pow(PI, dim_over_2) / std::tgamma(dim_over_2 + 1);
         }
 
@@ -175,7 +177,6 @@ namespace mpl::demo {
                     auto agent_j_start = a.segment(2 * j, 2);
                     auto agent_j_end = b.segment(2 * j, 2);
                     double intersection_x, intersection_y;
-                    return false;
                     if (get_line_intersection(
                             agent_i_start[0],
                             agent_i_start[1],
@@ -187,11 +188,61 @@ namespace mpl::demo {
                             agent_j_end[1],
                             &intersection_x,
                             &intersection_y
-                            )) return false;
+                            )) {
+                        //JI_LOG(INFO) << "Intersection for " <<
+                        //        agent_i_start[0] << "," <<
+                        //        agent_i_start[1]<< ";" <<
+                        //        agent_i_end[0]<< "," <<
+                        //        agent_i_end[1]<< ";" <<
+                        //        agent_j_start[0]<< "," <<
+                        //        agent_j_start[1]<< ";" <<
+                        //        agent_j_end[0]<< "," <<
+                        //        agent_j_end[1]<< ";";
+                        return false;
+                    }
+                    if (get_line_distance(
+                            agent_i_start[0],
+                            agent_i_start[1],
+                            agent_i_end[0],
+                            agent_i_end[1],
+                            agent_j_start[0],
+                            agent_j_start[1],
+                            agent_j_end[0],
+                            agent_j_end[1]
+                            ) <= agentRadius) {
+                        return false;
+                    }
                 }
             }
             return true;
         }
+
+        Scalar get_line_distance(Scalar p0_x, Scalar p0_y, Scalar p1_x, Scalar p1_y,
+                                 Scalar p2_x, Scalar p2_y, Scalar p3_x, Scalar p3_y) const {
+            return std::min(
+                    std::min(get_line_point_distance(p0_x, p0_y, p2_x, p2_y, p3_x, p3_y), get_line_point_distance(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y)),
+                    std::min(get_line_point_distance(p2_x, p2_y, p0_x, p0_y, p1_x, p1_y), get_line_point_distance(p3_x, p3_y, p0_x, p0_y, p1_x, p1_y)));
+        }
+
+        Scalar get_line_point_distance(Scalar px, Scalar py, Scalar x1, Scalar y1, Scalar x2, Scalar y2) const {
+            auto dx = x2-x1, dy=y2-y1;
+            if (dx == 0 && dy == 0) {
+                return std::hypot(px-x1, px-y1);
+            }
+            auto t = ((px - x1) * dx + (py - y1) * dy) / (dx*dx + dy*dy);
+            if (t < 0) {
+                dx = px - x1;
+                dy = py - y1;
+            } else if (t > 1) {
+                dx = px - x2;
+                dy = py - y2;
+            } else {
+                dx = px - x1 + t * dx;
+                dy = py - y1 + t * dy;
+            }
+            return std::hypot(dx, dy);
+        }
+
 
         bool get_line_intersection(Scalar p0_x, Scalar p0_y, Scalar p1_x, Scalar p1_y,
                                    Scalar p2_x, Scalar p2_y, Scalar p3_x, Scalar p3_y, Scalar *i_x, Scalar *i_y) const
