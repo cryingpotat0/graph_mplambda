@@ -482,6 +482,10 @@ namespace mpl::demo {
             using Scenario = FetchScenario<Scalar>;
             Scenario scenario = initFetchScenario<Scalar>(app_options);
             runScenario<Scenario, Scalar>(scenario, app_options);
+        } else if (app_options.scenario() == "multi_agent_png") {
+            using Scenario = MultiAgentPNG2DScenario<Scalar, NUM_AGENTS>;
+            Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
+            runScenario<Scenario, Scalar>(scenario, app_options);
         } else {
             throw std::invalid_argument("Invalid scenario");
         }

@@ -3,11 +3,14 @@
 #include <jilog.hpp>
 #include <demo/app_options.hpp>
 #include <demo/mpl_robot.hpp>
-#include <graph.hpp>
+//#include <graph.hpp>
+#include <demo/multi_agent_png_2d_scenario.hpp>
+
 #include <time.h>
 
 using namespace mpl::demo;
 
+/*
 void isApproxTest() {
     Eigen::Matrix<double, 2, 1> a, b;
     a << 10, 10;
@@ -77,12 +80,29 @@ void graphSaveAndLoadTest() {
     graph_copy.serialize(file_copy);
     
 }
+ */
+
+template <int num_agents=2>
+void multi_agent_png_test(AppOptions& app_options) {
+    using Scalar = double;
+    using Scenario = MultiAgentPNG2DScenario<Scalar, num_agents>;
+    using State = typename Scenario::State;
+    using Distance = typename Scenario::Distance;
+
+    Scenario scenario = initMultiAgentPNG2DScenario<Scalar, num_agents>(app_options);
+
+    //State q;
+    //q << 100, 100, 800, 800;
+    auto outputName = "multi_agent_png2d_scenario.svg";
+    //scenario.visualizeAgentStates(q, app_options.env(), outputName);
+}
 
 int main(int argc, char* argv[]) {
     mpl::demo::AppOptions app_options(argc, argv);
     //isApproxTest();
-    findFetchGoalsWithConds(app_options);
+    //findFetchGoalsWithConds(app_options);
     //graphSaveAndLoadTest();
+    multi_agent_png_test(app_options);
     return 0;
 }
 
