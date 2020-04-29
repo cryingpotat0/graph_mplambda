@@ -99,7 +99,7 @@ namespace mpl::demo
             State min,
             State max,
             //State goalState,
-            std::vector<bool> &isObstacle
+            std::vector<bool> isObstacle
         )
             : width_(width),
               height_(height),
@@ -108,6 +108,16 @@ namespace mpl::demo
               //goal_(goalState),
               isObstacle_(isObstacle)
         {
+        }
+
+        PNG2dScenario(const PNG2dScenario& other)
+            : width_(other.width_),
+              height_(other.height_),
+              min_(other.min_),
+              max_(other.max_)
+              //goal_(goalState),
+        {
+            isObstacle_ = other.isObstacle_;
         }
 
         const Distance maxSteering() const {
@@ -119,6 +129,9 @@ namespace mpl::demo
             int x = (int) (q[0] + 0.5);
             int y = (int) (q[1] + 0.5);
 
+            //JI_LOG(INFO) << "State " << q << " x " << x << " y " << y << " width " << width_;
+            //JI_LOG(INFO) << "Obstacle size " << isObstacle_.size();
+            
             return !isObstacle_[width_ * y + x];
         }
 

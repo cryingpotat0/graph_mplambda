@@ -745,7 +745,7 @@ namespace mpl {
                             //"--communicator", app_options.communicator(),
                             "--num_samples", std::to_string(app_options.numSamples()),
                             "--time-limit", std::to_string(app_options.timeLimit()),
-                            "--env", app_options.env(false),
+                            "--env", app_options.env(),
                             "--env-frame", app_options.envFrame_,
                             "--jobs", std::to_string(app_options.jobs_),
 			    "--random_seed", std::to_string(app_options.randomSeed_)

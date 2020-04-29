@@ -274,8 +274,8 @@ namespace mpl::demo {
                 Scenario scenario;
                 Planner planner;
                 std::chrono::high_resolution_clock::time_point start_time;
-                bool done_{false};
-                double time_limit{100.0}; // Set safety maximum limit so we don't get charged on AWS
+                bool done_ = false;
+                double time_limit = 10.0; // Set safety maximum limit so we don't get charged on AWS
 
                 LocalLambdaCommonSeed();
 
@@ -296,7 +296,7 @@ namespace mpl::demo {
                         start_time = std::chrono::high_resolution_clock::now();
 
                         JI_LOG(INFO) << "Using seed: " << app_options.randomSeed();
-			JI_LOG(INFO) << "Num jobs: " << app_options.jobs();
+                        JI_LOG(INFO) << "Num jobs: " << app_options.jobs();
                         planner.setSeed(app_options.randomSeed());
                     }
 

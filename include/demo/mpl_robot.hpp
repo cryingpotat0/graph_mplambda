@@ -132,10 +132,12 @@ namespace mpl::demo {
         }
 
         if (app_options.env() == "resources/png_planning_input.png") {
+            JI_LOG(INFO) << "Using png planning input";
             filters.emplace_back(FilterColor(126, 106, 61, 15));
             filters.emplace_back(FilterColor(61, 53, 6, 15));
             filters.emplace_back(FilterColor(255, 255, 255, 5));
         } else if (app_options.env() == "resources/house_layout.png") {
+            JI_LOG(INFO) << "Using house layout input";
             filters.emplace_back(FilterColor(0, 0, 0, 5));
             filters.emplace_back(FilterColor(224, 224, 224, 5));
             filters.emplace_back(FilterColor(255, 255, 255, 5));
@@ -145,6 +147,7 @@ namespace mpl::demo {
         //Subspace_t global_subspace(min, max);
 
         auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
+        JI_LOG(INFO) << "width " << width << " height " << height;
         return Scenario(width, height, min, max, obstacles);
     }
 
@@ -160,10 +163,12 @@ namespace mpl::demo {
         }
 
         if (app_options.env() == "resources/png_planning_input.png") {
+            JI_LOG(INFO) << "Using png planning input";
             filters.emplace_back(FilterColor(126, 106, 61, 15));
             filters.emplace_back(FilterColor(61, 53, 6, 15));
             filters.emplace_back(FilterColor(255, 255, 255, 5));
         } else if (app_options.env() == "resources/house_layout.png") {
+            JI_LOG(INFO) << "Using house layout input";
             filters.emplace_back(FilterColor(0, 0, 0, 5));
             filters.emplace_back(FilterColor(224, 224, 224, 5));
             filters.emplace_back(FilterColor(255, 255, 255, 5));
@@ -216,8 +221,8 @@ namespace mpl::demo {
                 }
             }
         }
-        for (auto& [v_id, u_id]: graph.getAdjacencyList()) {
-            auto state = graph.getVertex(v_id).state();
+        for (auto& [v_id, v]: graph.getVertices()) {
+            auto state = v.state();
             shape::addState(file, state[0], state[1], 2, 'v');
         }
         for (int i=0; i < coord.getSubspaces().size(); ++i) {
@@ -268,11 +273,15 @@ namespace mpl::demo {
     template <class Graph, class TimedGraph, class Vertex, class Edge>
     void getGraphAtTime(const TimedGraph& graph, Graph& return_graph, std::uint64_t time_limit) {
         auto adjacency_list = graph.getAdjacencyList();
-        for (auto &[curr_id, others] : adjacency_list) {
-            auto v = graph.getVertex(curr_id);
+        auto vertices = graph.getVertices();
+        //for (auto &[curr_id, others] : adjacency_list) {
+        for (auto &[curr_id, v] : vertices) {
+            //auto v = graph.getVertex(curr_id);
             if (v.timestamp_millis() > time_limit) continue;
             return_graph.addVertex(Vertex{v.id(), v.state()});
-            for (auto& u : others) {
+            auto others = adjacency_list.find(curr_id);
+            if (others == adjacency_list.end()) continue;
+            for (auto& u : others->second) {
                 auto& curr_edge = graph.getEdge(curr_id, u);
                 //if (curr_edge.timestamp_millis() < v.timestamp_millis()) {
                 //    JI_LOG(ERROR) << "BIG ERROR, VERTICES SHOULD BE ADDED BEFORE EDGES " << curr_edge.timestamp_millis() << " " << v.timestamp_millis() << " " << graph.getVertex(u).timestamp_millis();
@@ -335,16 +344,20 @@ namespace mpl::demo {
 
         Scenario scenario = initPngScenario<Scalar>(app_options);
 
-        int evaluate_every_millis = 250;
-        long int current_time_limit = app_options.timeLimit() * 1000;
+        int evaluate_every_millis = 10000;
+        //long int current_time_limit = app_options.timeLimit() * 1000;
+        long int start_time = app_options.timeLimit() * 1000;
+        long int current_time_limit = start_time;
         while (current_time_limit > 0) {
             JI_LOG(INFO) << "Current time limit: " << current_time_limit;
             Graph graph;
             getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit);
+            if (current_time_limit == start_time) {
+                savePngImages<Coordinator, State>(coord, app_options, graph);
+            }
             auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
             auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
-            if (current_time_limit == app_options.timeLimit() * 1000) {
-                savePngImages<Coordinator, State>(coord, app_options, graph);
+            if (current_time_limit == start_time) {
                 saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
             }
             current_time_limit -= evaluate_every_millis;

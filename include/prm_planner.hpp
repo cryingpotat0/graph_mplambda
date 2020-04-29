@@ -41,7 +41,7 @@ namespace mpl {
         Scenario scenario;
         std::vector<std::function<void(Vertex_t&)>> validSampleCallbacks;
         unc::robotics::nigh::Nigh<Vertex_t, Space, KeyFn, Concurrency, NNStrategy> nn;
-        uint64_t num_samples_;
+        uint32_t num_samples_{0};
         std::vector<Vertex_t> new_vertices;
         std::vector<Edge_t> new_edges;
         std::uint16_t id_prefix_; // To create vertex IDs that work across computers
@@ -114,11 +114,13 @@ namespace mpl {
             return scenario.randomSample(rng);
         }
 
-        bool validateSample(State& s) {
+        bool validateSample(const State& s) const {
             return scenario.isValid(s);
         }
         
-        decltype(auto) generateVertexID() {
+        std::pair<std::uint16_t, std::uint32_t> generateVertexID() {
+            //num_samples_ = num_samples_ + 1;
+            //return std::pair<std::uint16_t, std::uint32_t>(id_prefix_, num_samples_);
             return std::make_pair(id_prefix_, num_samples_++);
         }
 

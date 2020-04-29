@@ -231,6 +231,10 @@ namespace mpl {
                     return adjacency_list;
                 }
 
+                const std::unordered_map<VertexID, Vertex>& getVertices() const {
+                    return vertex_properties;
+                }
+
                 const int edgeCount() {
                     return edge_properties.size();
                 }
