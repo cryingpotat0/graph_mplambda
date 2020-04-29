@@ -34,7 +34,7 @@ namespace mpl::demo {
         State goal_;
         std::vector<bool> isObstacle_;
         static constexpr Scalar PI = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620L;
-        static constexpr Scalar agentRadius = 20; // In pixels
+        static constexpr Scalar agentRadius = 40; // In pixels
 
     public:
         MultiAgentPNG2DScenario(
