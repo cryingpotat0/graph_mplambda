@@ -114,9 +114,9 @@ namespace mpl {
             return scenario.randomSample(rng);
         }
 
-        bool validateSample(const State& s) const {
-            return scenario.isValid(s);
-        }
+        //const bool validateSample(const State& s) const {
+        //    return scenario.isValid(s);
+        //}
         
         std::pair<std::uint16_t, std::uint32_t> generateVertexID() {
             //num_samples_ = num_samples_ + 1;
@@ -185,6 +185,7 @@ namespace mpl {
                 // Other ones must be valid and in the graph by definition
                 Edge_t e{dist, v.id_, other.id_};
                 if (connectEdgeFn(e) && scenario.isValid(v.state(), other.state())) {
+                    JI_LOG(INFO) << "Edge " << other.state() << "-" << v.state() << " edgeid " << other.id_ << "-" << v.id_ << " distance " << e.distance();
                     new_edges.push_back(std::move(e));
                 }
             }

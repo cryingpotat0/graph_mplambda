@@ -34,7 +34,7 @@ namespace mpl::demo {
         State goal_;
         std::vector<bool> isObstacle_;
         static constexpr Scalar PI = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620L;
-        static constexpr Scalar agentRadius = 40; // In pixels
+        static constexpr Scalar agentRadius = 20; // In pixels
 
     public:
         MultiAgentPNG2DScenario(
@@ -57,8 +57,8 @@ namespace mpl::demo {
         }
 
         bool isValidSingle(const SingleAgentState& q) const {
-            int x = (int) (q[0] + 0.5);
-            int y = (int) (q[1] + 0.5);
+            int x = std::floor(q[0]);
+            int y = std::floor(q[1]);
 
             return !isObstacle_[width_ * y + x];
         }
@@ -66,9 +66,16 @@ namespace mpl::demo {
         bool isValid(const State &q) const
         {
             for (int i=0; i < num_agents; ++i) {
-                SingleAgentState curr;
-                curr << q[2*i], q[2*i+1];
+                auto curr = q.segment(2 * i, 2);
+                //curr << q[2*i], q[2*i+1];
                 if (!isValidSingle(curr)) return false;
+            }
+            for (int i=0; i < num_agents; ++i) {
+                auto curr_i = q.segment(2*i, 2);
+                for (int j=i+1; j < num_agents; ++j) {
+                    auto curr_j = q.segment(2*j, 2);
+                    if ((curr_j - curr_i).norm() < agentRadius * 2) return false;
+                }
             }
             return true;
         }
@@ -209,7 +216,7 @@ namespace mpl::demo {
                             agent_j_start[1],
                             agent_j_end[0],
                             agent_j_end[1]
-                            ) <= agentRadius) {
+                            ) <= agentRadius * 2) {
                         return false;
                     }
                 }

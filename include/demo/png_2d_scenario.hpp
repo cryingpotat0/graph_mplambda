@@ -78,7 +78,7 @@ namespace mpl::demo
     public:
 
         using Space = unc::robotics::nigh::metric::L2Space<Scalar, 2>;
-        using State = typename Space::Type;
+        using State = Eigen::Matrix<Scalar, 2, 1>;
         using Bound = Eigen::Matrix<Scalar, 2, 1>;
         using Distance = typename Space::Distance;
 
@@ -126,13 +126,24 @@ namespace mpl::demo
 
         bool isValid(const State &q) const
         {
-            int x = (int) (q[0] + 0.5);
-            int y = (int) (q[1] + 0.5);
-
-            //JI_LOG(INFO) << "State " << q << " x " << x << " y " << y << " width " << width_;
-            //JI_LOG(INFO) << "Obstacle size " << isObstacle_.size();
-            
+            int x = std::floor(q[0]); // (int) (q[0] + 0.5);
+            int y = std::floor(q[1]); //(int) (q[1] + 0.5);
             return !isObstacle_[width_ * y + x];
+        }
+
+        bool isValidPrint(const State& q) const 
+        {
+            int x = std::floor(q[0]); // (int) (q[0] + 0.5);
+            int y = std::floor(q[1]); //(int) (q[1] + 0.5);
+            
+            //int x = (int) (q[0] + 0.5);
+            //int y = (int) (q[1] + 0.5);
+
+            
+            JI_LOG(INFO) << "State " << q << " x " << x << " y " << y << " width " << width_ << " index " << width_ * y + x;
+            JI_LOG(INFO) << "Obstacle " << isObstacle_[width_ * y + x];
+            return !isObstacle_[width_ * y + x];
+
         }
 
         bool isValid(const State &a, const State &b) const

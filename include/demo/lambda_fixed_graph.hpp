@@ -275,7 +275,7 @@ namespace mpl::demo {
                 Planner planner;
                 std::chrono::high_resolution_clock::time_point start_time;
                 bool done_ = false;
-                double time_limit = 10.0; // Set safety maximum limit so we don't get charged on AWS
+                double time_limit = 100.0; // Set safety maximum limit so we don't get charged on AWS
 
                 LocalLambdaCommonSeed();
 
@@ -298,6 +298,10 @@ namespace mpl::demo {
                         JI_LOG(INFO) << "Using seed: " << app_options.randomSeed();
                         JI_LOG(INFO) << "Num jobs: " << app_options.jobs();
                         planner.setSeed(app_options.randomSeed());
+                        //for (int i=0; i < 10000000; ++i) {
+                        //    JI_LOG(INFO) << "i " << i << " " << planner.generateRandomSample();
+                        //}
+                        //exit(0);
                     }
 
                 inline bool isDone() {
@@ -314,7 +318,9 @@ namespace mpl::demo {
                 void generateRandomSamples() {
                     auto start = std::chrono::high_resolution_clock::now();
                     for (int i=0; i < samples_per_run; ++i) {
-                        randomSamples_.push_back(planner.generateRandomSample());
+                        auto s = planner.generateRandomSample();
+                        randomSamples_.push_back(s);
+                        //JI_LOG(INFO) << "SAMPLE " << s << " NUMSAMPLES " << total_samples_;
                     }
                     total_samples_ += samples_per_run;
                     auto stop = std::chrono::high_resolution_clock::now();
@@ -326,8 +332,14 @@ namespace mpl::demo {
                     auto start = std::chrono::high_resolution_clock::now();
                     for (auto& s: randomSamples_) {
                         //JI_LOG(INFO) << "State for rng test " << s;
-                        if (planner.validateSample(s)) {
+                        //if (total_valid_samples_ >= 24580) {
+                        //    scenario.isValidPrint(s);
+                        //    JI_LOG(INFO) << "Obstacle again " << scenario.isValid(s);
+                        //    //JI_LOG(INFO) << "Obstacle planner again " << planner.validateSample(s);
+                        //}
+                        if (scenario.isValid(s)) {
                             auto v = Vertex_t{planner.generateVertexID(), s};
+                            //JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_;
                             validSamples_.push_back(v);
                             planner.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
                             ++total_valid_samples_;
@@ -393,7 +405,6 @@ namespace mpl::demo {
                         }
                         planner.clearEdges();
                     }
-
                     comm.template process<Edge_t, Distance, Vertex_t, State>(); // Only sends and no receives for this strategy
                 }
 

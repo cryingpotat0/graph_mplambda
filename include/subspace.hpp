@@ -170,11 +170,11 @@ namespace mpl {
 
         bool operator==(Subspace const& other) const {
 	    assert (other.dimension() == dimension());
-	    for (int i=0; i < dimension(); ++i) {
-		if ((!double_equal(lower[i], other.lower[i])) || 
-				(!double_equal(upper[i], other.upper[i]))) {
-			return false;
-		}
+        for (int i=0; i < dimension(); ++i) {
+            if ((!double_equal(lower[i], other.lower[i])) || 
+                    (!double_equal(upper[i], other.upper[i]))) {
+            return false;
+        }
 	    }
 	    return true;
             //return other.getLower() == lower && other.getUpper() == upper;

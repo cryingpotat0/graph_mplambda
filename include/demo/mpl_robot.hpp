@@ -7,11 +7,13 @@
 #include <demo/fetch_scenario.hpp>
 #include <list>
 #include <chrono>
+#include <time.h>
 #include <prm_planner.hpp>
 #include <demo/multi_agent_png_2d_scenario.hpp>
+#include <util.hpp>
 
 #ifndef NUM_AGENTS
-#define NUM_AGENTS 3
+#define NUM_AGENTS 4
 #endif
 
 namespace mpl::demo {
@@ -156,6 +158,7 @@ namespace mpl::demo {
         using Scenario = MultiAgentPNG2DScenario<Scalar, num_agents>;
         using State = typename Scenario::State;
         using Bound = typename Scenario::Bound;
+        using SingleAgentState = typename Scenario::SingleAgentState;
 
         std::vector<FilterColor> filters;
         if (app_options.env(false).empty()) {
@@ -173,8 +176,16 @@ namespace mpl::demo {
             filters.emplace_back(FilterColor(224, 224, 224, 5));
             filters.emplace_back(FilterColor(255, 255, 255, 5));
         }
-        auto min = app_options.globalMin<Bound>();
-        auto max = app_options.globalMax<Bound>();
+        auto min_b = app_options.globalMin<SingleAgentState>();
+        auto max_b = app_options.globalMax<SingleAgentState>();
+        Bound min;
+        Bound max;
+        for (int i=0; i < num_agents; ++i) {
+                min[2*i] = min_b[0];
+                min[2*i + 1] = min_b[1];
+                max[2*i] = max_b[0];
+                max[2*i + 1] = max_b[1];
+        }
         //Subspace_t global_subspace(min, max);
 
         auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
@@ -259,6 +270,7 @@ namespace mpl::demo {
                 for (auto it=path.second.begin(); it < path.second.end() - 1; it++) {
                     auto u = (*it);
                     auto v = (*(it+1));
+                    //JI_LOG(INFO) << "Edge " << graph.getVertex(u).state() << "-" << graph.getVertex(v).state() << " edgeid " << u << "-" << v << " distance " << graph.getEdge(u, v).distance();
                     d += graph.getEdge(u, v).distance();
                 }
                 JI_LOG(INFO) << "Path found for start " << start.state() << " goal " << goal.state() << " with distance " << d;
@@ -310,6 +322,9 @@ namespace mpl::demo {
         }
 
         Vertex curr_start, curr_goal;
+        if (app_options.goals_.size() == 0) {
+            randomizeMultiAgentGoals(scenario, app_options);
+        }
         for (auto& [start, goal] : app_options.getStartsAndGoals<State>()) {
             auto start_time = std::chrono::high_resolution_clock::now();
             planner.addSample(start);
@@ -387,6 +402,19 @@ namespace mpl::demo {
         //auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
     }
 
+    template <class Scenario>
+    void randomizeMultiAgentGoals(Scenario& scenario, AppOptions& app_options, int num_goals=5, int seed=-1) {
+        using RNG = std::mt19937_64;
+        if (seed == -1) seed = time(NULL);
+        RNG rng(seed);
+        auto state = scenario.randomSample(rng);
+        for(int i=0; i < num_goals; ++i) {
+            while (!scenario.isValid(state)) state = scenario.randomSample(rng);
+            app_options.goals_.push_back(mpl::util::ToString(state.format(mpl::util::FullPrecisionCommaInitFormat)));
+            state = scenario.randomSample(rng);
+        }
+        //JI_LOG(INFO) << app_options.goals_;
+    }
 
     template <class Coordinator, class Scalar>
     void multiAgentPngPostProcessing(Coordinator& coord, AppOptions& app_options) {
