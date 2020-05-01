@@ -57,18 +57,26 @@ int main(int argc, char *argv[]) {
     using Scalar = double; // TODO: add single precision code
     //    if (app_options.communicator() == "rabbitmq") {
     //        using Comm = RabbitMQMessageQueue;
-    if (app_options.scenario() == "png") {
+    if (app_options.scenario() == "png" || app_options.scenario() == "sequential_multi_agent_png") {
         using Scenario = mpl::demo::PNG2dScenario<double>;
         if (app_options.algorithm() == "prm_fixed_graph") {
             using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
             Coordinator coord(app_options);
             runCoordinator(coord, app_options);
-            pngPostProcessing<Coordinator, Scalar>(coord, app_options);
+            if (app_options.scenario() == "png") {
+                pngPostProcessing<Coordinator, Scalar>(coord, app_options);
+            } else if (app_options.scenario() == "sequential_multi_agent_png") {
+                sequentialMultiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
+            }
         } else if (app_options.algorithm() == "prm_common_seed") {
             using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
             Coordinator coord(app_options);
             runCoordinator(coord, app_options);
-            pngPostProcessing<Coordinator, Scalar>(coord, app_options);
+            if (app_options.scenario() == "png") {
+                pngPostProcessing<Coordinator, Scalar>(coord, app_options);
+            } else if (app_options.scenario() == "sequential_multi_agent_png") {
+                sequentialMultiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
+            }
         }
     } else if (app_options.scenario() == "fetch") {
         using Scenario = mpl::demo::FetchScenario<double>;

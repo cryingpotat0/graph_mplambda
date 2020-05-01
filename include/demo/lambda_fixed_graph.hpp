@@ -485,7 +485,7 @@ namespace mpl::demo {
         }
 
         // set defaults outside
-        if (app_options.scenario() == "png") {
+        if (app_options.scenario() == "png" || app_options.scenario() == "sequential_multi_agent_png") {
             using Scenario = PNG2dScenario<Scalar>;
             Scenario scenario = initPngScenario<Scalar>(app_options);
             runScenario<Scenario, Scalar>(scenario, app_options);

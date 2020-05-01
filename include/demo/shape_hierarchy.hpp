@@ -172,6 +172,55 @@ namespace shape
              << closeTag("text");
     }
 
+    inline void addAnimatedStateWithVelocity(std::ofstream &file, double r, std::vector<std::pair<std::pair<double, double>, double>> path) {
+        std::string cx_values;
+        std::string cy_values;
+        std::string keyTimes;
+        double current_time = 0;
+        std::vector<double> keyTimeVector;
+        for (int i=0; i < path.size(); ++i) {
+            auto& [point, velocity] = path[i];
+            
+            cx_values += std::to_string(point.first);
+            cy_values += std::to_string(point.second);
+            keyTimeVector.push_back(current_time);
+            if (i < path.size() - 1) {
+                cx_values += ";";
+                cy_values += ";";
+                auto& [other_point, other_velocity] = path[i+1];
+                current_time += std::hypot(other_point.first - point.first, other_point.second - point.second) / velocity;
+            }
+        }
+        auto totalTime = keyTimeVector.back();
+
+        for (int i=0; i < keyTimeVector.size(); ++i) {
+            keyTimes += std::to_string(keyTimeVector[i] / totalTime);
+            if (i < keyTimeVector.size() - 1) keyTimes += ";";
+        }
+        file << "\t"
+             << startTag("circle")
+             << addAttr("cx", path[0].first.first)
+             << addAttr("cy", path[0].first.second)
+             << addAttr("r", r)
+             << addAttr("fill", "rgb(230, 0, 0)")
+             << ">"
+             << startTag("animate")
+             << addAttr("attributeName", "cx")
+             << addAttr("dur", std::to_string(totalTime) + "s")
+             << addAttr("repeatCount", "1")
+             << addAttr("values", cx_values)
+             << addAttr("keyTimes", keyTimes)
+             << closeTag()
+             << startTag("animate")
+             << addAttr("attributeName", "cy")
+             << addAttr("dur", std::to_string(totalTime) + "s")
+             << addAttr("repeatCount", "1")
+             << addAttr("values", cy_values)
+             << addAttr("keyTimes", keyTimes)
+             << closeTag()
+             << closeTag("circle");
+    }
+
     inline void addAnimatedState(std::ofstream &file, double x, double y, double r, std::vector<std::vector<double>> path) {
         // Assume we want to go through each part of the path in equal time
         std::string keyTimes;

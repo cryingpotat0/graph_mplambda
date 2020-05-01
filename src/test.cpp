@@ -6,7 +6,9 @@
 //#include <graph.hpp>
 #include <demo/multi_agent_png_2d_scenario.hpp>
 
+#include <interval_tree.hpp>
 #include <time.h>
+#include <vector>
 
 using namespace mpl::demo;
 
@@ -104,12 +106,30 @@ void multi_agent_png_test(AppOptions& app_options) {
     //scenario.visualizeAgentStates(q, app_options.env(), outputName);
 }
 
+
+void interval_tree_test() {
+    using Scalar = double;
+    using Value = int;
+    std::vector<Interval<Scalar, Value>> intervals;
+    intervals.push_back(Interval<Scalar, Value>(1, 5.5, 0));
+    intervals.push_back(Interval<Scalar, Value>(2, 6, 1));
+    intervals.push_back(Interval<Scalar, Value>(6, 10, 2));
+    
+    auto interval_tree = IntervalTree<Scalar, Value>(intervals);
+    //std::vector<Interval<Scalar, Value>> results;
+    auto results = interval_tree.findOverlapping(1, 2.5);
+    for (auto& r: results) {
+        JI_LOG(INFO) << r;
+    }
+}
+
 int main(int argc, char* argv[]) {
     mpl::demo::AppOptions app_options(argc, argv);
     //isApproxTest();
     //findFetchGoalsWithConds(app_options);
     //graphSaveAndLoadTest();
-    multi_agent_png_test(app_options);
+    //multi_agent_png_test(app_options);
+    interval_tree_test();
     return 0;
 }
 

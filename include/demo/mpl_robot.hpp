@@ -13,7 +13,7 @@
 #include <util.hpp>
 
 #ifndef NUM_AGENTS
-#define NUM_AGENTS 4
+#define NUM_AGENTS 5
 #endif
 
 namespace mpl::demo {
@@ -90,14 +90,47 @@ namespace mpl::demo {
             }
             shape::endSvg(file);
         }
-        //std::ofstream file(outputName);
-        //shape::startSvg(file, width_, height_);
-        //shape::addBackgroundImg(file, backgroundImgPath);
-        //for (int i=0; i < num_agents; ++i) {
-        //    auto agentState = q.segment(i * 2, 2);
-        //    shape::addStartState(file, agentState[0], agentState[1], 20);
-        //}
-        //shape::endSvg(file);
+    }
+
+    template <class State, class Paths, class Graph>
+    void visualizeSequentialMultiAgentPaths(const AppOptions &app_options, const Paths& paths, const Graph& graph) {
+        std::vector<FilterColor> filters;
+        auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
+        int j=0;
+        for (auto& [locs, info] : paths) {
+            JI_LOG(INFO) << "Visualizing path";
+            auto& [start, goal] = locs;
+            //auto& [found, path, velocities] = info;
+            const std::string outputName = "png_2d_demo_output-" + std::to_string(j++) + ".svg";
+            //std::to_string(start.first) + "_" + std::to_string(start.second) + "-" +
+            //std::to_string(goal.first) + "_" + std::to_string(goal.second) + ".svg";
+            std::ofstream file(outputName);
+            shape::startSvg(file, width, height);
+            shape::addBackgroundImg(file, app_options.env());
+
+            for (int i=0; i < NUM_AGENTS; ++i) {
+                shape::addStartState(file, start[2*i], start[2*i+1], 10);
+                shape::addGoalState(file, goal[2*i], goal[2*i+1], 10);
+            }
+            for (auto& [found, path, velocities] : info) {
+                // for each agent do
+                if (found) {
+                    std::vector<std::pair<std::pair<double, double>, double>> path_with_velocity; // (u, velocity)
+                    for (int i=0; i < path.size(); ++i) {
+                        auto u = graph.getVertex(path[i]).state();
+                        auto velocity = velocities[i];
+                        path_with_velocity.emplace_back(std::make_pair(std::make_pair(u[0], u[1]), velocity));
+                        if (i < path.size() - 1) {
+                            auto v = graph.getVertex(path[i+1]).state();
+                            shape::addSolutionEdge(file, u[0], u[1], v[0], v[1]);
+                        }
+                    }
+                    shape::addAnimatedStateWithVelocity(file, 10, path_with_velocity);
+                }
+
+            }
+            shape::endSvg(file);
+        }
     }
 
     template <class Scalar>
@@ -247,7 +280,7 @@ namespace mpl::demo {
 
     template <class Graph, class Scenario, class Vertex>
     ////std::vector<std::pair<bool, std::vector<State>>> findPathsFromStartToGoals(const Graph& graph, const Scenario& scenario)
-    decltype(auto) findPathsFromStartToGoals(const Graph& graph, Scenario& scenario, const std::vector<std::pair<Vertex, Vertex>>& startsAndGoals, AppOptions& app_options) {
+    decltype(auto) findPathsFromStartToGoals(const Graph& graph, Scenario& scenario, const std::vector<std::pair<Vertex, Vertex>>& startsAndGoals) {
         using State = typename Scenario::State;
         using VertexID = typename Vertex::ID;
         std::vector<std::pair<
@@ -371,7 +404,7 @@ namespace mpl::demo {
                 savePngImages<Coordinator, State>(coord, app_options, graph);
             }
             auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
-            auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+            auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals);
             if (current_time_limit == start_time) {
                 saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
             }
@@ -395,7 +428,7 @@ namespace mpl::demo {
             Graph graph;
             getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit); // Time limit specified in seconds
             auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
-            auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+            auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals);
             current_time_limit -= evaluate_every_millis;
         }
         //auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord, graph);
@@ -413,7 +446,7 @@ namespace mpl::demo {
             app_options.goals_.push_back(mpl::util::ToString(state.format(mpl::util::FullPrecisionCommaInitFormat)));
             state = scenario.randomSample(rng);
         }
-        //JI_LOG(INFO) << app_options.goals_;
+        JI_LOG(INFO) << app_options.goals_;
     }
 
     template <class Coordinator, class Scalar>
@@ -431,10 +464,42 @@ namespace mpl::demo {
         Graph graph;
         getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit); // Time limit specified in seconds
         auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
-        auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+        auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals);
         visualizeMultiAgentPaths<State>(app_options, paths, graph);
     }
 
+    template <class Coordinator, class Scalar>
+    void sequentialMultiAgentPngPostProcessing(Coordinator& coord, AppOptions& app_options) {
+        using Scenario = PNG2dScenario<Scalar>;
+        using State = typename Scenario::State;
+        using MultiAgentScenario = MultiAgentPNG2DScenario<Scalar, NUM_AGENTS>;
+        using MultiAgentState = typename MultiAgentScenario::State;
+        using Vertex = typename Coordinator::Vertex;
+        using Edge = typename Coordinator::Edge;
+        using Graph = typename mpl::UndirectedGraph<Vertex, Edge>;
+        using TimedGraph = typename Coordinator::TimedGraph;
+
+        Scenario scenario = initPngScenario<Scalar>(app_options);
+
+        int evaluate_every_millis = 10000;
+        //long int current_time_limit = app_options.timeLimit() * 1000;
+        long int start_time = app_options.timeLimit() * 1000;
+        long int current_time_limit = start_time;
+        JI_LOG(INFO) << "Current time limit: " << current_time_limit;
+        Graph graph;
+        getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit);
+        //savePngImages<Coordinator, State>(coord, app_options, graph);
+        //auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
+        if (app_options.goals_.size() == 0) {
+            auto goal_scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
+            randomizeMultiAgentGoals(goal_scenario, app_options, 10, 1);
+        }
+
+        auto paths = sequentialMultiAgentPlanning<Graph, Scenario, Vertex, Edge, MultiAgentScenario>(graph, scenario, app_options, coord.getGlobalNumUniformSamples(current_time_limit));
+        visualizeSequentialMultiAgentPaths<State>(app_options, paths, graph);
+        //saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
+
+    }
 }
 
 #endif 
