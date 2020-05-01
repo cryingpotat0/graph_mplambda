@@ -199,8 +199,8 @@ namespace shape
         }
         file << "\t"
              << startTag("circle")
-             << addAttr("cx", path[0].first.first)
-             << addAttr("cy", path[0].first.second)
+             << addAttr("cx", path.back().first.first)
+             << addAttr("cy", path.back().first.second)
              << addAttr("r", r)
              << addAttr("fill", "rgb(230, 0, 0)")
              << ">"

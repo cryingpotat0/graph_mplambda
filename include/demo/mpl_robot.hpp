@@ -13,7 +13,7 @@
 #include <util.hpp>
 
 #ifndef NUM_AGENTS
-#define NUM_AGENTS 5
+#define NUM_AGENTS 10
 #endif
 
 namespace mpl::demo {
@@ -232,8 +232,8 @@ namespace mpl::demo {
         std::vector<FilterColor> filters;
 
         auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
-        auto startState = app_options.start<State>(); // 430, 1300;
-        auto goalState = app_options.goal<State>(); // 3150, 950
+        //auto startState = app_options.start<State>(); // 430, 1300;
+        //auto goalState = app_options.goal<State>(); // 3150, 950
 
         const std::string outputName = "png_2d_demo_output.svg";
         std::ofstream file(outputName);
@@ -488,7 +488,7 @@ namespace mpl::demo {
         JI_LOG(INFO) << "Current time limit: " << current_time_limit;
         Graph graph;
         getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit);
-        //savePngImages<Coordinator, State>(coord, app_options, graph);
+        savePngImages<Coordinator, State>(coord, app_options, graph);
         //auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
         if (app_options.goals_.size() == 0) {
             auto goal_scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);

@@ -1,3 +1,4 @@
+/*
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <jilog.hpp>
@@ -12,7 +13,6 @@
 
 using namespace mpl::demo;
 
-/*
 void isApproxTest() {
     Eigen::Matrix<double, 2, 1> a, b;
     a << 10, 10;
@@ -82,7 +82,6 @@ void graphSaveAndLoadTest() {
     graph_copy.serialize(file_copy);
     
 }
- */
 
 void multi_agent_png_test(AppOptions& app_options) {
     using Scalar = double;
@@ -122,14 +121,15 @@ void interval_tree_test() {
         JI_LOG(INFO) << r;
     }
 }
+ */
 
 int main(int argc, char* argv[]) {
-    mpl::demo::AppOptions app_options(argc, argv);
+    //mpl::demo::AppOptions app_options(argc, argv);
     //isApproxTest();
     //findFetchGoalsWithConds(app_options);
     //graphSaveAndLoadTest();
     //multi_agent_png_test(app_options);
-    interval_tree_test();
+    //interval_tree_test();
     return 0;
 }
 

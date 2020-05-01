@@ -79,31 +79,31 @@ int main(int argc, char *argv[]) {
             }
         }
     } else if (app_options.scenario() == "fetch") {
-        using Scenario = mpl::demo::FetchScenario<double>;
-        if (app_options.algorithm() == "prm_fixed_graph") {
-            using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
-            Coordinator coord(app_options);
-            runCoordinator(coord, app_options);
-            fetchPostProcessing<Coordinator, Scalar>(coord, app_options);
-        } else if (app_options.algorithm() == "prm_common_seed") {
-            using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
-            Coordinator coord(app_options);
-            runCoordinator(coord, app_options);
-            fetchPostProcessing<Coordinator, Scalar>(coord, app_options);
-        }
+        //using Scenario = mpl::demo::FetchScenario<double>;
+        //if (app_options.algorithm() == "prm_fixed_graph") {
+        //    using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
+        //    Coordinator coord(app_options);
+        //    runCoordinator(coord, app_options);
+        //    fetchPostProcessing<Coordinator, Scalar>(coord, app_options);
+        //} else if (app_options.algorithm() == "prm_common_seed") {
+        //    using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
+        //    Coordinator coord(app_options);
+        //    runCoordinator(coord, app_options);
+        //    fetchPostProcessing<Coordinator, Scalar>(coord, app_options);
+        //}
     } else if (app_options.scenario() == "multi_agent_png") {
-        using Scenario = mpl::demo::MultiAgentPNG2DScenario<double, NUM_AGENTS>; // Hardcode 2 agents for now
-        if (app_options.algorithm() == "prm_fixed_graph") {
-            using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
-            Coordinator coord(app_options);
-            runCoordinator(coord, app_options);
-            multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
-        } else if (app_options.algorithm() == "prm_common_seed") {
-            using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
-            Coordinator coord(app_options);
-            runCoordinator(coord, app_options);
-            multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
-        }
+        //using Scenario = mpl::demo::MultiAgentPNG2DScenario<double, NUM_AGENTS>; // Hardcode 2 agents for now
+        //if (app_options.algorithm() == "prm_fixed_graph") {
+        //    using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
+        //    Coordinator coord(app_options);
+        //    runCoordinator(coord, app_options);
+        //    multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
+        //} else if (app_options.algorithm() == "prm_common_seed") {
+        //    using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
+        //    Coordinator coord(app_options);
+        //    runCoordinator(coord, app_options);
+        //    multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
+        //}
     }
     else {
         throw std::invalid_argument("Invalid scenario");

@@ -28,7 +28,7 @@ namespace mpl::demo {
         using SingleAgentState = typename SingleAgentSpace::Type;
         using Bound = State;
         using Distance = typename Space::Distance;
-        static constexpr Scalar agentRadius = 20; // In pixels
+        static constexpr Scalar agentRadius = 15; // In pixels
 
     private:
         const int width_;
@@ -231,9 +231,16 @@ namespace mpl::demo {
     public:
         static Scalar get_line_distance(Scalar p0_x, Scalar p0_y, Scalar p1_x, Scalar p1_y,
                                  Scalar p2_x, Scalar p2_y, Scalar p3_x, Scalar p3_y) {
+            //JI_LOG(INFO) << get_line_point_distance(p0_x, p0_y, p2_x, p2_y, p3_x, p3_y) << " " << get_line_point_distance(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y)
+                    //<< " " << get_line_point_distance(p2_x, p2_y, p0_x, p0_y, p1_x, p1_y) << " " << get_line_point_distance(p3_x, p3_y, p0_x, p0_y, p1_x, p1_y);
+            Scalar i_x, i_y;
+            if (get_line_intersection(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, &i_x, &i_y)) return 0;
             return std::min(
-                    std::min(get_line_point_distance(p0_x, p0_y, p2_x, p2_y, p3_x, p3_y), get_line_point_distance(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y)),
-                    std::min(get_line_point_distance(p2_x, p2_y, p0_x, p0_y, p1_x, p1_y), get_line_point_distance(p3_x, p3_y, p0_x, p0_y, p1_x, p1_y)));
+                  std::min(get_line_point_distance(p0_x, p0_y, p2_x, p2_y, p3_x, p3_y), get_line_point_distance(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y)),
+                  std::min(get_line_point_distance(p2_x, p2_y, p0_x, p0_y, p1_x, p1_y), get_line_point_distance(p3_x, p3_y, p0_x, p0_y, p1_x, p1_y)));
+            //return std::min(
+            //      std::min(get_line_point_distance(p0_x, p0_y, p2_x, p2_y, p3_x, p3_y), get_line_point_distance(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y)),
+            //      std::min(get_line_point_distance(p2_x, p2_y, p0_x, p0_y, p1_x, p1_y), get_line_point_distance(p3_x, p3_y, p0_x, p0_y, p1_x, p1_y)));
         }
 
         static Scalar get_line_point_distance(Scalar px, Scalar py, Scalar x1, Scalar y1, Scalar x2, Scalar y2) {
@@ -249,8 +256,8 @@ namespace mpl::demo {
                 dx = px - x2;
                 dy = py - y2;
             } else {
-                dx = px - x1 + t * dx;
-                dy = py - y1 + t * dy;
+                dx = px - x1 - t * dx;
+                dy = py - y1 - t * dy;
             }
             return std::hypot(dx, dy);
         }
@@ -295,7 +302,7 @@ namespace mpl::demo {
 
     template <class Graph, class Scenario, class Vertex, class Edge, class MultiAgentScenario>
     decltype(auto) sequentialMultiAgentPlanning(Graph& graph, Scenario& scenario, AppOptions& app_options, std::uint64_t global_num_uniform_samples) {
-        std::vector<int> agentSequence = {0, 1, 2, 3, 4};
+        std::vector<int> agentSequence = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
         using State = typename Scenario::State;
         using VertexID = typename Vertex::ID;
@@ -353,7 +360,7 @@ namespace mpl::demo {
                     << "; goal " << agentGoalVertex.id() << ": " << agentGoal
                     << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-                //timeSetOfEdges.push_back({0, 0, Edge{0, agentStartVertex.id(), agentStartVertex.id()}});
+                //timeSetOfEdges.push_back({0, std::numeric_limits<Scalar>::infinity(), Edge{0, agentStartVertex.id(), agentStartVertex.id()}});
                 agentStartAndGoalVertices[agentIndex] = std::make_pair(agentStartVertex, agentGoalVertex);
             }
 
@@ -390,7 +397,7 @@ namespace mpl::demo {
 
                         if (dists[v] > dists[u] + edge.distance()) {
                             auto agentEndedOnEdgeAt = (dists[u] + edge.distance()) / agentVelocity;
-                            JI_LOG(INFO) << "Start time " << agentStartedOnEdgeAt << " end time " << agentEndedOnEdgeAt;
+                            //JI_LOG(INFO) << "Start time " << agentStartedOnEdgeAt << " end time " << agentEndedOnEdgeAt;
                             bool intersects{false};
                             timeIntervalOfEdges.visit_overlapping(agentStartedOnEdgeAt, agentEndedOnEdgeAt, [&intersects, &edge, &graph] (const Interval<Scalar, Edge>& intervalAndEdge) {
                                     if (intersects) return; // If it already intersects, nothing left to change
@@ -400,6 +407,24 @@ namespace mpl::demo {
                                     auto& agent_i_end = graph.getVertex(other_edge.v()).state();
                                     auto& agent_j_start = graph.getVertex(edge.u()).state();
                                     auto& agent_j_end = graph.getVertex(edge.v()).state();
+                                    //if (other_edge.distance() == 0) { JI_LOG(INFO) << "Checking intersection against start/ goal"; }
+                                    //if (other_edge.distance() == 0 && (other_edge.u() == edge.u() || other_edge.u() == edge.v())) return; // Don't check for collision with my own starts
+                                    //JI_LOG(INFO) 
+                                    //<< "Testing edge intersection "
+                                    //<< "agent_i_start " << agent_i_start
+                                    //<< " agent_i_end " << agent_i_end
+                                    //<< " agent_j_start " << agent_j_start
+                                    //<< " agent_j_end " << agent_j_end
+                                    //<< " distance " << MultiAgentScenario::get_line_distance(
+                                    //        agent_i_start[0],
+                                    //        agent_i_start[1],
+                                    //        agent_i_end[0],
+                                    //        agent_i_end[1],
+                                    //        agent_j_start[0],
+                                    //        agent_j_start[1],
+                                    //        agent_j_end[0],
+                                    //        agent_j_end[1]
+                                    //        );
                                     if (MultiAgentScenario::get_line_distance(
                                                 agent_i_start[0],
                                                 agent_i_start[1],
@@ -411,35 +436,34 @@ namespace mpl::demo {
                                                 agent_j_end[1]
                                                 ) <= MultiAgentScenario::agentRadius * 2) {
                                     intersects = true;
-                                    JI_LOG(INFO) 
-                                    << "Testing edge intersection "
-                                    << "agent_i_start " << agent_i_start
-                                    << " agent_i_end " << agent_i_end
-                                    << " agent_j_start " << agent_j_start
-                                    << " agent_j_end " << agent_j_end
-                                    << " distance " << MultiAgentScenario::get_line_distance(
-                                            agent_i_start[0],
-                                            agent_i_start[1],
-                                            agent_i_end[0],
-                                            agent_i_end[1],
-                                            agent_j_start[0],
-                                            agent_j_start[1],
-                                            agent_j_end[0],
-                                            agent_j_end[1]
-                                            );
+                                    //JI_LOG(INFO) << "Edge intersection true";
 
                                     }
                                 });
                             //if (!intersects && agentStartedOnEdgeAt == 0.0) {
-                            if (!intersects) {
+                            //if (!intersects) {
                                 // If it is the first set of edges, check that it does not intersect a start vertex
-                                for (auto& [otherStartVertex, otherGoalVertex] : agentStartAndGoalVertices) {
-                                    if (otherStartVertex.id() == agentStartVertex.id()) continue;
+                                for (int ind=0; ind < agentStartAndGoalVertices.size(); ++ind) {
+                                    if (ind == agentIndex) continue;
+                                    auto& [otherStartVertex, otherGoalVertex] = agentStartAndGoalVertices[ind];
+                                    //if (otherStartVertex.id() == agentStartVertex.id()) continue;
                                     
                                     auto& agent_j_start = graph.getVertex(edge.u()).state();
                                     auto& agent_j_end = graph.getVertex(edge.v()).state();
                                     auto agent_i_start = otherStartVertex.state();
                                     auto agent_i_end = otherGoalVertex.state();
+                                        //JI_LOG(INFO) << "Testing starts " << edge.u() << " " 
+                                        //    << "agent_i_start " << agent_i_start
+                                        //    << " agent_j_start " << agent_j_start
+                                        //    << " agent_j_end " << agent_j_end
+                                        //    << " distance " << MultiAgentScenario::get_line_point_distance(
+                                        //            agent_i_start[0],
+                                        //            agent_i_start[1],
+                                        //            agent_j_start[0],
+                                        //            agent_j_start[1],
+                                        //            agent_j_end[0],
+                                        //            agent_j_end[1]
+                                        //            );
                                     if (MultiAgentScenario::get_line_point_distance(
                                                 agent_i_start[0],
                                                 agent_i_start[1],
@@ -449,20 +473,23 @@ namespace mpl::demo {
                                                 agent_j_end[1]
                                                 ) <= MultiAgentScenario::agentRadius * 2) {
                                         intersects = true;
-                                        JI_LOG(INFO) << "Testing starts flipped here " << edge.u() << " " 
-                                            << "agent_i_start " << agent_i_start
-                                            << " agent_j_start " << agent_j_start
-                                            << " agent_j_end " << agent_j_end
-                                            << " distance " << MultiAgentScenario::get_line_point_distance(
-                                                    agent_i_start[0],
-                                                    agent_i_start[1],
-                                                    agent_j_start[0],
-                                                    agent_j_start[1],
-                                                    agent_j_end[0],
-                                                    agent_j_end[1]
-                                                    );
+                                        //JI_LOG(INFO) << "Start interesects";
                                         break;
+                                    } else {
+                                        //JI_LOG(INFO) << "Start doesnt interesect";
                                     }
+                                      //JI_LOG(INFO) << "Testing goals " << edge.u() << " " 
+                                      //    << "agent_i_end " << agent_i_end
+                                      //    << " agent_j_start " << agent_j_start
+                                      //    << " agent_j_end " << agent_j_end
+                                      //    << " distance " << MultiAgentScenario::get_line_point_distance(
+                                      //            agent_i_end[0],
+                                      //            agent_i_end[1],
+                                      //            agent_j_start[0],
+                                      //            agent_j_start[1],
+                                      //            agent_j_end[0],
+                                      //            agent_j_end[1]
+                                      //            );
 
                                     if (MultiAgentScenario::get_line_point_distance(
                                                 agent_i_end[0],
@@ -473,23 +500,14 @@ namespace mpl::demo {
                                                 agent_j_end[1]
                                                 ) <= MultiAgentScenario::agentRadius * 2) {
                                         intersects = true;
-                                        JI_LOG(INFO) << "Testing goals flipped here " << edge.u() << " " 
-                                            << "agent_i_end " << agent_i_end
-                                            << " agent_j_start " << agent_j_start
-                                            << " agent_j_end " << agent_j_end
-                                            << " distance " << MultiAgentScenario::get_line_point_distance(
-                                                    agent_i_end[0],
-                                                    agent_i_end[1],
-                                                    agent_j_start[0],
-                                                    agent_j_start[1],
-                                                    agent_j_end[0],
-                                                    agent_j_end[1]
-                                                    );
+                                        //JI_LOG(INFO) << "Goal interesects";
                                         break;
+                                    } else {
+                                        //JI_LOG(INFO) << "Goal doesnt interesect";
                                     }
 
                                 }
-                            }
+                            //}
                             if (!intersects)  {
                                 dists[v] = dists[u] + edge.distance();
                                 prev[v] = u;
