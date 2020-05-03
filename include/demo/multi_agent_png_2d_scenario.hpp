@@ -229,21 +229,70 @@ namespace mpl::demo {
         }
 
     public:
-        static Scalar get_line_distance(Scalar p0_x, Scalar p0_y, Scalar p1_x, Scalar p1_y,
-                                 Scalar p2_x, Scalar p2_y, Scalar p3_x, Scalar p3_y) {
-            //JI_LOG(INFO) << get_line_point_distance(p0_x, p0_y, p2_x, p2_y, p3_x, p3_y) << " " << get_line_point_distance(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y)
-                    //<< " " << get_line_point_distance(p2_x, p2_y, p0_x, p0_y, p1_x, p1_y) << " " << get_line_point_distance(p3_x, p3_y, p0_x, p0_y, p1_x, p1_y);
+        //static std::pair<bool, Scalar> get_intersection_time(const Scalar& p0_x, const Scalar& p0_y, const Scalar& p1_x, const Scalar& p1_y,
+        //                         const Scalar& p2_x, const Scalar& p2_y, const Scalar& p3_x, const Scalar& p3_y, const Scalar& agent1_tStart, 
+        //                         const Scalar& agent1_tEnd, const Scalar& agent2_tStart, const Scalar& agent2_tEnd, const Scalar& intersection_radius, Scalar& agent_velocity) {
+        inline static std::pair<bool, std::pair<Scalar, Scalar>> get_intersection_time(const SingleAgentState& agent1_xinit, const SingleAgentState& agent1_xfinal, const SingleAgentState& agent2_xinit, const SingleAgentState& agent2_xfinal, 
+                                 const Scalar& agent1_tStart, const Scalar& agent1_tEnd, const Scalar& agent2_tStart, const Scalar& agent2_tEnd, const Scalar& intersection_radius, const Scalar& agent_velocity) {
+          // Return (true, intersection_time) if agent1 gets within intersection_radius
+
+            auto d_ag1 = (agent1_xfinal - agent1_xinit).normalized();
+            auto d_ag2 = (agent2_xfinal - agent2_xinit).normalized();
+            auto c = (agent1_xinit - agent2_xinit) + agent_velocity * (-agent1_tStart * d_ag1 + agent2_tStart * d_ag2);
+            auto k = agent_velocity * (d_ag1 - d_ag2);
+            auto a1 = (k[0] * k[0] + k[1] * k[1]);
+            auto a2 = 2 * (c[0] * k[0] + c[1] * k[1]);
+            auto a3 = c[0] * c[0] + c[1] * c[1] - intersection_radius * intersection_radius;
+            // solve quadratic inequality
+            auto [root1, root2] = find_quadratic_roots(a1, a2, a3);
+            //JI_LOG(INFO) << root1 << " " << root2;
+            if (root1.second > 0 || root2.second > 0 || std::isnan(root1.first) || std::isnan(root2.first)) return std::make_pair(false, std::make_pair(0, 0)); // Imaginary roots mean no intersection
+            auto min_val = std::min(root1.first, root2.first);
+            auto max_val = std::max(root1.first, root2.first);
+            if (min_val > agent1_tEnd || min_val > agent2_tEnd || max_val < agent1_tStart || max_val < agent2_tStart) return std::make_pair(false, std::make_pair(0, 0));
+            return std::make_pair(true, std::make_pair(
+                    std::max({min_val, agent1_tStart, agent2_tStart}),
+                    std::min({max_val, agent1_tEnd, agent2_tEnd})
+                  ));
+        }
+
+        inline static std::pair<std::pair<Scalar, Scalar>, std::pair<Scalar, Scalar>> find_quadratic_roots(const Scalar& a, const Scalar& b, const Scalar& c) {
+          // Return ((root1_real, root1_imaginary), (root2_real, root2_imaginary))
+
+          auto discriminant = b*b - 4*a*c;
+          Scalar root1_real = 0, root1_imaginary = 0, root2_real = 0, root2_imaginary = 0;
+
+          if (discriminant > 0) {
+            root1_real = (-b + sqrt(discriminant)) / (2*a);
+            root2_real = (-b - sqrt(discriminant)) / (2*a);
+          }
+
+          else if (discriminant == 0) {
+            root1_real = -b / (2*a);
+            root2_real = -b / (2*a);
+          }
+
+          else {
+            root1_real = -b / (2*a);
+            root2_real = -b / (2*a);
+            root1_imaginary = sqrt(-discriminant)/(2*a);
+            root2_imaginary = -sqrt(-discriminant)/(2*a);
+          }
+          return std::make_pair(
+              std::make_pair(root1_real, root1_imaginary), 
+              std::make_pair(root2_real, root2_imaginary));
+        }
+
+        inline static Scalar get_line_distance(const Scalar& p0_x, const Scalar& p0_y, const Scalar& p1_x, const Scalar& p1_y,
+                                 const Scalar& p2_x, const Scalar& p2_y, const Scalar& p3_x, const Scalar& p3_y) {
             Scalar i_x, i_y;
             if (get_line_intersection(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, &i_x, &i_y)) return 0;
             return std::min(
                   std::min(get_line_point_distance(p0_x, p0_y, p2_x, p2_y, p3_x, p3_y), get_line_point_distance(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y)),
                   std::min(get_line_point_distance(p2_x, p2_y, p0_x, p0_y, p1_x, p1_y), get_line_point_distance(p3_x, p3_y, p0_x, p0_y, p1_x, p1_y)));
-            //return std::min(
-            //      std::min(get_line_point_distance(p0_x, p0_y, p2_x, p2_y, p3_x, p3_y), get_line_point_distance(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y)),
-            //      std::min(get_line_point_distance(p2_x, p2_y, p0_x, p0_y, p1_x, p1_y), get_line_point_distance(p3_x, p3_y, p0_x, p0_y, p1_x, p1_y)));
         }
 
-        static Scalar get_line_point_distance(Scalar px, Scalar py, Scalar x1, Scalar y1, Scalar x2, Scalar y2) {
+        inline static Scalar get_line_point_distance(const Scalar& px, const Scalar& py, const Scalar& x1, const Scalar& y1, const Scalar& x2, const Scalar& y2) {
             auto dx = x2-x1, dy=y2-y1;
             if (dx == 0 && dy == 0) {
                 return std::hypot(px-x1, px-y1);
@@ -263,8 +312,8 @@ namespace mpl::demo {
         }
 
 
-        static bool get_line_intersection(Scalar p0_x, Scalar p0_y, Scalar p1_x, Scalar p1_y,
-                                   Scalar p2_x, Scalar p2_y, Scalar p3_x, Scalar p3_y, Scalar *i_x, Scalar *i_y) 
+        inline static bool get_line_intersection(const Scalar& p0_x, const Scalar& p0_y, const Scalar& p1_x, const Scalar& p1_y,
+                                   const Scalar& p2_x, const Scalar& p2_y, const Scalar& p3_x, const Scalar& p3_y, Scalar *i_x, Scalar *i_y) 
         {
             // From: https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
             Scalar s1_x, s1_y, s2_x, s2_y;
@@ -302,7 +351,7 @@ namespace mpl::demo {
 
     template <class Graph, class Scenario, class Vertex, class Edge, class MultiAgentScenario>
     decltype(auto) sequentialMultiAgentPlanning(Graph& graph, Scenario& scenario, AppOptions& app_options, std::uint64_t global_num_uniform_samples) {
-        std::vector<int> agentSequence = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        std::vector<int> agentSequence = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 
         using State = typename Scenario::State;
         using VertexID = typename Vertex::ID;
@@ -360,7 +409,7 @@ namespace mpl::demo {
                     << "; goal " << agentGoalVertex.id() << ": " << agentGoal
                     << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-                //timeSetOfEdges.push_back({0, std::numeric_limits<Scalar>::infinity(), Edge{0, agentStartVertex.id(), agentStartVertex.id()}});
+                timeSetOfEdges.push_back({-std::numeric_limits<Scalar>::infinity(), 0.0, Edge{0, agentStartVertex.id(), agentStartVertex.id()}});
                 agentStartAndGoalVertices[agentIndex] = std::make_pair(agentStartVertex, agentGoalVertex);
             }
 
@@ -368,6 +417,7 @@ namespace mpl::demo {
 
                 //State agentStart = start.segment(agentIndex * 2, 2);
                 //State agentGoal = goal.segment(agentIndex * 2, 2);
+                //if (agentIndex > 6) continue;
                 
                 auto& [agentStartVertex, agentGoalVertex] = agentStartAndGoalVertices[agentIndex];
 
@@ -383,141 +433,160 @@ namespace mpl::demo {
                 dists[agentStartVertex.id()] = 0;
 
                 IntervalTree<Scalar, Edge> timeIntervalOfEdges(timeSetOfEdges);
+                std::vector<VertexID> current_fringe;
                 while (!pq.empty()) {
                     auto [curr_dist, u] = pq.top();
                     pq.pop();
                     if (u == agentGoalVertex.id()) break;
+                    // TODO: if we find the goal, we still need to ensure that the goal does not intersect with any of the edges for all time after
                     auto outgoing_edges = adjacency_list.find(u);
                     if (outgoing_edges == adjacency_list.end()) continue;
+                    current_fringe.push_back(u);
                     for (auto& v : outgoing_edges->second) {
                         auto edge = graph.getEdge(u, v);
                         if (dists.find(v) == dists.end()) dists[v] = std::numeric_limits<Distance>::max();
                         auto agentStartedOnEdgeAt = dists[u] / agentVelocity;
                         
 
-                        if (dists[v] > dists[u] + edge.distance()) {
+                        if (dists[v] > dists[u] + edge.distance()) { // Sometimes we will want to go back to the goal
                             auto agentEndedOnEdgeAt = (dists[u] + edge.distance()) / agentVelocity;
                             //JI_LOG(INFO) << "Start time " << agentStartedOnEdgeAt << " end time " << agentEndedOnEdgeAt;
                             bool intersects{false};
-                            timeIntervalOfEdges.visit_overlapping(agentStartedOnEdgeAt, agentEndedOnEdgeAt, [&intersects, &edge, &graph] (const Interval<Scalar, Edge>& intervalAndEdge) {
+                            //timeIntervalOfEdges.visit_overlapping(agentStartedOnEdgeAt, agentEndedOnEdgeAt, [&intersects, &edge, &graph, &agentStartVertex, &agentGoalVertex, &agentStartedOn] (const Interval<Scalar, Edge>& intervalAndEdge) {
+                            timeIntervalOfEdges.visit_overlapping(agentStartedOnEdgeAt, agentEndedOnEdgeAt, [&] (const Interval<Scalar, Edge>& intervalAndEdge) {
                                     if (intersects) return; // If it already intersects, nothing left to change
                                     // Otherwise check for intersection
                                     auto& other_edge = intervalAndEdge.value;
                                     auto& agent_i_start = graph.getVertex(other_edge.u()).state();
                                     auto& agent_i_end = graph.getVertex(other_edge.v()).state();
-                                    auto& agent_j_start = graph.getVertex(edge.u()).state();
-                                    auto& agent_j_end = graph.getVertex(edge.v()).state();
+                                    auto& agent_j_start = graph.getVertex(u).state();
+                                    auto& agent_j_end = graph.getVertex(v).state();
                                     //if (other_edge.distance() == 0) { JI_LOG(INFO) << "Checking intersection against start/ goal"; }
-                                    //if (other_edge.distance() == 0 && (other_edge.u() == edge.u() || other_edge.u() == edge.v())) return; // Don't check for collision with my own starts
-                                    //JI_LOG(INFO) 
-                                    //<< "Testing edge intersection "
-                                    //<< "agent_i_start " << agent_i_start
-                                    //<< " agent_i_end " << agent_i_end
-                                    //<< " agent_j_start " << agent_j_start
-                                    //<< " agent_j_end " << agent_j_end
-                                    //<< " distance " << MultiAgentScenario::get_line_distance(
-                                    //        agent_i_start[0],
-                                    //        agent_i_start[1],
-                                    //        agent_i_end[0],
-                                    //        agent_i_end[1],
-                                    //        agent_j_start[0],
-                                    //        agent_j_start[1],
-                                    //        agent_j_end[0],
-                                    //        agent_j_end[1]
-                                    //        );
-                                    if (MultiAgentScenario::get_line_distance(
-                                                agent_i_start[0],
-                                                agent_i_start[1],
-                                                agent_i_end[0],
-                                                agent_i_end[1],
-                                                agent_j_start[0],
-                                                agent_j_start[1],
-                                                agent_j_end[0],
-                                                agent_j_end[1]
-                                                ) <= MultiAgentScenario::agentRadius * 2) {
-                                    intersects = true;
-                                    //JI_LOG(INFO) << "Edge intersection true";
+                                    if (other_edge.distance() == 0 && (other_edge.u() == agentStartVertex.id() || other_edge.u() == agentGoalVertex.id()) ) return; // Don't check for collision with my own starts/ goals
+                                    //if (MultiAgentScenario::get_line_distance(
+                                    //            agent_i_start[0],
+                                    //            agent_i_start[1],
+                                    //            agent_i_end[0],
+                                    //            agent_i_end[1],
+                                    //            agent_j_start[0],
+                                    //            agent_j_start[1],
+                                    //            agent_j_end[0],
+                                    //            agent_j_end[1]
+                                    //            ) <= MultiAgentScenario::agentRadius * 2) {
+                                    //// If the lines intersect in space check for intersection in time
 
-                                    }
+                                      auto [intersects_in_time, intersection_time_interval] = MultiAgentScenario::get_intersection_time(
+                                                agent_i_start,
+                                                agent_i_end,
+                                                agent_j_start,
+                                                agent_j_end,
+                                                intervalAndEdge.start,
+                                                intervalAndEdge.stop,
+                                                agentStartedOnEdgeAt,
+                                                agentEndedOnEdgeAt,
+                                                MultiAgentScenario::agentRadius * 2,
+                                                agentVelocity
+                                        );
+                                      //if (agentIndex == 6) {
+                                      //  JI_LOG(INFO) 
+                                      //    << "Testing edge intersection "
+                                      //    << "agent_i_start " << agent_i_start
+                                      //    << " agent_i_end " << agent_i_end
+                                      //    << " agent_j_start " << agent_j_start
+                                      //    << " agent_j_end " << agent_j_end
+                                      //    << " agent_i_tStart " << intervalAndEdge.start
+                                      //    << " agent_i_tEnd "  << intervalAndEdge.stop
+                                      //    << " agent_i_tEnd "  << agentStartedOnEdgeAt
+                                      //    << " agent_i_tEnd "  << agentEndedOnEdgeAt
+                                      //    << " intersects " << intersects_in_time
+                                      //    << " at " << intersection_time_interval;
+                                      //}
+
+                                      if (intersects_in_time) {
+                                        intersects = true;
+                                      }
+
+                                    //}
                                 });
                             //if (!intersects && agentStartedOnEdgeAt == 0.0) {
                             //if (!intersects) {
                                 // If it is the first set of edges, check that it does not intersect a start vertex
-                                for (int ind=0; ind < agentStartAndGoalVertices.size(); ++ind) {
-                                    if (ind == agentIndex) continue;
-                                    auto& [otherStartVertex, otherGoalVertex] = agentStartAndGoalVertices[ind];
-                                    //if (otherStartVertex.id() == agentStartVertex.id()) continue;
-                                    
-                                    auto& agent_j_start = graph.getVertex(edge.u()).state();
-                                    auto& agent_j_end = graph.getVertex(edge.v()).state();
-                                    auto agent_i_start = otherStartVertex.state();
-                                    auto agent_i_end = otherGoalVertex.state();
-                                        //JI_LOG(INFO) << "Testing starts " << edge.u() << " " 
-                                        //    << "agent_i_start " << agent_i_start
-                                        //    << " agent_j_start " << agent_j_start
-                                        //    << " agent_j_end " << agent_j_end
-                                        //    << " distance " << MultiAgentScenario::get_line_point_distance(
-                                        //            agent_i_start[0],
-                                        //            agent_i_start[1],
-                                        //            agent_j_start[0],
-                                        //            agent_j_start[1],
-                                        //            agent_j_end[0],
-                                        //            agent_j_end[1]
-                                        //            );
-                                    if (MultiAgentScenario::get_line_point_distance(
-                                                agent_i_start[0],
-                                                agent_i_start[1],
-                                                agent_j_start[0],
-                                                agent_j_start[1],
-                                                agent_j_end[0],
-                                                agent_j_end[1]
-                                                ) <= MultiAgentScenario::agentRadius * 2) {
-                                        intersects = true;
-                                        //JI_LOG(INFO) << "Start interesects";
-                                        break;
-                                    } else {
-                                        //JI_LOG(INFO) << "Start doesnt interesect";
-                                    }
-                                      //JI_LOG(INFO) << "Testing goals " << edge.u() << " " 
-                                      //    << "agent_i_end " << agent_i_end
-                                      //    << " agent_j_start " << agent_j_start
-                                      //    << " agent_j_end " << agent_j_end
-                                      //    << " distance " << MultiAgentScenario::get_line_point_distance(
-                                      //            agent_i_end[0],
-                                      //            agent_i_end[1],
-                                      //            agent_j_start[0],
-                                      //            agent_j_start[1],
-                                      //            agent_j_end[0],
-                                      //            agent_j_end[1]
-                                      //            );
+                                //for (int ind=0; ind < agentStartAndGoalVertices.size(); ++ind) {
+                                //    if (ind == agentIndex) continue;
+                                //    auto& [otherStartVertex, otherGoalVertex] = agentStartAndGoalVertices[ind];
+                                //    //if (otherStartVertex.id() == agentStartVertex.id()) continue;
+                                //    
+                                //    auto& agent_j_start = graph.getVertex(edge.u()).state();
+                                //    auto& agent_j_end = graph.getVertex(edge.v()).state();
+                                //    auto agent_i_start = otherStartVertex.state();
+                                //    auto agent_i_end = otherGoalVertex.state();
+                                //        //JI_LOG(INFO) << "Testing starts " << edge.u() << " " 
+                                //        //    << "agent_i_start " << agent_i_start
+                                //        //    << " agent_j_start " << agent_j_start
+                                //        //    << " agent_j_end " << agent_j_end
+                                //        //    << " distance " << MultiAgentScenario::get_line_point_distance(
+                                //        //            agent_i_start[0],
+                                //        //            agent_i_start[1],
+                                //        //            agent_j_start[0],
+                                //        //            agent_j_start[1],
+                                //        //            agent_j_end[0],
+                                //        //            agent_j_end[1]
+                                //        //            );
+                                //    if (MultiAgentScenario::get_line_point_distance(
+                                //                agent_i_start[0],
+                                //                agent_i_start[1],
+                                //                agent_j_start[0],
+                                //                agent_j_start[1],
+                                //                agent_j_end[0],
+                                //                agent_j_end[1]
+                                //                ) <= MultiAgentScenario::agentRadius * 2) {
+                                //        intersects = true;
+                                //        //JI_LOG(INFO) << "Start interesects";
+                                //        break;
+                                //    } else {
+                                //        //JI_LOG(INFO) << "Start doesnt interesect";
+                                //    }
+                                //      //JI_LOG(INFO) << "Testing goals " << edge.u() << " " 
+                                //      //    << "agent_i_end " << agent_i_end
+                                //      //    << " agent_j_start " << agent_j_start
+                                //      //    << " agent_j_end " << agent_j_end
+                                //      //    << " distance " << MultiAgentScenario::get_line_point_distance(
+                                //      //            agent_i_end[0],
+                                //      //            agent_i_end[1],
+                                //      //            agent_j_start[0],
+                                //      //            agent_j_start[1],
+                                //      //            agent_j_end[0],
+                                //      //            agent_j_end[1]
+                                //      //            );
 
-                                    if (MultiAgentScenario::get_line_point_distance(
-                                                agent_i_end[0],
-                                                agent_i_end[1],
-                                                agent_j_start[0],
-                                                agent_j_start[1],
-                                                agent_j_end[0],
-                                                agent_j_end[1]
-                                                ) <= MultiAgentScenario::agentRadius * 2) {
-                                        intersects = true;
-                                        //JI_LOG(INFO) << "Goal interesects";
-                                        break;
-                                    } else {
-                                        //JI_LOG(INFO) << "Goal doesnt interesect";
-                                    }
+                                //    if (MultiAgentScenario::get_line_point_distance(
+                                //                agent_i_end[0],
+                                //                agent_i_end[1],
+                                //                agent_j_start[0],
+                                //                agent_j_start[1],
+                                //                agent_j_end[0],
+                                //                agent_j_end[1]
+                                //                ) <= MultiAgentScenario::agentRadius * 2) {
+                                //        intersects = true;
+                                //        //JI_LOG(INFO) << "Goal interesects";
+                                //        break;
+                                //    } else {
+                                //        //JI_LOG(INFO) << "Goal doesnt interesect";
+                                //    }
 
-                                }
+                                //}
                             //}
                             if (!intersects)  {
                                 dists[v] = dists[u] + edge.distance();
                                 prev[v] = u;
                                 pq.push(std::make_pair(dists[v], v));
+                                current_fringe.clear();
                             }
                         }
                     }
                 }
                 if (prev.find(agentGoalVertex.id()) == prev.end()) {
-                    paths[agentIndex] = std::make_tuple(false, std::vector<VertexID>(), std::vector<Scalar>());
+                    paths[agentIndex] = std::make_tuple(false, current_fringe, std::vector<Scalar>());
                     JI_LOG(INFO) << "No Path found for agent " <<  agentIndex << " with distance inf";
                 } else {
                     auto curr = agentGoalVertex.id();
@@ -543,7 +612,7 @@ namespace mpl::demo {
                         timeSetOfEdges.push_back({agentCurrentTime, agentEndTime, edge});
                         agentCurrentTime = agentEndTime;
                     }
-                    //timeSetOfEdges.push_back({agentCurrentTime, std::numeric_limits<Scalar>::max(), Edge{0, agentGoalVertex.id(), agentGoalVertex.id()}});
+                    timeSetOfEdges.push_back({agentCurrentTime, std::numeric_limits<Scalar>::infinity(), Edge{0, agentGoalVertex.id(), agentGoalVertex.id()}});
                     paths[agentIndex] = std::make_tuple(true, path, velocities);
                     JI_LOG(INFO) << "Path found for agent " <<  agentIndex << " with distance " << pathDistance;
 

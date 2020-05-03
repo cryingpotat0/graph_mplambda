@@ -723,6 +723,7 @@ namespace mpl {
 
                 void init_local_lambdas() {
                     for (int i=0; i < app_options.jobs() ; ++i) {
+                        //if (i != 3) continue;
                         int p[2];
                         if (::pipe(p) == -1)
                             throw std::system_error(errno, std::system_category(), "Pipe");

@@ -13,7 +13,7 @@
 #include <util.hpp>
 
 #ifndef NUM_AGENTS
-#define NUM_AGENTS 10
+#define NUM_AGENTS 20
 #endif
 
 namespace mpl::demo {
@@ -97,6 +97,7 @@ namespace mpl::demo {
         std::vector<FilterColor> filters;
         auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
         int j=0;
+        int agentRadius = 10;
         for (auto& [locs, info] : paths) {
             JI_LOG(INFO) << "Visualizing path";
             auto& [start, goal] = locs;
@@ -109,9 +110,10 @@ namespace mpl::demo {
             shape::addBackgroundImg(file, app_options.env());
 
             for (int i=0; i < NUM_AGENTS; ++i) {
-                shape::addStartState(file, start[2*i], start[2*i+1], 10);
-                shape::addGoalState(file, goal[2*i], goal[2*i+1], 10);
+                shape::addState(file, start[2*i], start[2*i+1], agentRadius, "S" + std::to_string(i));
+                shape::addState(file, goal[2*i], goal[2*i+1], agentRadius, "G" + std::to_string(i));
             }
+            int i=0;
             for (auto& [found, path, velocities] : info) {
                 // for each agent do
                 if (found) {
@@ -122,12 +124,27 @@ namespace mpl::demo {
                         path_with_velocity.emplace_back(std::make_pair(std::make_pair(u[0], u[1]), velocity));
                         if (i < path.size() - 1) {
                             auto v = graph.getVertex(path[i+1]).state();
-                            shape::addSolutionEdge(file, u[0], u[1], v[0], v[1]);
+                            //shape::addSolutionEdge(file, u[0], u[1], v[0], v[1]);
                         }
                     }
-                    shape::addAnimatedStateWithVelocity(file, 10, path_with_velocity);
+                    shape::addAnimatedStateWithVelocity(file, agentRadius, path_with_velocity);
+                } else {
+                    for (auto& id: path) { // path contains everything in the fringe
+                        auto& u = graph.getVertex(id).state();
+                        auto adjacency_list = graph.getAdjacencyList();
+                        auto outgoing_edges = adjacency_list.find(id);
+                        if (outgoing_edges != adjacency_list.end()) {
+                            for (auto& other_id: outgoing_edges->second) {
+                                auto& v = graph.getVertex(other_id).state();
+                                //shape::addVisitedEdge(file, u[0], u[1], v[0], v[1]);
+                            }
+
+                        }
+                        shape::addState(file, u[0], u[1], 2, std::to_string(i));
+                    }
                 }
 
+                i++;
             }
             shape::endSvg(file);
         }
@@ -240,12 +257,12 @@ namespace mpl::demo {
         shape::startSvg(file, width, height);
         shape::addBackgroundImg(file, app_options.env());
         for (auto& subspace : coord.getSubspaces()) {
-            file << shape::Rect(
-                    subspace.getLower()[0],
-                    subspace.getLower()[1],
-                    subspace.getUpper()[0],
-                    subspace.getUpper()[1],
-                    shape::Color(0, 255, 0));
+            //file << shape::Rect(
+            //        subspace.getLower()[0],
+            //        subspace.getLower()[1],
+            //        subspace.getUpper()[0],
+            //        subspace.getUpper()[1],
+            //        shape::Color(0, 255, 0));
         }
 
         for (auto& [v_id, u_ids] : graph.getAdjacencyList()) {
@@ -258,7 +275,7 @@ namespace mpl::demo {
                 if (lambdaId1 == lambdaId2) {
                     // The 0th element indicates which lambda
                     shape::addEdge(file, start.state()[0], start.state()[1], end.state()[0], end.state()[1],
-                                   6, shape::Color(40, 40, 40));
+                                   6, shape::Color(40, 100, 100));
                 } else {
                     shape::addEdge(file, start.state()[0], start.state()[1], end.state()[0], end.state()[1],
                                    6, shape::Color(250, 50, 50));
@@ -267,13 +284,13 @@ namespace mpl::demo {
         }
         for (auto& [v_id, v]: graph.getVertices()) {
             auto state = v.state();
-            shape::addState(file, state[0], state[1], 2, 'v');
+            shape::addState(file, state[0], state[1], 5, ' ');
         }
         for (int i=0; i < coord.getSubspaces().size(); ++i) {
             auto lower = coord.getSubspaces()[i].getLower();
             auto upper = coord.getSubspaces()[i].getUpper();
             auto mid = (lower + upper) / 2;
-            shape::addText(file, std::to_string(i), mid[0], mid[1], shape::Color(50, 50, 250), 48);
+            //shape::addText(file, std::to_string(i), mid[0], mid[1], shape::Color(50, 50, 250), 48);
         }
         shape::endSvg(file);
     }
@@ -488,7 +505,7 @@ namespace mpl::demo {
         JI_LOG(INFO) << "Current time limit: " << current_time_limit;
         Graph graph;
         getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit);
-        savePngImages<Coordinator, State>(coord, app_options, graph);
+        //savePngImages<Coordinator, State>(coord, app_options, graph);
         //auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
         if (app_options.goals_.size() == 0) {
             auto goal_scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);

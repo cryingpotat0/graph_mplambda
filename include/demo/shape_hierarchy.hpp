@@ -172,7 +172,33 @@ namespace shape
              << closeTag("text");
     }
 
-    inline void addAnimatedStateWithVelocity(std::ofstream &file, double r, std::vector<std::pair<std::pair<double, double>, double>> path) {
+    inline void addState(std::ofstream &file, double x, double y, double r, std::string c)
+    {
+        file << "\t"
+             << startTag("circle")
+             << addAttr("cx", x)
+             << addAttr("cy", y)
+             << addAttr("r", r)
+             << addAttr("fill", "rgb(230, 230, 230)")
+             << addAttr("stroke", "red")
+             << addAttr("stroke-width", r / 5)
+             << ">"
+             << closeTag("circle");
+
+        // add the label
+        file << "\t"
+             << startTag("text")
+             << addAttr("x", x)
+             << addAttr("y", y + r / 3.0)
+             << addAttr("fill", "black")
+             << addAttr("text-anchor", "middle")
+             << addAttr("font-size", r)
+             << ">"
+             << ' ' << c << ' '
+             << closeTag("text");
+    }
+
+    inline void addAnimatedStateWithVelocity(std::ofstream &file, double r, std::vector<std::pair<std::pair<double, double>, double>> path, std::string fill="rgb(230, 0, 0)") {
         std::string cx_values;
         std::string cy_values;
         std::string keyTimes;
@@ -202,7 +228,7 @@ namespace shape
              << addAttr("cx", path.back().first.first)
              << addAttr("cy", path.back().first.second)
              << addAttr("r", r)
-             << addAttr("fill", "rgb(230, 0, 0)")
+             << addAttr("fill", fill)
              << ">"
              << startTag("animate")
              << addAttr("attributeName", "cx")

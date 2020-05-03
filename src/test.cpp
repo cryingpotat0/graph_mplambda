@@ -1,17 +1,18 @@
+
+#include <demo/mpl_robot.hpp>
+#include <demo/multi_agent_png_2d_scenario.hpp>
+#include <jilog.hpp>
+using namespace mpl::demo;
 /*
 #include <Eigen/Dense>
 #include <Eigen/Core>
-#include <jilog.hpp>
 #include <demo/app_options.hpp>
-#include <demo/mpl_robot.hpp>
 //#include <graph.hpp>
-#include <demo/multi_agent_png_2d_scenario.hpp>
 
 #include <interval_tree.hpp>
 #include <time.h>
 #include <vector>
 
-using namespace mpl::demo;
 
 void isApproxTest() {
     Eigen::Matrix<double, 2, 1> a, b;
@@ -123,6 +124,25 @@ void interval_tree_test() {
 }
  */
 
+void multi_agent_time_intersection_test() {
+    using Scalar = double;
+    using Scenario = MultiAgentPNG2DScenario<Scalar, NUM_AGENTS>;
+    using State = typename Scenario::State;
+    using SingleAgentState = typename Scenario::SingleAgentState;
+    using Distance = typename Scenario::Distance;
+    SingleAgentState agent1_xinit, agent1_xfinal, agent2_xinit, agent2_xfinal;
+    agent1_xinit << -1, 0;
+    agent1_xfinal << 1, 0;
+    agent2_xinit << 0, 1;
+    agent2_xfinal << 0, -1;
+    
+    Scalar agent1_tStart=0, agent1_tEnd=1, agent2_tStart=0, agent2_tEnd=1;
+    Scalar intersection_radius = 0.1;
+    Scalar agent_velocity = 1;
+    JI_LOG(INFO) << Scenario::get_intersection_time(agent1_xinit, agent1_xfinal, agent2_xinit, agent2_xfinal, agent1_tStart, agent1_tEnd, agent2_tStart, agent2_tEnd, intersection_radius, agent_velocity);
+    //Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
+}
+
 int main(int argc, char* argv[]) {
     //mpl::demo::AppOptions app_options(argc, argv);
     //isApproxTest();
@@ -130,6 +150,7 @@ int main(int argc, char* argv[]) {
     //graphSaveAndLoadTest();
     //multi_agent_png_test(app_options);
     //interval_tree_test();
+    multi_agent_time_intersection_test();
     return 0;
 }
 

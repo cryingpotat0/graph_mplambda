@@ -308,6 +308,9 @@ namespace mpl {
                     edge_properties[forward] = e;
                     EdgeID backward(v, u);
                     //            JI_LOG(TRACE) << "Adding u: " << v << " v: " << u;
+                    Edge backward_e = e;
+                    e.u_ = v;
+                    e.v_ = u;
                     edge_properties[backward] = e;
                     adjacency_list[v].insert(u);
                     adjacency_list[u].insert(v);

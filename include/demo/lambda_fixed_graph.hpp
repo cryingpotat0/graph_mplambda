@@ -373,6 +373,10 @@ namespace mpl::demo {
                         done_ = true;
                         return;
                     }
+                    //if (total_valid_samples_ >= 20) {
+                    //    done_ = true;
+                    //    return;
+                    //}
                     generateRandomSamples();
                     checkValidSamples();
                     planner.updatePrmRadius(total_samples_);
