@@ -493,14 +493,18 @@ namespace mpl::demo {
             using Scenario = PNG2dScenario<Scalar>;
             Scenario scenario = initPngScenario<Scalar>(app_options);
             runScenario<Scenario, Scalar>(scenario, app_options);
+        } if (app_options.scenario() == "dubins_png") {
+            using Scenario = DubinsPNG2dScenario<Scalar>;
+            Scenario scenario = initDubinsPngScenario<Scalar>(app_options);
+            runScenario<Scenario, Scalar>(scenario, app_options);
         } else if (app_options.scenario() == "fetch") {
             //using Scenario = FetchScenario<Scalar>;
             //Scenario scenario = initFetchScenario<Scalar>(app_options);
             //runScenario<Scenario, Scalar>(scenario, app_options);
         } else if (app_options.scenario() == "multi_agent_png") {
-            //using Scenario = MultiAgentPNG2DScenario<Scalar, NUM_AGENTS>;
-            //Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
-            //runScenario<Scenario, Scalar>(scenario, app_options);
+            using Scenario = MultiAgentPNG2DScenario<Scalar, NUM_AGENTS>;
+            Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
+            runScenario<Scenario, Scalar>(scenario, app_options);
         } else {
             throw std::invalid_argument("Invalid scenario");
         }

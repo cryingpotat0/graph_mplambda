@@ -42,12 +42,97 @@
 #include <png.h>
 #include <Eigen/Dense>
 #include <nigh/se3_space.hpp>
+#include <nigh/lp_space.hpp>
 #include <vector>
 #include <interpolate.hpp>
 #include <randomize.hpp>
 #include <jilog.hpp>
+#include <demo/reeds_shepp.hpp>
 
 constexpr bool PRINT_FILTERED_IMAGE = false; // enable this to export a filtered png file.
+
+namespace unc::robotics::nigh::metric {
+    
+    template<>
+    struct is_metric<mpl::demo::ReedsSheppStateSpace> : std::true_type {};
+    // Here is the template specialization declaration.  It starts
+    // with 'template <...>' and is then followed by the template name
+    // 'Space'.  Note that we make the specialization operate on
+    // templated types and metric parameters.  For an example of this
+    // see the test file 'custom_vector_test.cpp'.  In this demo,
+    // we're not specializing for just our concrete Vec3 class and in
+    // the LP<2> (Euclidean) metric.
+    template <class Scalar>
+    struct Space<Eigen::Matrix<Scalar, 3, 1>, mpl::demo::ReedsSheppStateSpace> {
+
+        // These type aliases are required.  Type should be the first
+        // template parameter.
+        using Type = Eigen::Matrix<Scalar, 3, 1>;
+        
+        // This should be the second template parameter
+        using Metric = mpl::demo::ReedsSheppStateSpace;//LP<2>;
+
+        // Distance alias should be both the result of the distance
+        // function and the coefficient type.
+        using Distance = double;
+
+
+        // Declare the dimensions of Vec3 as a constant.  For
+        // customizing types that can be of arbitrary dimensions,
+        // kDimensions can be set to -1.
+        static constexpr int kDimensions = 3;
+
+
+        // Required method that checks if the vector is valid.  This
+        // can be minimally implemented as 'return true;', but adding
+        // additional checks for validity will help find invalid data
+        // sooner.
+        static bool isValid(const Eigen::Matrix<Scalar, 3, 1>& v) {
+            return std::isfinite(v[0]) &&
+                std::isfinite(v[1]) &&
+                std::isfinite(v[2]);
+        }
+
+        // Required method that returns the coefficient using a
+        // 0-based index.  In our example, (x, y, z) are in sequential
+        // order, so we can do some pointer tricks to get the
+        // zero-based index.  For other data layouts, if/else,
+        // switch/case, etc... may be required.
+        static double coeff(const Eigen::Matrix<Scalar, 3, 1>& v, std::size_t i) {
+            return v[i];
+        }
+
+        // This constexpr method should return the number of
+        // dimensions of the vector.  This method should match
+        // kDimensions, except in the case where kDimensions is -1.
+        // Note kDimensions is signed, while dimensions() is unsigned.
+        constexpr unsigned dimensions() const {
+            return 3;
+        }
+
+        // This required method computes and returns the distance
+        // between two points.  The computation must match the metric
+        // a specified by the second template parameter.  Note: Nigh
+        // could implement this function based upon dimensions(), and
+        // coeff(), however it is likely that a custom data type can
+        // have a much faster implementation (e.g., based upon SIMD
+        // instructions).
+
+        static double distance(const Eigen::Matrix<Scalar, 3, 1>& a, const Eigen::Matrix<Scalar, 3, 1>& b) {
+          //std::cout << "checking distance " << std::endl;
+          
+          mpl::demo::ReedsSheppStateSpace reedsSheppStateSpace(100);
+          double q0[3] = {a[0], a[1], a[2]};
+          double q1[3] = {b[0], b[1], b[2]};
+          return reedsSheppStateSpace.reedsShepp(q0, q1).length();
+            //return (a-b).norm();
+            //return std::sqrt(
+            //    std::pow(a.x - b.x, 2) +
+            //    std::pow(a.y - b.y, 2) +
+            //    std::pow(a.z - b.z, 2));
+        }
+    };
+};
 
 namespace mpl::demo
 {
@@ -250,6 +335,184 @@ namespace mpl::demo
         }
     };
 
+    template <typename Scalar = double>
+    class DubinsPNG2dScenario
+    {
+    public:
+
+        using State = Eigen::Matrix<Scalar, 3, 1>;
+        using Bound = Eigen::Matrix<Scalar, 3, 1>;
+        using Space = unc::robotics::nigh::metric::Space<State, mpl::demo::ReedsSheppStateSpace>;
+        using Distance = typename Space::Distance;
+        static constexpr Scalar agentVelocity = 100.0;
+
+    private:
+        const int width_;
+        const int height_;
+        Space space_;
+        Bound min_;
+        Bound max_;
+        State goal_;
+        std::vector<bool> isObstacle_;
+        static constexpr Scalar PI = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620L;
+        ReedsSheppStateSpace reedsSheppStateSpace;
+    public:
+        DubinsPNG2dScenario(
+            const int width,
+            const int height,
+            State min,
+            State max,
+            //State goalState,
+            std::vector<bool> isObstacle
+        )
+            : width_(width),
+              height_(height),
+              min_(min),
+              max_(max),
+              //goal_(goalState),
+              isObstacle_(isObstacle),
+              reedsSheppStateSpace(ReedsSheppStateSpace(agentVelocity))
+        {
+        }
+
+        DubinsPNG2dScenario(const DubinsPNG2dScenario& other)
+            : width_(other.width_),
+              height_(other.height_),
+              min_(other.min_),
+              max_(other.max_),
+              reedsSheppStateSpace(ReedsSheppStateSpace(other.agentVelocity))
+              //goal_(goalState),
+        {
+            isObstacle_ = other.isObstacle_;
+        }
+
+        const Distance maxSteering() const {
+            return std::numeric_limits<Distance>::infinity();
+        }
+
+        bool isValid(const State &q) const
+        {
+            int x = std::floor(q[0]); // (int) (q[0] + 0.5);
+            int y = std::floor(q[1]); //(int) (q[1] + 0.5);
+            return !isObstacle_[width_ * y + x];
+        }
+
+
+        bool isValid(const State &a, const State &b) const
+        {
+            if(!isValid(a) || !isValid(b))
+                return false;
+            return validSegment(a, b);
+        }
+
+        static const int dimension() {
+            return 3;
+        }
+
+        const Space &space() const
+        {
+            return space_;
+        }
+
+        const Bound &min() const
+        {
+            return min_;
+        }
+
+        const Bound &max() const
+        {
+            return max_;
+        }
+
+	void setMin(const Bound &min) {
+	    min_ = min;
+	}
+
+	void setMax(const Bound &max) {
+	    max_ = max;
+	}
+
+	void setGoal(const State& q) {
+	    goal_ = q;
+	}
+
+	bool isGoal(const State& q) const {
+	    return (goal_ - q).isMuchSmallerThan(30, 1); // Tolerance of 5 pixels each way
+	}
+
+        //const State &goal() const
+        //{
+        //    return goal_;
+        //}
+
+        const int width() const
+        {
+            return width_;
+        }
+
+        const int height() const
+        {
+            return height_;
+        }
+
+        static State scale(const State& q) {
+            return q;
+        }
+
+        template <class RNG>
+        State randomSample(RNG& rng) {
+            State q;
+            randomize(q, rng, min_, max_);
+            return q;
+        }
+
+        Scalar prmRadius() {
+            auto final_radius = 2 * pow(width_ * height_ * 2 * PI / sphere_volume() * (1.0 + 1.0 / dimension()), 1.0 / dimension());
+            return final_radius;
+            //return 2 * pow((width_ * height_ * (2 * PI) * 1. / PI) * (3.0 / 2.0), 0.5);
+        }
+
+    private:
+        Scalar sphere_volume()
+        {
+            // Volume of a unit sphere
+            double dim_over_2 = (double) dimension() / 2.0;
+            return pow(PI, dim_over_2) / std::tgamma(dim_over_2 + 1);
+        }
+
+        bool validSegment(const State &a, const State &b) const
+        {
+          bool validSegmentBool{true};
+          double q0[3] = {a[0], a[1], a[2]};
+          double q1[3] = {b[0], b[1], b[2]};
+          reedsSheppStateSpace.sample(q0, q1, 0.3, [&] (double q[3]) {
+              if (q[0] < 0 || q[1] < 0 || q[0] > width_ || q[1] > height_) {
+                validSegmentBool = false;
+                return true;
+              }
+              int x = std::floor(q[0]); // (int) (q[0] + 0.5);
+              int y = std::floor(q[1]); //(int) (q[1] + 0.5);
+              if (isObstacle_[width_ * y + x]) {
+                validSegmentBool = false;
+                return true;
+              }
+              return false;
+            });
+          return validSegmentBool;
+            // uses the bisection method to verify links.
+            
+            //State mid = (a + b) / 2;
+            //Scalar distSquared = (b - a).squaredNorm();
+            //Scalar tolerance = 1;
+            //if (distSquared < tolerance * tolerance)
+            //    return true;
+            //if (!isValid(mid))
+            //    return false;
+            //if (!validSegment(a, mid)) // check the left half
+            //    return false;
+            //return validSegment(mid, b); // check the right half
+        }
+    };
 
     inline void writePngFile(png_bytep *rowPointers, int width, int height)
     {

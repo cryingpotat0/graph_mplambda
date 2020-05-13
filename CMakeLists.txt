@@ -39,10 +39,10 @@ endif()
 
 
 if (${APPLE})
-	add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp )
+	add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp src/demo/reeds_shepp.cpp)
 	target_link_libraries(mpl_coordinator PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${PNG_LIBRARIES})
 
-	add_executable(mpl_test src/test.cpp src/comm.cpp src/write_queue.cpp )
+	add_executable(mpl_test src/test.cpp src/comm.cpp src/write_queue.cpp src/demo/reeds_shepp.cpp)
 	target_link_libraries(mpl_test PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${PNG_LIBRARIES})
 else ()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAS_AWS_SDK")
@@ -50,7 +50,7 @@ else ()
     
     find_package(aws-lambda-runtime REQUIRED)
     find_package(AWSSDK COMPONENTS s3 lambda)
-    add_executable(mpl_fixed_graph_aws src/mpl_lambda_aws.cpp  src/comm.cpp src/write_queue.cpp)
+    add_executable(mpl_fixed_graph_aws src/mpl_lambda_aws.cpp  src/comm.cpp src/write_queue.cpp src/demo/reeds_shepp.cpp)
     target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${ASSIMP_LIBRARIES} ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} )
     #target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${ASSIMP_LIBRARIES} ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} /usr/local/lib/libIrrXML.a)
     #target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES})
@@ -72,12 +72,12 @@ else ()
     add_executable(mpl_lambda_invoke src/mpl_lambda_invoke.cpp)
     target_link_libraries(mpl_lambda_invoke AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES})
 
-    add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp)
-    target_link_libraries(mpl_coordinator Threads::Threads AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${CCD_LIBRARIES})
+    add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp src/demo/reeds_shepp.cpp)
+    target_link_libraries(mpl_coordinator Threads::Threads AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${CCD_LIBRARIES} )
 
 endif()
 
-add_executable(mpl_lambda_fixed_graph src/demo/lambda_fixed_graph.cpp src/comm.cpp src/write_queue.cpp)
+add_executable(mpl_lambda_fixed_graph src/demo/lambda_fixed_graph.cpp src/comm.cpp src/write_queue.cpp src/demo/reeds_shepp.cpp)
 target_link_libraries(mpl_lambda_fixed_graph PUBLIC Eigen3::Eigen ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${PNG_LIBRARIES})
 
 link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})

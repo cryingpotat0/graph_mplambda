@@ -303,6 +303,97 @@ namespace shape
         addState(file, x, y, r, 'G');
     }
 
+    inline void addPath(std::ofstream &file, const std::vector<std::vector<double>>& path, double width = 2.0, Color color = Color(250, 50, 50)) {
+        //file  << "\t"
+        //  << startTag("path")
+        //  << "d=\"";
+        for (int i=0; i < path.size() - 1; ++i) {
+            //file << "M" << point[0] << " " << point[1] << " ";
+          auto point = path[i]; 
+          auto other = path[i + 1];
+          addEdge(file, point[0], point[1], other[0], other[1], width, color);
+        }
+        //file << "\"" << closeTag();
+    }
+
+    inline void addDubinsCar(std::ofstream &file, const std::vector<std::vector<double>>& path, double velocity, double width = 2.0, Color color = Color(250, 50, 50)) {
+        std::string cx_values;
+        std::string cy_values;
+        std::string keyTimes;
+        double current_time = 0;
+        std::vector<double> keyTimeVector;
+        for (int i=0; i < path.size(); ++i) {
+            auto& point = path[i];
+            
+            cx_values += std::to_string(point[0]);
+            cy_values += std::to_string(point[1]);
+            keyTimeVector.push_back(current_time);
+            if (i < path.size() - 1) {
+                cx_values += ";";
+                cy_values += ";";
+                auto& other_point = path[i+1];
+                current_time += std::hypot(other_point[0] - point[0], other_point[1] - point[1]) / velocity;
+            }
+        }
+        auto totalTime = keyTimeVector.back();
+
+        for (int i=0; i < keyTimeVector.size(); ++i) {
+            keyTimes += std::to_string(keyTimeVector[i] / totalTime);
+            if (i < keyTimeVector.size() - 1) keyTimes += ";";
+        }
+        file << "\t"
+             << startTag("ellipse")
+             << addAttr("cx", path.back()[0])
+             << addAttr("cy", path.back()[1])
+             << addAttr("rx", 15)
+             << addAttr("ry", 10)
+             << addAttr("fill", color)
+             << ">"
+             << startTag("animate")
+             << addAttr("attributeName", "cx")
+             << addAttr("dur", std::to_string(totalTime) + "s")
+             << addAttr("repeatCount", "1")
+             << addAttr("values", cx_values)
+             << addAttr("keyTimes", keyTimes)
+             << closeTag()
+             << startTag("animate")
+             << addAttr("attributeName", "cy")
+             << addAttr("dur", std::to_string(totalTime) + "s")
+             << addAttr("repeatCount", "1")
+             << addAttr("values", cy_values)
+             << addAttr("keyTimes", keyTimes)
+             << closeTag();
+             //<< startTag("animateTransform")
+             //<< addAttr("attributeName", "transform")
+             //<< addAttr("attributeType", "XML")
+             //<< addAttr("dur", std::to_string(totalTime) + "s")
+             //<< addAttr("repeatCount", "1")
+             //<< addAttr("values", cy_values)
+             //<< addAttr("keyTimes", keyTimes)
+             //<< closeTag()
+
+        current_time = 0.0;
+        for (int i=0; i < path.size() - 1; ++i) {
+            auto& point = path[i];
+            auto& other_point = path[i+1];
+            auto old_time = current_time;
+            current_time += std::hypot(other_point[0] - point[0], other_point[1] - point[1]) / velocity;
+            file 
+             << startTag("animateTransform")
+             << addAttr("attributeName", "transform")
+             << addAttr("attributeType", "XML")
+             << addAttr("type", "rotate")
+             << addAttr("begin", std::to_string(old_time) + "s")
+             << addAttr("dur", std::to_string(current_time) + "s")
+             << addAttr("repeatCount", "1")
+             << addAttr("from", std::to_string(point[2] * 180.0 / 3.14) + " " + std::to_string(point[0]) + " " + std::to_string(point[1]))
+             << addAttr("to", std::to_string(other_point[2] * 180.0 / 3.14) + " " + std::to_string(other_point[0]) + " " + std::to_string(other_point[1]))
+             << closeTag();
+        }
+
+        file << closeTag("ellipse");
+    }
+
     template <typename Scalar>
     class Rect
     {

@@ -1,9 +1,11 @@
 
-#include <demo/mpl_robot.hpp>
-#include <demo/multi_agent_png_2d_scenario.hpp>
 #include <jilog.hpp>
+#include <demo/reeds_shepp.hpp>
+#include <demo/shape_hierarchy.hpp>
 using namespace mpl::demo;
 /*
+#include <demo/mpl_robot.hpp>
+#include <demo/multi_agent_png_2d_scenario.hpp>
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <demo/app_options.hpp>
@@ -122,7 +124,6 @@ void interval_tree_test() {
         JI_LOG(INFO) << r;
     }
 }
- */
 
 void multi_agent_time_intersection_test() {
     using Scalar = double;
@@ -142,6 +143,36 @@ void multi_agent_time_intersection_test() {
     JI_LOG(INFO) << Scenario::get_intersection_time(agent1_xinit, agent1_xfinal, agent2_xinit, agent2_xfinal, agent1_tStart, agent1_tEnd, agent2_tStart, agent2_tEnd, intersection_radius, agent_velocity);
     //Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
 }
+*/
+
+void reedsSheppTest() {
+    double q0[3] = {50,20,0};
+    double q1[3] = {100,100,0};
+    auto velocity = 50.0;
+    ReedsSheppStateSpace reedsSheppStateSpace(velocity);
+
+    std::vector<std::vector<double>> sampled_path;
+    sampled_path.clear();
+    reedsSheppStateSpace.sample(q0, q1, 0.5, [&] (double q[3]) {
+          sampled_path.push_back({q[0], q[1], q[2]});
+          return false;
+        });
+    // The function inside sample returns true if sampling should be stopped
+    
+    //for (auto point: sampled_path) {
+    //    JI_LOG(INFO) << point[0] << " " << point[1] << " " << point[2];
+    //}
+    std::ofstream file("test_reed_shepp.svg");
+    shape::startSvg(file, 200, 200);
+    shape::addPath(file, sampled_path);
+    shape::addDubinsCar(file, sampled_path, velocity);
+    shape::endSvg(file);
+
+    //auto path = reedsSheppStateSpace.reedsShepp(q0, q1);
+    //for (int i=0; i < 5; ++i) {
+    //    JI_LOG(INFO) << "Type " << path.type_[i] << " Length: " << path.length_[i];
+    //}
+}
 
 int main(int argc, char* argv[]) {
     //mpl::demo::AppOptions app_options(argc, argv);
@@ -150,7 +181,8 @@ int main(int argc, char* argv[]) {
     //graphSaveAndLoadTest();
     //multi_agent_png_test(app_options);
     //interval_tree_test();
-    multi_agent_time_intersection_test();
+    //multi_agent_time_intersection_test();
+    reedsSheppTest();
     return 0;
 }
 

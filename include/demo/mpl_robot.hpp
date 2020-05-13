@@ -150,6 +150,51 @@ namespace mpl::demo {
         }
     }
 
+    template <class Coordinator, class State, class Paths, class Graph>
+    void visualizeDubinsPath(const Coordinator& coord, const AppOptions &app_options, const Paths& paths, const Graph& graph) {
+
+        std::vector<FilterColor> filters;
+
+        auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
+        int i=0;
+        for (auto& [locs, info] : paths) {
+            auto& [start, goal] = locs;
+            auto& [found, path] = info;
+            const std::string outputName = "png_2d_demo_output-" + std::to_string(i++) + ".svg";
+            //std::to_string(start.first) + "_" + std::to_string(start.second) + "-" +
+            //std::to_string(goal.first) + "_" + std::to_string(goal.second) + ".svg";
+            std::ofstream file(outputName);
+            shape::startSvg(file, width, height);
+            shape::addBackgroundImg(file, app_options.env());
+
+            shape::addStartState(file, start[0], start[1], 10);
+            shape::addGoalState(file, goal[0], goal[1], 10);
+            auto velocity = DubinsPNG2dScenario<double>::agentVelocity;
+            ReedsSheppStateSpace reedsSheppStateSpace(velocity);
+
+            std::vector<std::vector<double>> sampled_path;
+            sampled_path.clear();
+
+            if (found) {
+                for (auto it=path.begin(); it < path.end() - 1; it++) {
+                    auto u = graph.getVertex((*it)).state();
+                    auto v = graph.getVertex(*(it+1)).state();
+                    //shape::addSolutionEdge(file, u.state()[0], u.state()[1], v.state()[0], v.state()[1]);
+
+                    double q0[3] = {u[0], u[1], u[2]};
+                    double q1[3] = {v[0], v[1], v[2]};
+                    reedsSheppStateSpace.sample(q0, q1, 0.5, [&] (double q[3]) {
+                        sampled_path.push_back({q[0], q[1], q[2]});
+                        return false;
+                        });
+                }
+                shape::addPath(file, sampled_path);
+                shape::addDubinsCar(file, sampled_path, velocity);
+            }
+            shape::endSvg(file);
+        }
+    }
+
     template <class Scalar>
     FetchScenario<Scalar> initFetchScenario(AppOptions& app_options) {
         using Scenario = FetchScenario<Scalar>;
@@ -170,6 +215,37 @@ namespace mpl::demo {
 
         Scenario scenario(envFrame, app_options.env(), goal, goalRadius, min, max, app_options.checkResolution(0.1));
         return scenario;
+    }
+
+    template <class Scalar>
+    DubinsPNG2dScenario<Scalar> initDubinsPngScenario(AppOptions &app_options) {
+        using Scenario = DubinsPNG2dScenario<Scalar>;
+        using State = typename Scenario::State;
+        using Bound = typename Scenario::Bound;
+
+        std::vector<FilterColor> filters;
+        if (app_options.env(false).empty()) {
+            app_options.env_ = "resources/png_planning_input.png";
+        }
+
+        if (app_options.env() == "resources/png_planning_input.png") {
+            JI_LOG(INFO) << "Using png planning input";
+            filters.emplace_back(FilterColor(126, 106, 61, 15));
+            filters.emplace_back(FilterColor(61, 53, 6, 15));
+            filters.emplace_back(FilterColor(255, 255, 255, 5));
+        } else if (app_options.env() == "resources/house_layout.png") {
+            JI_LOG(INFO) << "Using house layout input";
+            filters.emplace_back(FilterColor(0, 0, 0, 5));
+            filters.emplace_back(FilterColor(224, 224, 224, 5));
+            filters.emplace_back(FilterColor(255, 255, 255, 5));
+        }
+        auto min = app_options.globalMin<Bound>();
+        auto max = app_options.globalMax<Bound>();
+        //Subspace_t global_subspace(min, max);
+
+        auto [obstacles, width, height] = mpl::demo::readAndFilterPng(filters, app_options.env());
+        JI_LOG(INFO) << "width " << width << " height " << height;
+        return Scenario(width, height, min, max, obstacles);
     }
 
     template <class Scalar>
@@ -373,7 +449,7 @@ namespace mpl::demo {
 
         Vertex curr_start, curr_goal;
         if (app_options.goals_.size() == 0) {
-            randomizeMultiAgentGoals(scenario, app_options);
+            randomizeMultiAgentGoals(scenario, app_options, 5, 0);
         }
         for (auto& [start, goal] : app_options.getStartsAndGoals<State>()) {
             auto start_time = std::chrono::high_resolution_clock::now();
@@ -427,6 +503,49 @@ namespace mpl::demo {
             }
             current_time_limit -= evaluate_every_millis;
         }
+    }
+
+    template <class Graph>
+    void dubinsRecomputeGraph(Graph& graph, double velocity) {
+        ReedsSheppStateSpace reedsSheppStateSpace(velocity);
+        for (auto& [u_id, v_ids] : graph.getAdjacencyList()) {
+          for (auto& v_id : v_ids) {
+            auto e = graph.getEdge(u_id, v_id);
+            auto& u_v = graph.getVertex(u_id).state();
+            auto& v_v = graph.getVertex(v_id).state();
+            double u[3] = {u_v[0], u_v[1], u_v[2]};
+            double v[3] = {v_v[0], v_v[1], v_v[2]};
+            //JI_LOG(INFO) << "Old distance " << e.distance();
+            e.distance_ = reedsSheppStateSpace.reedsShepp(u, v).length();
+            //JI_LOG(INFO) << "New distance " << e.distance();
+          }
+        }
+    }
+
+    template <class Coordinator, class Scalar>
+    void dubinsPngPostProcessing(Coordinator& coord, AppOptions& app_options) {
+        using Scenario = DubinsPNG2dScenario<Scalar>;
+        using State = typename Scenario::State;
+        using Vertex = typename Coordinator::Vertex;
+        using Edge = typename Coordinator::Edge;
+        using Graph = typename mpl::UndirectedGraph<Vertex, Edge>;
+        using TimedGraph = typename Coordinator::TimedGraph;
+
+        Scenario scenario = initDubinsPngScenario<Scalar>(app_options);
+
+        int evaluate_every_millis = 10000;
+        //long int current_time_limit = app_options.timeLimit() * 1000;
+        long int start_time = app_options.timeLimit() * 1000;
+        long int current_time_limit = start_time;
+        JI_LOG(INFO) << "Current time limit: " << current_time_limit;
+        Graph graph;
+        auto velocity = DubinsPNG2dScenario<Scalar>::agentVelocity;
+        getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit);
+        auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
+        dubinsRecomputeGraph(graph, velocity);
+        auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals);
+        //saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
+        visualizeDubinsPath<Coordinator, State>(coord, app_options, paths, graph);
     }
 
     template <class Coordinator, class Scalar>
@@ -509,7 +628,7 @@ namespace mpl::demo {
         //auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
         if (app_options.goals_.size() == 0) {
             auto goal_scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
-            randomizeMultiAgentGoals(goal_scenario, app_options, 10, 1);
+            randomizeMultiAgentGoals(goal_scenario, app_options, 2, 1);
         }
 
         auto paths = sequentialMultiAgentPlanning<Graph, Scenario, Vertex, Edge, MultiAgentScenario>(graph, scenario, app_options, coord.getGlobalNumUniformSamples(current_time_limit));

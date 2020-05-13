@@ -22,7 +22,8 @@ namespace mpl {
 
 
         using Concurrency = unc::robotics::nigh::Concurrent;
-        using NNStrategy = unc::robotics::nigh::auto_strategy_t<Space, Concurrency>;
+        //using NNStrategy = unc::robotics::nigh::auto_strategy_t<Space, Concurrency>;
+        using NNStrategy = unc::robotics::nigh::GNAT<>;
 
     public:
         using Vertex_t = Vertex<State>;
@@ -68,6 +69,7 @@ namespace mpl {
         }
 
         void updatePrmRadius(std::uint64_t num_samples) {
+            //return; // TODO: AAH BREAKING
             auto dimension = scenario.dimension();
             if (num_samples == 0) return;
             auto new_radius = scenario.prmRadius() * pow(log( num_samples) / (1.0 * num_samples), 1.0 / dimension);
@@ -185,7 +187,7 @@ namespace mpl {
                 // Other ones must be valid and in the graph by definition
                 Edge_t e{dist, v.id_, other.id_};
                 if (connectEdgeFn(e) && scenario.isValid(v.state(), other.state())) {
-                    JI_LOG(INFO) << "Edge " << other.state() << "-" << v.state() << " edgeid " << other.id_ << "-" << v.id_ << " distance " << e.distance();
+                    //JI_LOG(INFO) << "Edge " << other.state() << "-" << v.state() << " edgeid " << other.id_ << "-" << v.id_ << " distance " << e.distance();
                     new_edges.push_back(std::move(e));
                 }
             }
