@@ -185,7 +185,7 @@ namespace mpl {
                 // Other ones must be valid and in the graph by definition
                 Edge_t e{dist, v.id_, other.id_};
                 if (connectEdgeFn(e) && scenario.isValid(v.state(), other.state())) {
-                    JI_LOG(INFO) << "Edge " << other.state() << "-" << v.state() << " edgeid " << other.id_ << "-" << v.id_ << " distance " << e.distance();
+                    //JI_LOG(INFO) << "Edge " << other.state() << "-" << v.state() << " edgeid " << other.id_ << "-" << v.id_ << " distance " << e.distance();
                     new_edges.push_back(std::move(e));
                 }
             }

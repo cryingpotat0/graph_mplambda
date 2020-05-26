@@ -50,6 +50,12 @@ namespace mpl::demo {
                 bool done_ = false;
                 double time_limit = 100.0; // Set safety maximum limit so we don't get charged on AWS
 
+
+                // Below vars for metrics
+                int total_vertices_sent_{0};
+                int total_samples_taken_{0};
+                int total_vertices_recvd_{0};
+
                 LocalLambdaFixedGraph();
 
                 //static void trackValidSamples(Vertex_t& validSample, void* lambda) {
@@ -177,12 +183,17 @@ namespace mpl::demo {
                     planner.plan(samples_per_run);
                     auto stop = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                    total_samples_taken_ += samples_per_run;
+
 
                     // Even if we have no vertices to send, tell the coordinator we are done sampling
                     auto new_vertices = planner.getNewVertices();
                     JI_LOG(INFO) << "Sending " << new_vertices.size() << " new vertices";
+                    total_vertices_sent_ += new_vertices.size();
+
                     comm.template sendVertices<Vertex_t, State>(std::move(new_vertices), 0, 0); // destination=0 means send to coordinator
                     planner.clearVertices();
+
 
                     JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to sample " << samples_per_run << " points is " << duration;
                     auto new_edges = planner.getNewEdges();
@@ -210,7 +221,7 @@ namespace mpl::demo {
 
                     for (auto &[lambdaId, vertices] : samples_to_send) {
                         if (vertices.size() > 0) {
-                            JI_LOG(INFO) << "Sending " << vertices.size() << " to lambda " << lambdaId;
+                            //JI_LOG(INFO) << "Sending " << vertices.size() << " to lambda " << lambdaId;
                             comm.template sendVertices<Vertex_t, State>(std::move(vertices), 1, lambdaId); // destination=1 means send to other lambda
                             vertices.clear();
                         }
@@ -220,11 +231,17 @@ namespace mpl::demo {
                             [&] (auto &&pkt) {
                             using T = std::decay_t<decltype(pkt)>;
                             if constexpr (packet::is_vertices<T>::value) {
+                            total_vertices_recvd_ += pkt.vertices().size();
+                            //JI_LOG(INFO) << "Receiving " << pkt.vertices().size() << " vertices";
                             handleIncomingVertices(std::move(pkt.vertices()));
                             } else if constexpr (packet::is_num_samples<T>::value) {
                             handleGlobalNumSamplesUpdate(pkt.num_samples());
                             }
                             });
+
+                    JI_LOG(INFO) << "Total vertices sent " << total_vertices_sent_;
+                    JI_LOG(INFO) << "Total vertices recvd " << total_vertices_recvd_;
+                    JI_LOG(INFO) << "Total samples taken " << total_samples_taken_;
 
                 }
 
@@ -389,6 +406,8 @@ namespace mpl::demo {
                     auto new_edges = planner.getNewEdges();
                     num_edges_connected_ += new_edges.size();
                     JI_LOG(INFO) << "Total num edges connected " << num_edges_connected_;
+                    JI_LOG(INFO) << "Total samples generated " << total_samples_;
+                    JI_LOG(INFO) << "Total valid samples generated " << total_valid_samples_;
                     auto edgeSize = packet::Edges<Edge_t, Distance>::edgeSize_;
                     auto edgeHeaderSize = packet::Edges<Edge_t, Distance>::edgeHeaderSize_;
                     auto maxPacketSize = mpl::packet::MAX_PACKET_SIZE;

@@ -14,6 +14,14 @@ MAX_GLOBAL_SAMPLES = re.compile(".*Final global_num_samples (.*)")
 LOOP_ACTUAL_RUNTIME = re.compile(".*Loop finished in (.*) s")
 CURRENT_TIME = re.compile(".*Current time limit: (.*)")
 
+LAMBDA_TOTAL_NUM_EDGES = re.compile(".*Total num edges connected (.*)")
+LAMBDA_TOTAL_SAMPLES_GENERATED = re.compile(".*Total samples generated (.*)")
+LAMBDA_TOTAL_VALID_SAMPLES_GENERATED = re.compile(".*Total valid samples generated (.*)")
+
+LAMBDA_TOTAL_VERTICES_SENT = re.compile(".*Total vertices sent (.*)")
+LAMBDA_TOTAL_VERTICES_RECVD = re.compile(".*Total vertices recvd (.*)")
+LAMBDA_TOTAL_SAMPLES_TAKEN = re.compile(".*Total samples taken (.*)")
+
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument("--root", required=True)
 args = parser.parse_args()
@@ -298,13 +306,98 @@ def graph_size_processing_new():
     df = pd.DataFrame(all_data)
     df.to_csv('{}/graph_size_data.csv'.format(args.root))
 
+def common_seed_work_distribution():
+    all_data = {
+            "total_num_samples": [],
+            "total_num_valid_samples": [],
+            "total_num_edges": [],
+            "num_lambdas": [],
+            "algorithm": []
+            }
+    for fil in glob.glob(args.root + "/*/lambda-*.out"):
+        split_fil = fil.split("/")
+        label = split_fil[-2]
+        algorithm = split_fil[-3]
+        num_lambdas = int(label.split("=")[1])
+        #curr_vertices, curr_edges, curr_global_samples = None, None, None
+        with open(fil, 'r') as f:
+            for line in f.readlines():
+            
+                ret = LAMBDA_TOTAL_NUM_EDGES.match(line)
+                if ret is not None:
+                    num_edges = int(ret.group(1))
+                    continue
+
+                ret = LAMBDA_TOTAL_SAMPLES_GENERATED.match(line)
+                if ret is not None:
+                    num_samples = int(ret.group(1))
+                    continue
+
+                ret = LAMBDA_TOTAL_VALID_SAMPLES_GENERATED.match(line)
+                if ret is not None:
+                    num_valid_samples = int(ret.group(1))
+                    continue
+        all_data["num_lambdas"].append(num_lambdas)
+        all_data["algorithm"].append(algorithm)
+        all_data["total_num_edges"].append(num_edges)
+        all_data["total_num_samples"].append(num_samples)
+        all_data["total_num_valid_samples"].append(num_valid_samples)
+
+    df = pd.DataFrame(all_data)
+    df.to_csv('{}/work_distribution_out.csv'.format(args.root))
+
+
+def fixed_graph_work_distribution():
+    all_data = {
+            "total_num_samples": [],
+            "num_vertices_sent": [],
+            "num_vertices_recvd": [],
+            "num_lambdas": [],
+            "algorithm": []
+            }
+    for fil in glob.glob(args.root + "/*/lambda-*.out"):
+        split_fil = fil.split("/")
+        label = split_fil[-2]
+        algorithm = split_fil[-3]
+        num_lambdas = int(label.split("=")[1])
+        curr_vertices, curr_edges, curr_global_samples = None, None, None
+        with open(fil, 'r') as f:
+            for line in f.readlines():
+            
+                ret = LAMBDA_TOTAL_VERTICES_SENT.match(line)
+                if ret is not None:
+                    num_vertices_sent = int(ret.group(1))
+                    continue
+
+                ret = LAMBDA_TOTAL_SAMPLES_TAKEN.match(line)
+                if ret is not None:
+                    num_samples = int(ret.group(1))
+                    continue
+
+                ret = LAMBDA_TOTAL_VERTICES_RECVD.match(line)
+                if ret is not None:
+                    num_vertices_recvd = int(ret.group(1))
+                    continue
+
+        all_data["num_lambdas"].append(num_lambdas)
+        all_data["algorithm"].append(algorithm)
+        all_data["total_num_samples"].append(num_samples)
+        all_data["num_vertices_recvd"].append(num_vertices_recvd)
+        all_data["num_vertices_sent"].append(num_vertices_sent)
+
+    df = pd.DataFrame(all_data)
+    df.to_csv('{}/work_distribution_out.csv'.format(args.root))
+
 if __name__=="__main__":
     #image_processing_2d()
     #graph_size_processing()
     #path_length_processing()
     # above are old style functions, new ones below
     #truncate_all_files()
-    graph_size_processing_new()
-    path_length_processing_new()
+    #graph_size_processing_new()
+    #path_length_processing_new()
+
+    #common_seed_work_distribution()
+    fixed_graph_work_distribution()
     #exit(0)
 
