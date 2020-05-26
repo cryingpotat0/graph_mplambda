@@ -124,7 +124,7 @@ namespace mpl::demo {
                         path_with_velocity.emplace_back(std::make_pair(std::make_pair(u[0], u[1]), velocity));
                         if (i < path.size() - 1) {
                             auto v = graph.getVertex(path[i+1]).state();
-                            //shape::addSolutionEdge(file, u[0], u[1], v[0], v[1]);
+                            shape::addSolutionEdge(file, u[0], u[1], v[0], v[1]);
                         }
                     }
                     shape::addAnimatedStateWithVelocity(file, agentRadius, path_with_velocity);
@@ -611,6 +611,7 @@ namespace mpl::demo {
         using MultiAgentScenario = MultiAgentPNG2DScenario<Scalar, NUM_AGENTS>;
         using MultiAgentState = typename MultiAgentScenario::State;
         using Vertex = typename Coordinator::Vertex;
+        using VertexID = typename Vertex::ID;
         using Edge = typename Coordinator::Edge;
         using Graph = typename mpl::UndirectedGraph<Vertex, Edge>;
         using TimedGraph = typename Coordinator::TimedGraph;
@@ -622,19 +623,67 @@ namespace mpl::demo {
         long int start_time = app_options.timeLimit() * 1000;
         long int current_time_limit = start_time;
         JI_LOG(INFO) << "Current time limit: " << current_time_limit;
-        Graph graph;
-        getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit);
         //savePngImages<Coordinator, State>(coord, app_options, graph);
         //auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
         if (app_options.goals_.size() == 0) {
             auto goal_scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
-            randomizeMultiAgentGoals(goal_scenario, app_options, 2, 1);
+            randomizeMultiAgentGoals(goal_scenario, app_options, 10, 1);
         }
 
-        auto paths = sequentialMultiAgentPlanning<Graph, Scenario, Vertex, Edge, MultiAgentScenario>(graph, scenario, app_options, coord.getGlobalNumUniformSamples(current_time_limit));
-        visualizeSequentialMultiAgentPaths<State>(app_options, paths, graph);
-        //saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
+        std::vector<int> agentSequence;
+        for (int i=0; i < NUM_AGENTS; ++i) {
+            agentSequence.push_back(i);
+        }
+        int num_permutations = 1;
 
+        std::vector<std::pair<
+                std::pair<MultiAgentState, MultiAgentState>,
+                std::vector<std::tuple<bool, std::vector<VertexID>, std::vector<Scalar>>> // For each agent: (found, path, velocity_along_edge). Velocity is from start vertex.
+        >> bestPaths; // ((start, goal) -> (found, path, velocities))
+        std::vector<double> best_cost; // = std::numeric_limits<double>::max();
+        std::vector<int> best_num_found;
+        for (auto& [start, goal] : app_options.getStartsAndGoals<MultiAgentState>()) {
+          best_cost.push_back(std::numeric_limits<double>::max());
+          best_num_found.push_back(0);
+        }
+        for (int permutation=0; permutation < num_permutations; ++permutation) {
+          Graph graph;
+          getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit);
+          auto paths = sequentialMultiAgentPlanning<Graph, Scenario, Vertex, Edge, MultiAgentScenario>(graph, scenario, app_options, coord.getGlobalNumUniformSamples(current_time_limit), agentSequence);
+          int index = 0;
+          for (auto& [locs, info] : paths) {
+            int curr_num_found = 0;
+            double cost = 0;
+            for (auto& [found, path, velocities] : info) {
+                if (found) {
+                    curr_num_found += 1;
+                    for (int i=0; i < path.size() - 1; ++i) {
+                        auto edge = graph.getEdge(path[i], path[i+1]);
+                        cost += edge.distance();
+                    }
+                } 
+            }
+            JI_LOG(INFO) << "start/goal index " << index << "agentSequence is " << agentSequence << " num paths found " << curr_num_found << " total cost " << cost;
+            if (curr_num_found > best_num_found[index]) {
+              best_num_found[index] = curr_num_found;
+              best_cost[index] = cost;
+              JI_LOG(INFO) << "Updated with more paths found";
+              bestPaths = paths;
+            } else if (curr_num_found == best_num_found[index] && cost < best_cost[index]) {
+              best_cost[index] = cost;
+              bestPaths = paths;
+              JI_LOG(INFO) << "Updated with better cost";
+            }
+            index++;
+          }
+          std::random_shuffle(agentSequence.begin(), agentSequence.end());
+          visualizeSequentialMultiAgentPaths<State>(app_options, bestPaths, graph);
+        }
+
+        for (int i=0; i < best_cost.size(); ++i) {
+            JI_LOG(INFO) << "Index " << i << " best cost " << best_cost[i] << " num paths found " << best_num_found[i];
+        }
+          //saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
     }
 }
 

@@ -431,8 +431,8 @@ namespace mpl::demo {
     
 
     template <class Graph, class Scenario, class Vertex, class Edge, class MultiAgentScenario>
-    decltype(auto) sequentialMultiAgentPlanning(Graph& graph, Scenario& scenario, AppOptions& app_options, std::uint64_t global_num_uniform_samples) {
-        std::vector<int> agentSequence = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    decltype(auto) sequentialMultiAgentPlanning(Graph& graph, Scenario& scenario, AppOptions& app_options, std::uint64_t global_num_uniform_samples, std::vector<int> agentSequence) {
+        //std::vector<int> agentSequence = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 
         using State = typename Scenario::State;
         using VertexID = typename Vertex::ID;
@@ -456,6 +456,7 @@ namespace mpl::demo {
         int index=0;
         for (auto& [start, goal] : app_options.getStartsAndGoals<MultiAgentState>()) {
             
+            auto total_start_time = std::chrono::high_resolution_clock::now();
             auto& [identifier, paths] = pathsFromStartToGoals[index++];
             identifier.first = start;
             identifier.second = goal;
@@ -486,9 +487,9 @@ namespace mpl::demo {
                 planner.clearVertices(); planner.clearEdges();
 
                 auto end_time = std::chrono::high_resolution_clock::now();
-                JI_LOG(INFO) << "Time to add start " << agentStartVertex.id() << ": " << agentStart
-                    << "; goal " << agentGoalVertex.id() << ": " << agentGoal
-                    << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+                //JI_LOG(INFO) << "Time to add start " << agentStartVertex.id() << ": " << agentStart
+                //    << "; goal " << agentGoalVertex.id() << ": " << agentGoal
+                //    << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
                 timeSetOfEdges.push_back({-std::numeric_limits<Scalar>::infinity(), 0.0, Edge{0, agentStartVertex.id(), agentStartVertex.id()}});
                 agentStartAndGoalVertices[agentIndex] = std::make_pair(agentStartVertex, agentGoalVertex);
@@ -668,7 +669,7 @@ namespace mpl::demo {
                 }
                 if (prev.find(agentGoalVertex.id()) == prev.end()) {
                     paths[agentIndex] = std::make_tuple(false, current_fringe, std::vector<Scalar>());
-                    JI_LOG(INFO) << "No Path found for agent " <<  agentIndex << " with distance inf";
+                    //JI_LOG(INFO) << "No Path found for agent " <<  agentIndex << " with distance inf";
                 } else {
                     auto curr = agentGoalVertex.id();
                     std::vector<VertexID> path;
@@ -695,13 +696,15 @@ namespace mpl::demo {
                     }
                     timeSetOfEdges.push_back({agentCurrentTime, std::numeric_limits<Scalar>::infinity(), Edge{0, agentGoalVertex.id(), agentGoalVertex.id()}});
                     paths[agentIndex] = std::make_tuple(true, path, velocities);
-                    JI_LOG(INFO) << "Path found for agent " <<  agentIndex << " with distance " << pathDistance;
+                    //JI_LOG(INFO) << "Path found for agent " <<  agentIndex << " with distance " << pathDistance;
 
                 }
                 auto end_time = std::chrono::high_resolution_clock::now();
-                JI_LOG(INFO) << "Time to do Djikstras for agent " << agentIndex 
-                    << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+                //JI_LOG(INFO) << "Time to do Djikstras for agent " << agentIndex 
+                //    << " is " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
             }
+            auto total_end_time = std::chrono::high_resolution_clock::now();
+            JI_LOG(INFO) << "Time to compute paths is " << std::chrono::duration_cast<std::chrono::milliseconds>(total_end_time - total_start_time);
         }
         return pathsFromStartToGoals;
     }
