@@ -51,7 +51,7 @@ namespace mpl {
 
     public:
 
-        explicit PRMPlanner(Scenario scenario_, std::uint16_t id_prefix)
+        explicit PRMPlanner(Scenario& scenario_, std::uint16_t id_prefix)
                 : scenario(scenario_),
                   rPRM(scenario_.prmRadius()),
                   id_prefix_(id_prefix),

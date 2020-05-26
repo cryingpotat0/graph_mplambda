@@ -2,6 +2,7 @@
 #include <demo/mpl_robot.hpp>
 #include <demo/multi_agent_png_2d_scenario.hpp>
 #include <jilog.hpp>
+#include <demo/se3_rigid_body_scenario.hpp>
 using namespace mpl::demo;
 /*
 #include <Eigen/Dense>
@@ -55,6 +56,8 @@ void findFetchGoalsWithConds(AppOptions& app_options) {
         num_goals++;
     }
 }
+
+
 
 void graphSaveAndLoadTest() {
     using Scalar = double;
@@ -143,14 +146,43 @@ void multi_agent_time_intersection_test() {
     //Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
 }
 
+void findSE3GoalsWithConds(AppOptions& app_options) {
+    using Scalar = double;
+    using Scenario = SE3RigidBodyScenario<Scalar>;
+    using State = typename Scenario::State;
+    using RNG = std::mt19937_64;
+    Scenario scenario = initSE3Scenario<Scalar>(app_options);
+
+    auto start = app_options.start<State>();
+    JI_LOG(INFO) << "Start " << start;
+    int num_goals = 0;
+    RNG rng(time(NULL));
+    while (num_goals < 20) {
+        auto rand = scenario.randomSample(rng);
+        if (!scenario.isValid(rand)) continue;
+        if (scenario.isValid(start, rand)) continue; // Don't want straight line paths
+        //Robot curr(rand);
+        //auto ee_frame_goal = curr.getEndEffectorFrame();
+        //Eigen::Matrix<Scalar, 3, 1> ee_pos_goal;
+        //ee_pos_goal << ee_frame_goal(0, 3), ee_frame_goal(1, 3), ee_frame_goal(2,3);
+        //if (ee_pos_goal[0] < 0.3) continue; // x coordinate is front of the robot
+        ////JI_LOG(INFO) << "Goal EE: " << ee_pos_goal;
+        ////JI_LOG(INFO) << (ee_pos_goal - ee_pos).norm();
+        //if ((ee_pos_goal - ee_pos).norm() < 1.0) continue;
+        JI_LOG(INFO) << rand;
+        num_goals++;
+    }
+}
+
 int main(int argc, char* argv[]) {
-    //mpl::demo::AppOptions app_options(argc, argv);
+    mpl::demo::AppOptions app_options(argc, argv);
     //isApproxTest();
     //findFetchGoalsWithConds(app_options);
     //graphSaveAndLoadTest();
     //multi_agent_png_test(app_options);
     //interval_tree_test();
-    multi_agent_time_intersection_test();
+    //multi_agent_time_intersection_test();
+    findSE3GoalsWithConds(app_options);
     return 0;
 }
 
