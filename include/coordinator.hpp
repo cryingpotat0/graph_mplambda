@@ -287,7 +287,7 @@ namespace mpl {
                     if ((*curr_min_samples) > global_min_samples) {
                         global_min_samples = *curr_min_samples;
                         global_num_uniform_samples_ = global_min_samples * app_options.jobs();
-                        JI_LOG(INFO) << "Updating global_num_samples to " << global_num_uniform_samples_;
+                        //JI_LOG(INFO) << "Updating global_num_samples to " << global_num_uniform_samples_;
                         auto stop = std::chrono::high_resolution_clock::now();
                         std::uint64_t curr_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time).count();
                         timed_global_num_uniform_samples_.push_back(std::make_pair(curr_time, global_num_uniform_samples_));
@@ -295,10 +295,10 @@ namespace mpl {
                             c.write(packet::NumSamples(global_num_uniform_samples_));
                         }
                     } else {
-                        JI_LOG(INFO) << "Not updating global_num_samples " << global_min_samples << " from curr_min " << *curr_min_samples;
+                        //JI_LOG(INFO) << "Not updating global_num_samples " << global_min_samples << " from curr_min " << *curr_min_samples;
 
                     }
-                    JI_LOG(INFO) << num_samples_per_lambda_;
+                    //JI_LOG(INFO) << num_samples_per_lambda_;
                 }
 
 
@@ -594,10 +594,10 @@ namespace mpl {
                 void writePacketToLambda(int sourceLambdaId, int destinationLambdaId, Packet&& pkt) {
                     auto other_connection = getConnection(destinationLambdaId);
                     if (other_connection != nullptr) {
-			JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << sourceLambdaId;
+			//JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << sourceLambdaId;
                         other_connection->write(std::move(pkt));
                     } else {
-		    	JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << sourceLambdaId;
+		    	//JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to lambda " << destinationLambdaId << " from " << sourceLambdaId;
                         buffered_data_[destinationLambdaId].push_back(std::move(pkt));
                     }
                 }
@@ -844,15 +844,15 @@ namespace mpl {
                     if ((*curr_min_samples) > global_min_samples) {
                         global_min_samples = *curr_min_samples;
                         global_num_uniform_samples_ = global_min_samples;
-                        JI_LOG(INFO) << "Updating global_num_samples to " << global_num_uniform_samples_;
+                        //JI_LOG(INFO) << "Updating global_num_samples to " << global_num_uniform_samples_;
                         auto stop = std::chrono::high_resolution_clock::now();
                         std::uint64_t curr_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time).count();
                         timed_global_num_uniform_samples_.push_back(std::make_pair(curr_time, global_num_uniform_samples_));
                     } else {
-                        JI_LOG(INFO) << "Not updating global_num_samples " << global_min_samples << " from curr_min " << *curr_min_samples;
+                        //JI_LOG(INFO) << "Not updating global_num_samples " << global_min_samples << " from curr_min " << *curr_min_samples;
 
                     }
-                    JI_LOG(INFO) << num_samples_per_lambda_;
+                    //JI_LOG(INFO) << num_samples_per_lambda_;
                 }
 
 
@@ -1087,7 +1087,7 @@ namespace mpl {
                 }
 
                 void init_lambdas() {
-                    //app_options.randomSeed_ = time(NULL); // Random seed initialization
+                    app_options.randomSeed_ = time(NULL); // Random seed initialization
                     if (app_options.lambdaType() == LambdaType::LAMBDA_PSEUDO) {
                         init_local_lambdas();
                     } else if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {

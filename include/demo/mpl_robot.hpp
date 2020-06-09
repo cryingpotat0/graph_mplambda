@@ -447,6 +447,7 @@ namespace mpl::demo {
             auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
             auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals);
             current_time_limit -= evaluate_every_millis;
+	    break; // TODO: will only evaluate at final
         }
         //auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord, graph);
         //auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);

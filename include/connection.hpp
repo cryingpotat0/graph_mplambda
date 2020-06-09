@@ -105,7 +105,7 @@ namespace mpl {
         void process(packet::Vertices<Vertex, State>&& pkt) {
             //JI_LOG(INFO) << "got VERTICES";
                 if (pkt.destination() == 0) {
-		    JI_LOG(INFO) << "Received " << pkt.vertices().size() << " vertices from lambda " << lambdaId_;
+		    //JI_LOG(INFO) << "Received " << pkt.vertices().size() << " vertices from lambda " << lambdaId_;
                     coordinator_.update_num_samples(lambdaId_, pkt.vertices().size());
                     coordinator_.addVertices(std::move(pkt.vertices()));
                 } else {
@@ -124,7 +124,7 @@ namespace mpl {
 
         template <class Edge, class Distance>
         void process(packet::Edges<Edge, Distance>&& pkt) {
-            JI_LOG(INFO) << "Received " << pkt.edges().size() << " edges from lambda " << lambdaId_;
+            //JI_LOG(INFO) << "Received " << pkt.edges().size() << " edges from lambda " << lambdaId_;
             coordinator_.addEdges(std::move(pkt.edges()));
         }
 
