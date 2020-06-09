@@ -21,6 +21,7 @@
 #include <comm.hpp>
 #include <demo/fetch_scenario.hpp>
 #include <demo/mpl_robot.hpp>
+#include <demo/se3_rigid_body_scenario.hpp>
 
 
 namespace mpl::demo {
@@ -342,7 +343,7 @@ namespace mpl::demo {
                     total_samples_ += samples_per_run;
                     auto stop = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                    JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to generate " << samples_per_run << " random samples is " << duration;
+                    //JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to generate " << samples_per_run << " random samples is " << duration;
                 }
                 
                 void checkValidSamples() {
@@ -364,7 +365,7 @@ namespace mpl::demo {
                     }
                     auto stop = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                    JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to validate " << samples_per_run << " random samples is " << duration;
+                    //JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to validate " << samples_per_run << " random samples is " << duration;
                 }
 
                 void connectSamples() {
@@ -380,7 +381,7 @@ namespace mpl::demo {
                     }
                     auto stop = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                    JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to connect is " << duration;
+                    //JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to connect is " << duration;
                 }
 
                 void do_work() {
@@ -399,20 +400,20 @@ namespace mpl::demo {
                     planner.updatePrmRadius(total_samples_);
                     connectSamples();
 
-                    JI_LOG(INFO) << "Sending " << validSamples_.size() << " new vertices";
+                    //JI_LOG(INFO) << "Sending " << validSamples_.size() << " new vertices";
                     comm.template sendVertices<Vertex_t, State>(std::move(validSamples_), 0, 0); // destination=0 means send to coordinator. TODO: everyone sends vertices to coordinator for now, this is to deal with inconsistent sampling. This can be made more efficient.
                     validSamples_.clear(); randomSamples_.clear();
 
                     auto new_edges = planner.getNewEdges();
                     num_edges_connected_ += new_edges.size();
-                    JI_LOG(INFO) << "Total num edges connected " << num_edges_connected_;
-                    JI_LOG(INFO) << "Total samples generated " << total_samples_;
-                    JI_LOG(INFO) << "Total valid samples generated " << total_valid_samples_;
+                    //JI_LOG(INFO) << "Total num edges connected " << num_edges_connected_;
+                    //JI_LOG(INFO) << "Total samples generated " << total_samples_;
+                    //JI_LOG(INFO) << "Total valid samples generated " << total_valid_samples_;
                     auto edgeSize = packet::Edges<Edge_t, Distance>::edgeSize_;
                     auto edgeHeaderSize = packet::Edges<Edge_t, Distance>::edgeHeaderSize_;
                     auto maxPacketSize = mpl::packet::MAX_PACKET_SIZE;
                     if (new_edges.size() > 0) {
-                        JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
+                        //JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
                         // Logic below is to partition in case of size exceeding the maximum packet size
                         if (edgeSize * new_edges.size() + edgeHeaderSize < maxPacketSize) {
                             comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));
@@ -422,7 +423,7 @@ namespace mpl::demo {
                             for (int i=0; i < new_edges.size(); i+= numEdgesPerPacket) {
                                 auto end_val = std::min( (int) new_edges.size(), i + numEdgesPerPacket);
                                 std::vector<Edge_t> newEdgesPartial(new_edges.begin() + i, new_edges.begin() + end_val);
-                                JI_LOG(INFO) << "Sending " << newEdgesPartial.size() << " partial new edges";
+                                //JI_LOG(INFO) << "Sending " << newEdgesPartial.size() << " partial new edges";
                                 comm.template sendEdges<Edge_t, Distance>(std::move(newEdgesPartial));
                             }
                         }
@@ -450,37 +451,37 @@ namespace mpl::demo {
             using State = typename Scenario::State;
             using Bound = typename Scenario::Bound;
             if (app_options.algorithm() == "prm_fixed_graph") {
-                using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
-                using Subspace_t = typename Lambda::Subspace_t;
+                //using Lambda = typename mpl::demo::LocalLambdaFixedGraph<mpl::Comm, Scenario, Planner, Scalar>;
+                //using Subspace_t = typename Lambda::Subspace_t;
 
 
-                // Construct local and global subspaces
-                auto min = app_options.globalMin<Bound>();
-                auto max = app_options.globalMax<Bound>();
-                Subspace_t global_subspace(min, max);
+                //// Construct local and global subspaces
+                //auto min = app_options.globalMin<Bound>();
+                //auto max = app_options.globalMax<Bound>();
+                //Subspace_t global_subspace(min, max);
 
-                auto eig_num_divisions = app_options.num_divisions<State>();
-                std::vector<int> num_divisions =
-                    std::vector<int>(
-                            eig_num_divisions.data(),
-                            eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
-                            );
+                //auto eig_num_divisions = app_options.num_divisions<State>();
+                //std::vector<int> num_divisions =
+                //    std::vector<int>(
+                //            eig_num_divisions.data(),
+                //            eig_num_divisions.data() + eig_num_divisions.rows() * eig_num_divisions.cols()
+                //            );
 
-                std::vector<std::pair<Subspace_t, int>> subspaceToLambdaId;
-                auto divisions = global_subspace.divide(num_divisions);
-                for (int i=0; i < divisions.size(); ++i) {
-                    subspaceToLambdaId.push_back(std::make_pair(divisions[i], i));
-                }
-                JI_LOG(INFO) << "Total number of lambdas " << subspaceToLambdaId.size();
-                auto local_subspace = divisions[app_options.lambdaId()];
+                //std::vector<std::pair<Subspace_t, int>> subspaceToLambdaId;
+                //auto divisions = global_subspace.divide(num_divisions);
+                //for (int i=0; i < divisions.size(); ++i) {
+                //    subspaceToLambdaId.push_back(std::make_pair(divisions[i], i));
+                //}
+                //JI_LOG(INFO) << "Total number of lambdas " << subspaceToLambdaId.size();
+                //auto local_subspace = divisions[app_options.lambdaId()];
 
-                JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
-                // End subspace construction
+                //JI_LOG(INFO) << "Lambda " << app_options.lambdaId() << " local subspace " << local_subspace;
+                //// End subspace construction
 
-                scenario.setMin(local_subspace.getLower());
-                scenario.setMax(local_subspace.getUpper());
-                Lambda lambda(app_options, scenario, local_subspace, global_subspace, subspaceToLambdaId);
-                runLambda(lambda);
+                //scenario.setMin(local_subspace.getLower());
+                //scenario.setMax(local_subspace.getUpper());
+                //Lambda lambda(app_options, scenario, local_subspace, global_subspace, subspaceToLambdaId);
+                //runLambda(lambda);
             } else if (app_options.algorithm() == "prm_common_seed") {
                 using Lambda = typename mpl::demo::LocalLambdaCommonSeed<mpl::Comm, Scenario, Planner, Scalar>;
                 Lambda lambda(app_options, scenario);
@@ -520,7 +521,12 @@ namespace mpl::demo {
             using Scenario = MultiAgentPNG2DScenario<Scalar, NUM_AGENTS>;
             Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
             runScenario<Scenario, Scalar>(scenario, app_options);
-        } else {
+        } else if (app_options.scenario() == "se3") {
+            using Scenario = SE3RigidBodyScenario<Scalar>;
+            Scenario scenario = initSE3Scenario<Scalar>(app_options);
+            runScenario<Scenario, Scalar>(scenario, app_options);
+        }
+        else {
             throw std::invalid_argument("Invalid scenario");
         }
 

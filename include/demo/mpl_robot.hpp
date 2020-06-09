@@ -10,6 +10,7 @@
 #include <time.h>
 #include <prm_planner.hpp>
 #include <demo/multi_agent_png_2d_scenario.hpp>
+#include <demo/se3_rigid_body_scenario.hpp>
 #include <util.hpp>
 
 #ifndef NUM_AGENTS
@@ -169,6 +170,18 @@ namespace mpl::demo {
         auto max = app_options.globalMax<Bound>();
 
         Scenario scenario(envFrame, app_options.env(), goal, goalRadius, min, max, app_options.checkResolution(0.1));
+        return scenario;
+    }
+
+    template <class Scalar>
+    SE3RigidBodyScenario<Scalar> initSE3Scenario(AppOptions& app_options) {
+        using Scenario = SE3RigidBodyScenario<Scalar>;
+        using Bound = typename Scenario::Bound;
+        using State = typename Scenario::State;
+        State goal = app_options.goal<State>();
+        Bound min = app_options.globalMin<Bound>();
+        Bound max = app_options.globalMax<Bound>();
+        Scenario scenario(app_options.env(), app_options.robot(), goal, min, max, app_options.checkResolution(0.1));
         return scenario;
     }
 
