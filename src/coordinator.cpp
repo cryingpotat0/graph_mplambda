@@ -104,6 +104,19 @@ int main(int argc, char *argv[]) {
             runCoordinator(coord, app_options);
             multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
         }
+    } else if (app_options.scenario() == "se3") {
+        using Scenario = SE3RigidBodyScenario<Scalar>;
+        if (app_options.algorithm() == "prm_fixed_graph") {
+            //using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
+            //Coordinator coord(app_options);
+            //runCoordinator(coord, app_options);
+            //se3PostProcessing<Coordinator, Scalar>(coord, app_options);
+        } else if (app_options.algorithm() == "prm_common_seed") {
+            using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
+            Coordinator coord(app_options);
+            runCoordinator(coord, app_options);
+            se3PostProcessing<Coordinator, Scalar>(coord, app_options);
+        }
     }
     else {
         throw std::invalid_argument("Invalid scenario");

@@ -460,7 +460,31 @@ namespace mpl::demo {
             auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
             auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals);
             current_time_limit -= evaluate_every_millis;
-	    break; // TODO: will only evaluate at final
+            //break; // TODO: will only evaluate at final
+        }
+        //auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord, graph);
+        //auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+    }
+
+    template <class Coordinator, class Scalar>
+    void se3PostProcessing(Coordinator& coord, AppOptions& app_options) {
+        using Scenario = SE3RigidBodyScenario<Scalar>;
+        using State = typename Scenario::State;
+        using Vertex = typename Coordinator::Vertex;
+        using Edge = typename Coordinator::Edge;
+        using Graph = typename mpl::UndirectedGraph<Vertex, Edge>;
+        using TimedGraph = typename Coordinator::TimedGraph;
+        Scenario scenario = initSE3Scenario<Scalar>(app_options);
+        int evaluate_every_millis = 3000;
+        long int current_time_limit = app_options.timeLimit() * 1000;
+        while (current_time_limit > 0) {
+            JI_LOG(INFO) << "Current time limit: " << current_time_limit;
+            Graph graph;
+            getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit); // Time limit specified in seconds
+            auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
+            auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals);
+            current_time_limit -= evaluate_every_millis;
+            //break; // TODO: will only evaluate at final
         }
         //auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord, graph);
         //auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
@@ -474,7 +498,8 @@ namespace mpl::demo {
         auto state = scenario.randomSample(rng);
         for(int i=0; i < num_goals; ++i) {
             while (!scenario.isValid(state)) state = scenario.randomSample(rng);
-            app_options.goals_.push_back(mpl::util::ToString(state.format(mpl::util::FullPrecisionCommaInitFormat)));
+            auto state_format = mpl::util::state_format(state);
+            app_options.goals_.push_back(mpl::util::ToString(state_format)); //mpl::util::FullPrecisionCommaInitFormat)));
             state = scenario.randomSample(rng);
         }
         JI_LOG(INFO) << app_options.goals_;

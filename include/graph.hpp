@@ -16,6 +16,7 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <Eigen/Dense>
 
 
 namespace std {
@@ -134,7 +135,7 @@ namespace mpl {
 
             inline void serialize(std::ofstream &file) {
                 file << "id=" << id_.first << "," << id_.second
-                     << ";state=" << state_.format(mpl::util::FullPrecisionCommaInitFormat) 
+                     << ";state=" << mpl::util::state_format(state_) 
                      << ";timestamp=" << timestamp_millis_
                      << "\n"; 
             }
@@ -150,6 +151,64 @@ namespace mpl {
                 assert(q.size() == vec_split.size());
                 for (int i=0; i < vec_split.size(); ++i) {
                     q[i] = std::stod(vec_split[i]);
+                }
+
+                auto timestamp_millis_val = std::stoull(results[2].substr(10));
+
+                std::string id_portion = results[0].substr(3);
+                ID curr_id = deserializeID(id_portion);
+                return TimedVertex{curr_id, q, timestamp_millis_val};
+            }
+
+            inline static ID deserializeID(std::string &id_str) {
+                std::vector<std::string> id_split;
+                mpl::util::string_split(id_split, id_str, ",");
+                return std::make_pair(std::stoul(id_split[0]), std::stoul(id_split[1]));
+            }
+        };
+
+    // Specialization for SE3
+    template <>
+        struct TimedVertex< std::tuple<Eigen::Quaternion<double, 0>, Eigen::Matrix<double, 3, 1, 0, 3, 1>>>{
+            //using ID = std::string;
+            using ID = std::pair<std::uint16_t, std::uint32_t>; // <lambda_id, vertex_id>
+            using State = std::tuple<Eigen::Quaternion<double, 0>, Eigen::Matrix<double, 3, 1, 0, 3, 1>>;
+            ID id_;
+            State state_;
+            std::uint64_t timestamp_millis_;
+
+            const ID& id() const { return id_; }
+            ID id() { return id_; }
+
+            const State& state() const { return state_; }
+            State state() { return state_; }
+
+            const std::uint64_t& timestamp_millis() const { return timestamp_millis_; }
+            std::uint64_t& timestamp_millis() { return timestamp_millis_; }
+
+            inline void serialize(std::ofstream &file) {
+                file << "id=" << id_.first << "," << id_.second
+                     << ";state=" << mpl::util::state_format(state_) 
+                     << ";timestamp=" << timestamp_millis_
+                     << "\n"; 
+            }
+
+            inline static TimedVertex deserialize(std::string& line) {
+                std::vector<std::string> results;
+                mpl::util::string_split(results, line, ";");
+
+                std::vector<std::string> vec_split;
+                auto vec_portion = results[1].substr(6);
+                mpl::util::string_split(vec_split, vec_portion, ",");
+                State q;
+                auto& [quat, pos] = q;
+                assert(7 == vec_split.size());
+                quat.w() = std::stod(vec_split[0]);
+                quat.x() = std::stod(vec_split[1]);
+                quat.y() = std::stod(vec_split[2]);
+                quat.z() = std::stod(vec_split[3]);
+                for (int i=4; i < 7; ++i) {
+                    pos[i] = std::stod(vec_split[i]);
                 }
 
                 auto timestamp_millis_val = std::stoull(results[2].substr(10));
