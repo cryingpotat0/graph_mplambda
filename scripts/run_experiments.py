@@ -1,6 +1,7 @@
 import os, time, subprocess, argparse, glob
 from functools import reduce
 parser = argparse.ArgumentParser(description='Process some integers.')
+
 parser.add_argument('--num_trials', type=int, required=True)
 parser.add_argument('--num_samples', default="1")
 parser.add_argument('--time_limits', default="1,5,10")
