@@ -1038,6 +1038,8 @@ namespace mpl {
 
                     auto stop = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+                    JI_LOG(INFO) << "Loop finished in " << duration;
+                    JI_LOG(INFO) << "Max vertex id " << max_vertex_id_;
 
                     // Replace graph with correct states
                     TimedGraph corrected_graph;
@@ -1046,9 +1048,12 @@ namespace mpl {
                     auto vertex_properties = graph.getVertices();
                     auto adjacency_list = graph.getAdjacencyList();
                     while (corrected_graph.getVertices().size() < max_vertex_id_) {
+                        //JI_LOG(INFO) << "Sizes " << corrected_graph.getVertices().size() << " " << max_vertex_id_;
                         auto s = planner.generateRandomSample();
+                        if (!scenario_.isValid(s)) continue;
                         auto id = planner.generateVertexID();
                         auto v = TimedVertex{id, s, vertex_properties[id].timestamp_millis()};
+                        auto planner_v = Vertex{id, s}; planner.addExistingVertex(planner_v); // Need this for generateVertexID to work correctly
                         corrected_graph.addVertex(v);
                         auto others = adjacency_list.find(id);
                         if (others == adjacency_list.end()) continue;
@@ -1059,7 +1064,6 @@ namespace mpl {
                     }
                     graph = corrected_graph;
                     
-                    JI_LOG(INFO) << "Loop finished in " << duration;
                     JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
                     JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
                     JI_LOG(INFO) << "Final samples_per_lambda " << num_samples_per_lambda_;
