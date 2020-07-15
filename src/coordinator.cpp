@@ -59,18 +59,19 @@ int main(int argc, char *argv[]) {
     //        using Comm = RabbitMQMessageQueue;
     if (app_options.scenario() == "png" || app_options.scenario() == "sequential_multi_agent_png") {
         using Scenario = mpl::demo::PNG2dScenario<double>;
+        Scenario scenario = initPngScenario<Scalar>(app_options);
         if (app_options.algorithm() == "prm_fixed_graph") {
-            using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
-            Coordinator coord(app_options);
-            runCoordinator(coord, app_options);
-            if (app_options.scenario() == "png") {
-                pngPostProcessing<Coordinator, Scalar>(coord, app_options);
-            } else if (app_options.scenario() == "sequential_multi_agent_png") {
-                sequentialMultiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
-            }
+            //using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
+            //Coordinator coord(app_options, scenario);
+            //runCoordinator(coord, app_options);
+            //if (app_options.scenario() == "png") {
+            //    pngPostProcessing<Coordinator, Scalar>(coord, app_options);
+            //} else if (app_options.scenario() == "sequential_multi_agent_png") {
+            //    sequentialMultiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
+            //}
         } else if (app_options.algorithm() == "prm_common_seed") {
             using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
-            Coordinator coord(app_options);
+            Coordinator coord(app_options, scenario);
             runCoordinator(coord, app_options);
             if (app_options.scenario() == "png") {
                 pngPostProcessing<Coordinator, Scalar>(coord, app_options);
@@ -80,40 +81,43 @@ int main(int argc, char *argv[]) {
         }
     } else if (app_options.scenario() == "fetch") {
         using Scenario = mpl::demo::FetchScenario<double>;
+        Scenario scenario = initFetchScenario<Scalar>(app_options);
         if (app_options.algorithm() == "prm_fixed_graph") {
-            using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
-            Coordinator coord(app_options);
-            runCoordinator(coord, app_options);
-            fetchPostProcessing<Coordinator, Scalar>(coord, app_options);
+            //using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
+            //Coordinator coord(app_options, scenario);
+            //runCoordinator(coord, app_options);
+            //fetchPostProcessing<Coordinator, Scalar>(coord, app_options);
         } else if (app_options.algorithm() == "prm_common_seed") {
             using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
-            Coordinator coord(app_options);
+            Coordinator coord(app_options, scenario);
             runCoordinator(coord, app_options);
             fetchPostProcessing<Coordinator, Scalar>(coord, app_options);
         }
     } else if (app_options.scenario() == "multi_agent_png") {
         using Scenario = mpl::demo::MultiAgentPNG2DScenario<double, NUM_AGENTS>; // Hardcode 2 agents for now
+        Scenario scenario = initMultiAgentPNG2DScenario<Scalar, NUM_AGENTS>(app_options);
         if (app_options.algorithm() == "prm_fixed_graph") {
-            using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
-            Coordinator coord(app_options);
-            runCoordinator(coord, app_options);
-            multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
+            //using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
+            //Coordinator coord(app_options, scenario);
+            //runCoordinator(coord, app_options);
+            //multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
         } else if (app_options.algorithm() == "prm_common_seed") {
             using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
-            Coordinator coord(app_options);
+            Coordinator coord(app_options, scenario);
             runCoordinator(coord, app_options);
             multiAgentPngPostProcessing<Coordinator, Scalar>(coord, app_options);
         }
     } else if (app_options.scenario() == "se3") {
         using Scenario = SE3RigidBodyScenario<Scalar>;
+        Scenario scenario = initSE3Scenario<Scalar>(app_options);
         if (app_options.algorithm() == "prm_fixed_graph") {
             //using Coordinator = mpl::CoordinatorFixedGraph<Scenario, Scalar>;
-            //Coordinator coord(app_options);
+            //Coordinator coord(app_options, scenario);
             //runCoordinator(coord, app_options);
             //se3PostProcessing<Coordinator, Scalar>(coord, app_options);
         } else if (app_options.algorithm() == "prm_common_seed") {
             using Coordinator = mpl::CoordinatorCommonSeed<Scenario, Scalar>;
-            Coordinator coord(app_options);
+            Coordinator coord(app_options, scenario);
             runCoordinator(coord, app_options);
             se3PostProcessing<Coordinator, Scalar>(coord, app_options);
         }

@@ -640,6 +640,8 @@ namespace mpl {
                 std::list<std::pair<int, int>> childProcesses_;
                 std::vector<Connection_t*> lambdaId_to_connection_;
                 TimedGraph graph;
+                Scenario scenario_;
+                long unsigned int max_vertex_id_;
 #if HAS_AWS_SDK
                 static constexpr const char* ALLOCATION_TAG = "mplLambdaAWS";
                 std::shared_ptr<Aws::Lambda::LambdaClient> lambdaClient_;
@@ -672,7 +674,7 @@ namespace mpl {
                             "env", app_options.env(false),
                             "env-frame", app_options.envFrame_,
                             "jobs", std::to_string(app_options.jobs_),
-			    "random_seed", std::to_string(app_options.randomSeed_)
+                            "random_seed", std::to_string(app_options.randomSeed_)
                         };
                         args.push_back("start");
                         std::string starts;
@@ -786,8 +788,8 @@ namespace mpl {
 
                 }
             public:
-                CoordinatorCommonSeed (demo::AppOptions& app_options_) :
-                    app_options(app_options_)
+                CoordinatorCommonSeed (demo::AppOptions& app_options_, Scenario& scenario) :
+                    app_options(app_options_), scenario_(scenario)
             {
 #if HAS_AWS_SDK
                 if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
@@ -818,20 +820,24 @@ namespace mpl {
                 }
 
                 void addVertices(const std::vector<Vertex>& vertices) {
-                    auto stop = std::chrono::high_resolution_clock::now();
-                    std::uint64_t curr_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time).count();
-                    for (auto& v : vertices) {
-                        //JI_LOG(INFO) << "Adding " << v.id() << " at " << curr_time;
-                        graph.addVertex(TimedVertex{v.id(), v.state(), curr_time});
-                    }
+                    //auto stop = std::chrono::high_resolution_clock::now();
+                    //std::uint64_t curr_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time).count();
+                    //for (auto& v : vertices) {
+                    //    //JI_LOG(INFO) << "Adding " << v.id() << " at " << curr_time;
+                    //    graph.addVertex(TimedVertex{v.id(), v.state(), curr_time});
+                    //}
+                    // Vertex adding moved to addEdges method to prevent overhead of sending vertices
                 }
 
                 void addEdges(const std::vector<Edge>& edges) {
                     auto stop = std::chrono::high_resolution_clock::now();
                     std::uint64_t curr_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time).count();
+                    State s;
                     for (auto& e : edges) {
                         //JI_LOG(INFO) << "Adding " << e.u() << "-" << e.v() << " at " << curr_time;
+                        graph.addVertex(TimedVertex{e.u(), s/* proxy state, updated in postprocessing */, curr_time});
                         graph.addEdge(TimedEdge{e.distance(), e.u(), e.v(), curr_time});
+                        if (e.u().second > max_vertex_id_) max_vertex_id_ = e.u().second;
                     }
                 }
 
@@ -1032,6 +1038,27 @@ namespace mpl {
 
                     auto stop = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+
+                    // Replace graph with correct states
+                    TimedGraph corrected_graph;
+                    Planner planner(scenario_, 0);
+                    planner.setSeed(app_options.randomSeed());
+                    auto vertex_properties = graph.getVertices();
+                    auto adjacency_list = graph.getAdjacencyList();
+                    while (corrected_graph.getVertices().size() < max_vertex_id_) {
+                        auto s = planner.generateRandomSample();
+                        auto id = planner.generateVertexID();
+                        auto v = TimedVertex{id, s, vertex_properties[id].timestamp_millis()};
+                        corrected_graph.addVertex(v);
+                        auto others = adjacency_list.find(id);
+                        if (others == adjacency_list.end()) continue;
+                        for (auto& u : others->second) {
+                            auto& curr_edge = graph.getEdge(id, u);
+                            corrected_graph.addEdge(TimedEdge{curr_edge.distance(), curr_edge.u(), curr_edge.v(), curr_edge.timestamp_millis()});
+                        }
+                    }
+                    graph = corrected_graph;
+                    
                     JI_LOG(INFO) << "Loop finished in " << duration;
                     JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
                     JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();

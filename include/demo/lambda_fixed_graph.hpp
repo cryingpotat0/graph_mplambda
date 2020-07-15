@@ -401,7 +401,7 @@ namespace mpl::demo {
                     connectSamples();
 
                     //JI_LOG(INFO) << "Sending " << validSamples_.size() << " new vertices";
-                    comm.template sendVertices<Vertex_t, State>(std::move(validSamples_), 0, 0); // destination=0 means send to coordinator. TODO: everyone sends vertices to coordinator for now, this is to deal with inconsistent sampling. This can be made more efficient.
+                    //comm.template sendVertices<Vertex_t, State>(std::move(validSamples_), 0, 0); // destination=0 means send to coordinator. TODO: everyone sends vertices to coordinator for now, this is to deal with inconsistent sampling. This can be made more efficient.
                     validSamples_.clear(); randomSamples_.clear();
 
                     auto new_edges = planner.getNewEdges();
