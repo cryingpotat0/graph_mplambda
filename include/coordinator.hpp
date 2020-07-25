@@ -114,7 +114,8 @@ namespace mpl {
                             "time-limit", std::to_string(app_options.timeLimit()),
                             "env", app_options.env(false),
                             "env-frame", app_options.envFrame_,
-                            "num_divisions", app_options.num_divisions_
+                            "num_divisions", app_options.num_divisions_,
+                            "graph-size", std::to_string(app_options.graphSize())
                         };
                         args.push_back("start");
                         std::string starts;
@@ -192,6 +193,7 @@ namespace mpl {
                             "--env", app_options.env(false),
                             "--env-frame", app_options.envFrame_,
                             "--num_divisions", app_options.num_divisions_,
+                            "--graph-size", std::to_string(app_options.graphSize())
                         };
                         for (int i=0; i < app_options.starts_.size(); ++i) {
                             args.push_back("--start");
@@ -412,7 +414,7 @@ namespace mpl {
                         int nReady = ::poll(pfds.data(), pfds.size(), 1);
                         auto stop = std::chrono::high_resolution_clock::now();
                         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
-                        if (duration.count() > app_options.timeLimit() * 1000) { // specified time limit in s
+                        if (duration.count() > app_options.timeLimit() * 1000 || connections_.size() == 0) { // specified time limit in s or exit when all lambdas exit, i.e. when the graph size limit has been reached
                             if (!done_) done_ = 1;
                         }
 
@@ -447,6 +449,9 @@ namespace mpl {
                                 //JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " << cit->recvHello();
                                 if (cit->recvDone()) {
                                     lambdaId_to_connection_[cit->lambdaId()] = nullptr;
+                                    stop = std::chrono::high_resolution_clock::now();
+                                    auto duration_to_lambda = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+                                    JI_LOG(INFO) << "Lambda completed " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda.count() << " milliseconds";
                                     cit = connections_.erase(cit);
                                     continue;
                                 }
@@ -641,7 +646,7 @@ namespace mpl {
                 std::vector<Connection_t*> lambdaId_to_connection_;
                 TimedGraph graph;
                 Scenario scenario_;
-                long unsigned int max_vertex_id_;
+                long unsigned int max_vertex_id_{0};
 #if HAS_AWS_SDK
                 static constexpr const char* ALLOCATION_TAG = "mplLambdaAWS";
                 std::shared_ptr<Aws::Lambda::LambdaClient> lambdaClient_;
@@ -674,7 +679,8 @@ namespace mpl {
                             "env", app_options.env(false),
                             "env-frame", app_options.envFrame_,
                             "jobs", std::to_string(app_options.jobs_),
-                            "random_seed", std::to_string(app_options.randomSeed_)
+                            "random_seed", std::to_string(app_options.randomSeed_),
+                            "graph-size", std::to_string(app_options.graphSize())
                         };
                         args.push_back("start");
                         std::string starts;
@@ -745,14 +751,21 @@ namespace mpl {
                             "--lambda_id", lambdaId,
                             "--algorithm", app_options.algorithm(),
                             "--coordinator", app_options.coordinator(),
-                            //"--communicator", app_options.communicator(),
                             "--num_samples", std::to_string(app_options.numSamples()),
-                            "--time-limit", std::to_string(app_options.timeLimit()),
                             "--env", app_options.env(),
                             "--env-frame", app_options.envFrame_,
                             "--jobs", std::to_string(app_options.jobs_),
-                            "--random_seed", std::to_string(app_options.randomSeed_)
+                            "--random_seed", std::to_string(app_options.randomSeed_),
                         };
+
+                        if (app_options.graphSize() != 0) {
+                            args.push_back("--graph-size");
+                            args.push_back(std::to_string(app_options.graphSize()));
+                        } else {
+                            args.push_back("--time-limit");
+                            args.push_back(std::to_string(app_options.timeLimit()));
+                        }
+
                         for (int i=0; i < app_options.starts_.size(); ++i) {
                             args.push_back("--start");
                             args.push_back(app_options.starts_[i]);
@@ -970,7 +983,11 @@ namespace mpl {
                                 //JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " << cit->recvHello();
                                 if (cit->recvDone()) {
                                     lambdaId_to_connection_[cit->lambdaId()] = nullptr;
+                                    stop = std::chrono::high_resolution_clock::now();
+                                    auto duration_to_lambda = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+                                    JI_LOG(INFO) << "Lambda completed " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda.count() << " milliseconds";
                                     cit = connections_.erase(cit);
+                                    if (connections_.size() == 0) done_ = 1;
                                     continue;
                                 }
                                 if (cit->recvHello() &&
@@ -1047,12 +1064,12 @@ namespace mpl {
                     planner.setSeed(app_options.randomSeed());
                     auto vertex_properties = graph.getVertices();
                     auto adjacency_list = graph.getAdjacencyList();
-                    while (corrected_graph.getVertices().size() < max_vertex_id_) {
+                    while (corrected_graph.getVertices().size() <= max_vertex_id_) {
                         //JI_LOG(INFO) << "Sizes " << corrected_graph.getVertices().size() << " " << max_vertex_id_;
                         auto s = planner.generateRandomSample();
                         if (!scenario_.isValid(s)) continue;
                         auto id = planner.generateVertexID();
-                        auto v = TimedVertex{id, s, vertex_properties[id].timestamp_millis()};
+                        auto v = TimedVertex{id, s, 0};
                         auto planner_v = Vertex{id, s}; planner.addExistingVertex(planner_v); // Need this for generateVertexID to work correctly
                         corrected_graph.addVertex(v);
                         auto others = adjacency_list.find(id);
@@ -1118,7 +1135,7 @@ namespace mpl {
                 }
 
                 void init_lambdas() {
-                    app_options.randomSeed_ = time(NULL); // Random seed initialization
+                    app_options.randomSeed_ = 0; // time(NULL); // Random seed initialization
                     if (app_options.lambdaType() == LambdaType::LAMBDA_PSEUDO) {
                         init_local_lambdas();
                     } else if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
@@ -1152,6 +1169,5 @@ namespace mpl {
         };
 
 }
-
 
 #endif //MPL_COORDINATOR_HPP

@@ -294,6 +294,7 @@ namespace mpl::demo {
                 std::chrono::high_resolution_clock::time_point start_time;
                 bool done_ = false;
                 double time_limit = 100.0; // Set safety maximum limit so we don't get charged on AWS
+                int graph_size{std::numeric_limits<int>::infinity()};
 
                 LocalLambdaCommonSeed();
 
@@ -306,7 +307,8 @@ namespace mpl::demo {
                     scenario(scenario_),
                     planner(Planner(scenario_, 0)),
                     samples_per_run(app_options.numSamples()),
-                    num_lambdas(app_options.jobs()) // TODO: make sure jobs is passed through to lambda
+                    num_lambdas(app_options.jobs()), // TODO: make sure jobs is passed through to lambda
+                    graph_size(app_options.graphSize())
                     {
                         comm.setLambdaId(lambda_id);
                         comm.connect(app_options.coordinator());
@@ -387,7 +389,7 @@ namespace mpl::demo {
                 void do_work() {
                     auto start = std::chrono::high_resolution_clock::now();
                     auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time);
-                    if (lambda_running_for.count() > time_limit || comm.isDone()) {
+                    if (lambda_running_for.count() > time_limit || comm.isDone() || total_valid_samples_ >= graph_size) {
                         done_ = true;
                         return;
                     }

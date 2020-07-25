@@ -22,8 +22,12 @@ LAMBDA_TOTAL_VERTICES_SENT = re.compile(".*Total vertices sent (.*)")
 LAMBDA_TOTAL_VERTICES_RECVD = re.compile(".*Total vertices recvd (.*)")
 LAMBDA_TOTAL_SAMPLES_TAKEN = re.compile(".*Total samples taken (.*)")
 
+NEW_LAMBDA_STARTED = re.compile(".*New lambda ([0-9]*) .* duration ([0-9]*) milliseconds")
+LAMBDA_COMPLETED = re.compile(".*Lambda completed ([0-9]*) .* duration ([0-9]*) milliseconds")
+
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument("--root", required=True)
+parser.add_argument("--time_limit_experiments", default=1, type=int)
 args = parser.parse_args()
 
 def get_starts_goals_distances(fil):
@@ -201,7 +205,6 @@ def truncate_all_files():
         truncate_files_to_last(fil)
 
 def path_length_processing_new():
-
     all_data = {
             "start": [],
             "goal": [],
@@ -245,6 +248,66 @@ def path_length_processing_new():
     df = pd.DataFrame(all_data)
     import ipdb; ipdb.set_trace()
     df.to_csv('{}/path_length_data.csv'.format(args.root))
+
+def lambda_start_end_time_processing():
+    all_data = {
+            "num_lambdas": [],
+            "scenario": [],
+            "algorithm": [],
+            "lambda_start_time": [],
+            "lambda_end_time": [],
+            "lambda_duration": []
+            }
+    if args.time_limit_experiments:
+        all_data["time_limit"] = []
+    else:
+        all_data["graph_size"] = []
+    for fil in glob.glob(args.root + "*/*/*/out.txt"):
+        split_fil = fil.split("/")
+        label = split_fil[-2]
+        scenario = split_fil[-3]
+        algorithm = split_fil[-4]
+        _, num_lambdas_str, time_limit_or_graph_size_str, _, num_samples_str = label.split("__")
+        num_lambdas = int(num_lambdas_str.split("=")[1])
+        num_samples = int(num_samples_str.split("=")[1])
+        data_by_lambda = {} # lambda_id -> (start_time, end_time)
+
+        if args.time_limit_experiments:
+            time_limit = float(time_limit_or_graph_size_str.split("=")[1])
+        else:
+            graph_size = int(time_limit_or_graph_size_str.split("=")[1])
+
+        with open(fil, 'r') as f:
+            for line in f.readlines():
+                new_lambda_match = NEW_LAMBDA_STARTED.match(line)
+                if new_lambda_match is not None:
+                    lambda_id = int(new_lambda_match.group(1))
+                    duration = int(new_lambda_match.group(2))
+                    data_by_lambda[lambda_id] = [0, 0]
+                    data_by_lambda[lambda_id][0] = duration
+                    continue
+
+                lambda_completed_match = LAMBDA_COMPLETED.match(line)
+                if lambda_completed_match is not None:
+                    lambda_id = int(lambda_completed_match.group(1))
+                    duration = int(lambda_completed_match.group(2))
+                    data_by_lambda[lambda_id][1] = duration
+                    continue
+        for lambda_id, (start_time, end_time) in data_by_lambda.items():
+            all_data["num_lambdas"].append(num_lambdas)
+            all_data["scenario"].append(scenario)
+            all_data["algorithm"].append(algorithm)
+            all_data["lambda_start_time"].append(start_time)
+            all_data["lambda_end_time"].append(end_time)
+            all_data["lambda_duration"].append(end_time - start_time)
+            if args.time_limit_experiments:
+                all_data["time_limit"].append(time_limit)
+            else:
+                all_data["graph_size"].append(graph_size)
+
+    import ipdb; ipdb.set_trace()
+    df = pd.DataFrame(all_data)
+    df.to_csv('{}/lambda_start_end_times.csv'.format(args.root))
 
 def graph_size_processing_new():
     
@@ -394,10 +457,12 @@ if __name__=="__main__":
     #path_length_processing()
     # above are old style functions, new ones below
     #truncate_all_files()
+
+    lambda_start_end_time_processing()
     #graph_size_processing_new()
     #path_length_processing_new()
 
     #common_seed_work_distribution()
-    fixed_graph_work_distribution()
+    #fixed_graph_work_distribution()
     #exit(0)
 

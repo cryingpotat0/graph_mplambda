@@ -10,6 +10,7 @@
 #include <Eigen/Dense>
 #include <iostream>
 #include <getopt.h>
+#include <jilog.hpp>
 
 namespace mpl::demo {
     template <class T>
@@ -178,6 +179,7 @@ namespace mpl::demo {
 
 
         double timeLimit_{std::numeric_limits<double>::infinity()};
+        std::uint64_t graphSize_{0};
         double checkResolution_{0};
 
         bool singlePrecision_{false};
@@ -242,6 +244,7 @@ namespace mpl::demo {
                     { "num_samples", required_argument, NULL, 'n' },
                     { "problem-id", required_argument, NULL, 'I' },
                     { "time-limit", required_argument, NULL, 't' },
+                    { "graph-size", required_argument, NULL, 'T' },
                     { "check-resolution", required_argument, NULL, 'd' },
                     { "discretization", required_argument, NULL, 'd' }, // less-descriptive alieas
                     { "float", no_argument, NULL, 'f' },
@@ -250,7 +253,7 @@ namespace mpl::demo {
                     { NULL, 0, NULL, 0 }
             };
 
-            for (int ch ; (ch = getopt_long(argc, argv, "S:a:c:C:j:e:E:r:g:G:s:m:M:I:t:d:f:R:Z", longopts, NULL)) != -1 ; ) {
+            for (int ch ; (ch = getopt_long(argc, argv, "S:a:c:C:j:e:E:r:g:G:s:m:M:I:t:T:d:f:R:Z", longopts, NULL)) != -1 ; ) {
                 char *endp;
 
                 switch (ch) {
@@ -324,6 +327,11 @@ namespace mpl::demo {
                         timeLimit_ = std::strtod(optarg, &endp);
                         if (endp == optarg || *endp || timeLimit_ < 0)
                             throw std::invalid_argument("bad value for --time-limit");
+                        break;
+                    case 'T':
+                        graphSize_ = std::strtoull(optarg, &endp, 0);
+                        if (endp == optarg || *endp || graphSize_ < 0)
+                            throw std::invalid_argument("bad value for --graph-size");
                         break;
                     case 'd':
                         checkResolution_ = std::strtod(optarg, &endp);
@@ -506,7 +514,19 @@ namespace mpl::demo {
         }
 
         double timeLimit() const {
+            if (graphSize_ != 0 && timeLimit_ != std::numeric_limits<double>::infinity()) {
+                JI_LOG(INFO) << "Time limit is " << timeLimit_ << " graph size is " << graphSize_;
+                throw std::invalid_argument("--graph-size must be 0 if time-limit is provided");
+            }
             return timeLimit_;
+        }
+
+        int graphSize() const {
+            if (timeLimit_ != std::numeric_limits<double>::infinity()) {
+                JI_LOG(INFO) << "Time limit is " << timeLimit_;
+                throw std::invalid_argument("--time-limit cannot be provided if graph-size is provided");
+            }
+            return graphSize_;
         }
 
         int numSamples() const {

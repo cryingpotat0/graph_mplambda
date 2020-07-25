@@ -89,6 +89,7 @@ include_directories(include ../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIR
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources/png_planning_input.png ${CMAKE_CURRENT_SOURCE_DIR}/resources/house_layout.png 
 		${CMAKE_CURRENT_SOURCE_DIR}/resources/AUTOLAB.dae
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/resources)
+ add_custom_target(run_script_symlink ALL COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_experiments.py ${CMAKE_CURRENT_BINARY_DIR}/run_experiments.py)
 #file(GLOB SE3RSRC
 #     "resources/se3/Twistycool*.dae" "resources/se3/alpha*.dae"
 #     "resources/se3/Apartment*.dae" "resources/se3/cubicles*.dae"
