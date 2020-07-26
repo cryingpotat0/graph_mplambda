@@ -119,8 +119,6 @@ namespace mpl {
         //}
         
         std::pair<std::uint16_t, std::uint32_t> generateVertexID() {
-            //num_samples_ = num_samples_ + 1;
-            //return std::pair<std::uint16_t, std::uint32_t>(id_prefix_, num_samples_);
             return std::make_pair(id_prefix_, num_samples_++);
         }
 
@@ -152,6 +150,7 @@ namespace mpl {
         void addSample(State& s, ConnectVertexFn&& connectVertexFn, ConnectEdgeFn&& connectEdgeFn) {
             // connectVertexFn(vertex) -> bool : should I connect this vertex
             // connectEdgeFn(edge) -> bool : should I connect this edge
+            ++num_samples_;
             if (!scenario.isValid(s)) return;
             auto id = std::make_pair(id_prefix_, num_samples_);
             Vertex_t v{id, s};
@@ -165,7 +164,6 @@ namespace mpl {
             for (auto fn : validSampleCallbacks) {
                 fn(v);
             }
-            ++num_samples_;
         }
 
         void addExistingVertex(Vertex_t& v) {

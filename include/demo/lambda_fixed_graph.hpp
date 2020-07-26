@@ -160,7 +160,7 @@ namespace mpl::demo {
                         //}
                         //handleGlobalNumSamplesUpdate(neighborsToLambdaIdGlobal.size() * samples_per_run); // If we imagine it as a large batching process, this assumption can hold
                         start_time = std::chrono::high_resolution_clock::now();
-                }
+                    }
 
                 inline bool isDone() {
                     return comm.isDone() || done_;
@@ -287,6 +287,7 @@ namespace mpl::demo {
                 std::uint64_t num_lambdas;
                 std::vector<State> randomSamples_;
                 std::vector<Vertex_t> validSamples_;
+                std::queue<std::pair<std::uint64_t, std::uint64_t>> work_queue_;
                 int samples_per_run;
                 Comm comm;
                 Scenario scenario;
@@ -309,20 +310,20 @@ namespace mpl::demo {
                     samples_per_run(app_options.numSamples()),
                     num_lambdas(app_options.jobs()), // TODO: make sure jobs is passed through to lambda
                     graph_size(app_options.graphSize())
-                    {
-                        comm.setLambdaId(lambda_id);
-                        comm.connect(app_options.coordinator());
-                        comm.template process<Edge_t, Distance, Vertex_t, State>();
-                        start_time = std::chrono::high_resolution_clock::now();
+            {
+                comm.setLambdaId(lambda_id);
+                comm.connect(app_options.coordinator());
+                comm.template process<Edge_t, Distance, Vertex_t, State>();
+                start_time = std::chrono::high_resolution_clock::now();
 
-                        JI_LOG(INFO) << "Using seed: " << app_options.randomSeed();
-                        JI_LOG(INFO) << "Num jobs: " << app_options.jobs();
-                        planner.setSeed(app_options.randomSeed());
-                        //for (int i=0; i < 10000000; ++i) {
-                        //    JI_LOG(INFO) << "i " << i << " " << planner.generateRandomSample();
-                        //}
-                        //exit(0);
-                    }
+                JI_LOG(INFO) << "Using seed: " << app_options.randomSeed();
+                JI_LOG(INFO) << "Num jobs: " << app_options.jobs();
+                planner.setSeed(app_options.randomSeed());
+                //for (int i=0; i < 10000000; ++i) {
+                //    JI_LOG(INFO) << "i " << i << " " << planner.generateRandomSample();
+                //}
+                //exit(0);
+            }
 
                 inline bool isDone() {
                     return comm.isDone() || done_;
@@ -347,7 +348,7 @@ namespace mpl::demo {
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
                     //JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to generate " << samples_per_run << " random samples is " << duration;
                 }
-                
+
                 void checkValidSamples() {
                     auto start = std::chrono::high_resolution_clock::now();
                     for (auto& s: randomSamples_) {
@@ -357,8 +358,9 @@ namespace mpl::demo {
                         //    JI_LOG(INFO) << "Obstacle again " << scenario.isValid(s);
                         //    //JI_LOG(INFO) << "Obstacle planner again " << planner.validateSample(s);
                         //}
+
+                        auto v = Vertex_t{planner.generateVertexID(), s};
                         if (scenario.isValid(s)) {
-                            auto v = Vertex_t{planner.generateVertexID(), s};
                             //JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_;
                             validSamples_.push_back(v);
                             planner.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
@@ -386,6 +388,10 @@ namespace mpl::demo {
                     //JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to connect is " << duration;
                 }
 
+                void initializeWork(std::pair<std::uint64_t, std::uint64_t> start_and_end_id) {
+                    auto& [start_id, end_id] = start_and_end_id;
+                }
+
                 void do_work() {
                     auto start = std::chrono::high_resolution_clock::now();
                     auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time);
@@ -397,10 +403,14 @@ namespace mpl::demo {
                     //    done_ = true;
                     //    return;
                     //}
-                    generateRandomSamples();
-                    checkValidSamples();
-                    planner.updatePrmRadius(total_samples_);
-                    connectSamples();
+                    if (work_queue_.size() > 0) {
+                        initializeWork(work_queue_.front());
+                        work_queue_.pop();
+                        generateRandomSamples();
+                        checkValidSamples();
+                        planner.updatePrmRadius(total_samples_);
+                        connectSamples();
+                    }
 
                     //JI_LOG(INFO) << "Sending " << validSamples_.size() << " new vertices";
                     //comm.template sendVertices<Vertex_t, State>(std::move(validSamples_), 0, 0); // destination=0 means send to coordinator. TODO: everyone sends vertices to coordinator for now, this is to deal with inconsistent sampling. This can be made more efficient.
@@ -431,7 +441,16 @@ namespace mpl::demo {
                         }
                         planner.clearEdges();
                     }
-                    comm.template process<Edge_t, Distance, Vertex_t, State>(); // Only sends and no receives for this strategy
+                    comm.template process<Edge_t, Distance, Vertex_t, State>(
+                            [&] (auto &&pkt) {
+                            using T = std::decay_t<decltype(pkt)>;
+                                if constexpr (packet::is_random_seed_work<T>::value) {
+                                    work_queue_.emplace(std::pair(pkt.start_id(),
+                                                pkt.end_id()));
+
+                                } 
+                            }
+                            ); 
                 }
 
                 const Planner& getPlanner() const {
@@ -441,7 +460,7 @@ namespace mpl::demo {
                 const std::uint64_t& lambdaId() const {
                     return lambda_id;
                 }
-	};
+        };
 
 
 
