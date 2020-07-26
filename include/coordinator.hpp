@@ -1101,7 +1101,7 @@ namespace mpl {
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
                         stop - start_time);
                 JI_LOG(INFO) << "Loop finished in " << duration;
-                JI_LOG(INFO) << "Max vertex id " << max_vertex_id_;
+                //JI_LOG(INFO) << "Max vertex id " << max_vertex_id_;
 
                 // Replace graph with correct states
                 TimedGraph corrected_graph;
@@ -1109,7 +1109,7 @@ namespace mpl {
                 planner.setSeed(app_options.randomSeed());
                 auto vertex_properties = graph.getVertices();
                 auto adjacency_list = graph.getAdjacencyList();
-                while (corrected_graph.getVertices().size() <= max_vertex_id_) {
+                while (corrected_graph.getVertices().size() < app_options.graphSize()) {
                     // JI_LOG(INFO) << "Sizes " << corrected_graph.getVertices().size() << " "
                     // << max_vertex_id_;
                     auto s = planner.generateRandomSample();
