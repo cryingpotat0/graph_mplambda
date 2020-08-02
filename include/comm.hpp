@@ -200,9 +200,9 @@ void mpl::Comm::process() {
 template <class Edge, class Distance, class Vertex, class State, class PathFn>
 void mpl::Comm::process(PathFn fn) {
     processImpl<Edge, Distance, Vertex, State>([&] (auto&& pkt) {
-        fn(std::forward<decltype(pkt)>(pkt));
+        /* fn(std::forward<decltype(pkt)>(pkt)); */
         using T = std::decay_t<decltype(pkt)>;
-        if constexpr (packet::is_vertices<T>::value || packet::is_num_samples<T>::value) {
+        if constexpr (packet::is_vertices<T>::value || packet::is_num_samples<T>::value || packet::is_random_seed_work<T>::value) {
             fn(std::forward<decltype(pkt)>(pkt));
 //        } else if constexpr (packet::is_edges<T>::value) {
 //            fn(std::forward<decltype(pkt)>(pkt));

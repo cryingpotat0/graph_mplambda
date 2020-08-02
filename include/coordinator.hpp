@@ -654,6 +654,7 @@ namespace mpl {
                 buffered_data_; // Any data to be written if lambda is not up yet
             demo::AppOptions app_options;
             std::chrono::high_resolution_clock::time_point start_time;
+            std::queue<packet::RandomSeedWork> work_queue_;
 
         private:
             std::vector<std::uint64_t> num_samples_per_lambda_;
@@ -942,7 +943,31 @@ namespace mpl {
                     throw syserr("listen()");
             }
 
-            void divide_work() { JI_LOG(INFO) << "Num lambdas: " << app_options.jobs(); }
+            void divide_work() { 
+                JI_LOG(INFO) << "Num lambdas: " << app_options.jobs(); 
+                if (app_options.graphSize() == 0) return;
+                std::uint64_t start_id{0};
+                while (start_id < app_options.graphSize()) {
+                    std::uint64_t end_id = start_id + app_options.numSamples();
+                    work_queue_.push(packet::RandomSeedWork(start_id, end_id));
+                    start_id = end_id;
+                    /* JI_LOG(INFO) << "end" << start_id << " graph_size" << app_options.graphSize(); */
+                }
+
+                for (int i=0; i < app_options.jobs(); ++i) {
+                    work_queue_.pop(); // the lambdas take care of the initial work
+                }
+
+
+                /* int work_amt = work_queue_.size(); */
+                /* for (int i=0; i < work_amt; ++i) { */
+                /*     auto pkt = work_queue_.front(); */
+                /*     work_queue_.pop(); */
+                /*     JI_LOG(INFO) << "pkt " << pkt.start_id() << " " << pkt.end_id(); */
+                /* } */
+                /* exit(0); */
+
+            }
 
             void loop() {
                 // Do communication stuff
@@ -1215,7 +1240,17 @@ namespace mpl {
             template <class Packet>
                 void writePacketToLambda(int sourceLambdaId, int destinationLambdaId,
                         Packet &&pkt) {
-                    JI_LOG(ERROR) << "Should not send vertices for this algorithm";
+                    /* JI_LOG(ERROR) << "Should not send vertices for this algorithm"; */
+                    auto other_connection = getConnection(destinationLambdaId);
+                    if (other_connection != nullptr) {
+                        // JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to
+                        // lambda " << destinationLambdaId << " from " << sourceLambdaId;
+                        other_connection->write(std::move(pkt));
+                    } else {
+                        // JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to
+                        // lambda " << destinationLambdaId << " from " << sourceLambdaId;
+                        buffered_data_[destinationLambdaId].push_back(std::move(pkt));
+                    }
                 }
 
             const std::vector<Subspace_t> getSubspaces() const {

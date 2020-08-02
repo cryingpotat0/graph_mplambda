@@ -319,10 +319,8 @@ namespace mpl::demo {
                 JI_LOG(INFO) << "Using seed: " << app_options.randomSeed();
                 JI_LOG(INFO) << "Num jobs: " << app_options.jobs();
                 planner.setSeed(app_options.randomSeed());
-                //for (int i=0; i < 10000000; ++i) {
-                //    JI_LOG(INFO) << "i " << i << " " << planner.generateRandomSample();
-                //}
-                //exit(0);
+                work_queue_.push(std::pair(lambda_id * samples_per_run,
+                            (lambda_id + 1) * samples_per_run));
             }
 
                 inline bool isDone() {
@@ -375,27 +373,63 @@ namespace mpl::demo {
                 void connectSamples() {
                     auto start = std::chrono::high_resolution_clock::now();
                     for (auto& v : validSamples_) {
-                        if (v.id().second % num_lambdas == lambda_id) {
+                        /* if (v.id().second % num_lambdas == lambda_id) { */
                             //JI_LOG(INFO) << "Lambda " << lambda_id << " processing vertex " << v.id();
                             planner.connectVertex(v, [] (Edge_t& edge) {
                                     //if (edge.u().second > edge.v().second) JI_LOG(INFO) << "Processing edge " << edge.u() << "-" << edge.v();
                                     return edge.u().second > edge.v().second; // Connect 0-1, 0-2, 0-3, 1-2, 1-3, 2-3... lambda-0 is likely to start befor other lambdas so give it more work, have to validate this logic.
                                     });
-                        }
+                        /* } */
                     }
                     auto stop = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
                     //JI_LOG(INFO) << "Lambda id " << lambda_id << ": time to connect is " << duration;
                 }
 
-                void initializeWork(std::pair<std::uint64_t, std::uint64_t> start_and_end_id) {
+                void processWorkPacket(std::pair<std::uint64_t, std::uint64_t> start_and_end_id) {
                     auto& [start_id, end_id] = start_and_end_id;
+
+                    JI_LOG(INFO) << "Doing work " << start_id << " " << end_id
+                        << " current location " << total_valid_samples_;
+                    // start_id indicates the start_num_of_valid_vertices
+                    // end_id indicated the end_num_of_valid_vertices
+                    while (total_valid_samples_ < start_id) {
+                        JI_LOG(INFO) << "total_valid_samples_ " <<
+                            total_valid_samples_ << " start_id " << start_id;
+                        auto s = planner.generateRandomSample();
+                        ++total_samples_;
+                        auto v = Vertex_t{planner.generateVertexID(), s};
+                        if (scenario.isValid(s)) {
+                            //JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_;
+                            validSamples_.push_back(v);
+                            planner.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
+                            ++total_valid_samples_;
+                        }
+                    }
+
+                    while (total_valid_samples_ < end_id) {
+                        JI_LOG(INFO) << "total_valid_samples_ " <<
+                            total_valid_samples_ << " end_id " << end_id;
+                        ++total_samples_;
+                        auto s = planner.generateRandomSample();
+                        auto v = Vertex_t{planner.generateVertexID(), s};
+                        if (scenario.isValid(s)) {
+                            //JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_;
+                            validSamples_.push_back(v);
+                            planner.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
+                            planner.connectVertex(v);
+                            ++total_valid_samples_;
+                        }
+                    }
+                    JI_LOG(INFO) << "Done work " << start_id << " " << end_id;
                 }
 
                 void do_work() {
                     auto start = std::chrono::high_resolution_clock::now();
                     auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time);
-                    if (lambda_running_for.count() > time_limit || comm.isDone() || total_valid_samples_ >= graph_size) {
+                    if (lambda_running_for.count() > time_limit ||
+                            comm.isDone() || (graph_size > 0 &&
+                                total_valid_samples_ >= graph_size)) {
                         done_ = true;
                         return;
                     }
@@ -404,17 +438,16 @@ namespace mpl::demo {
                     //    return;
                     //}
                     if (work_queue_.size() > 0) {
-                        initializeWork(work_queue_.front());
+                        processWorkPacket(work_queue_.front());
                         work_queue_.pop();
-                        generateRandomSamples();
-                        checkValidSamples();
-                        planner.updatePrmRadius(total_samples_);
-                        connectSamples();
+                        /* planner.updatePrmRadius(total_samples_); */
+                        /* connectSamples(); */
+                        validSamples_.clear(); randomSamples_.clear();
+                        comm.template sendVertices<Vertex_t, State>(std::move(validSamples_), 0, 0); // destination=0 means send to coordinator. TODO: everyone sends vertices to coordinator for now, this is to deal with inconsistent sampling. This can be made more efficient.
+                        JI_LOG(INFO) << "total_valid_samples_ " << total_valid_samples_;
                     }
+                    /* JI_LOG(INFO) << "Completed loop waiting for data"; */
 
-                    //JI_LOG(INFO) << "Sending " << validSamples_.size() << " new vertices";
-                    //comm.template sendVertices<Vertex_t, State>(std::move(validSamples_), 0, 0); // destination=0 means send to coordinator. TODO: everyone sends vertices to coordinator for now, this is to deal with inconsistent sampling. This can be made more efficient.
-                    validSamples_.clear(); randomSamples_.clear();
 
                     auto new_edges = planner.getNewEdges();
                     num_edges_connected_ += new_edges.size();
@@ -425,7 +458,7 @@ namespace mpl::demo {
                     auto edgeHeaderSize = packet::Edges<Edge_t, Distance>::edgeHeaderSize_;
                     auto maxPacketSize = mpl::packet::MAX_PACKET_SIZE;
                     if (new_edges.size() > 0) {
-                        //JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
+                        JI_LOG(INFO) << "Sending " << new_edges.size() << " new edges";
                         // Logic below is to partition in case of size exceeding the maximum packet size
                         if (edgeSize * new_edges.size() + edgeHeaderSize < maxPacketSize) {
                             comm.template sendEdges<Edge_t, Distance>(std::move(new_edges));

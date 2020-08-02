@@ -96,6 +96,18 @@ namespace mpl {
                     // lambda " << lambdaId_;
                     coordinator_.update_num_samples(lambdaId_, pkt.vertices().size());
                     coordinator_.addVertices(std::move(pkt.vertices()));
+                    if (coordinator_.work_queue_.empty()) {
+                        sendDone();
+                        return;
+                    }
+                    auto work_pkt = coordinator_.work_queue_.front();
+                    coordinator_.work_queue_.pop();
+                    
+                    JI_LOG(INFO) << "Sending work pkt " << "(" <<
+                        work_pkt.start_id() << "," << work_pkt.end_id() << 
+                        ") to lambda " << lambdaId_;
+                    /* packet::RandomSeedWork work_pkt(start_id, end_id); */
+                    coordinator_.writePacketToLambda(lambdaId_, lambdaId_, work_pkt);
                 } else {
                     coordinator_.writePacketToLambda(lambdaId_, pkt.destinationLambdaId(),
                             std::move(pkt));
