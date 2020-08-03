@@ -394,8 +394,8 @@ namespace mpl::demo {
                     // start_id indicates the start_num_of_valid_vertices
                     // end_id indicated the end_num_of_valid_vertices
                     while (total_valid_samples_ < start_id) {
-                        JI_LOG(INFO) << "total_valid_samples_ " <<
-                            total_valid_samples_ << " start_id " << start_id;
+                        /* JI_LOG(INFO) << "total_valid_samples_ " << */
+                        /*     total_valid_samples_ << " start_id " << start_id; */
                         auto s = planner.generateRandomSample();
                         ++total_samples_;
                         auto v = Vertex_t{planner.generateVertexID(), s};
@@ -408,8 +408,8 @@ namespace mpl::demo {
                     }
 
                     while (total_valid_samples_ < end_id) {
-                        JI_LOG(INFO) << "total_valid_samples_ " <<
-                            total_valid_samples_ << " end_id " << end_id;
+                        /* JI_LOG(INFO) << "total_valid_samples_ " << */
+                        /*     total_valid_samples_ << " end_id " << end_id; */
                         ++total_samples_;
                         auto s = planner.generateRandomSample();
                         auto v = Vertex_t{planner.generateVertexID(), s};
@@ -417,7 +417,7 @@ namespace mpl::demo {
                             //JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_;
                             validSamples_.push_back(v);
                             planner.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
-                            planner.connectVertex(v);
+                        ,   planner.connectVertex(v);
                             ++total_valid_samples_;
                         }
                     }
@@ -444,7 +444,7 @@ namespace mpl::demo {
                         /* connectSamples(); */
                         validSamples_.clear(); randomSamples_.clear();
                         comm.template sendVertices<Vertex_t, State>(std::move(validSamples_), 0, 0); // destination=0 means send to coordinator. TODO: everyone sends vertices to coordinator for now, this is to deal with inconsistent sampling. This can be made more efficient.
-                        JI_LOG(INFO) << "total_valid_samples_ " << total_valid_samples_;
+                        /* JI_LOG(INFO) << "total_valid_samples_ " << total_valid_samples_; */
                     }
                     /* JI_LOG(INFO) << "Completed loop waiting for data"; */
 
