@@ -77,6 +77,8 @@ namespace mpl::demo {
                         planner_.setSeed(app_options.randomSeed());
                         work_queue_.push(std::pair(lambda_id_ * samples_per_run_,
                                     (lambda_id_ + 1) * samples_per_run_));
+                        work_queue_.push(std::pair(lambda_id_ * samples_per_run_ + num_lambdas_ * samples_per_run_,
+                                    (lambda_id_ + 1) * samples_per_run_ + num_lambdas_ * samples_per_run_)); // Add 2 items to the queue so you can fetch items in an async manner
                     }
 
                 inline bool isDone() {
@@ -152,7 +154,7 @@ namespace mpl::demo {
                     while (total_valid_samples_ < start_id) {
                         /* JI_LOG(INFO) << "total_valid_samples_ " << */
                         /*     total_valid_samples_ << " start_id " << start_id; */
-                        auto s = planner.generateRandomSample();
+                        auto s = planner_.generateRandomSample();
                         ++total_samples_;
                         auto v = Vertex_t{planner_.generateVertexID(), s};
                         if (scenario_.isValid(s)) {
@@ -184,7 +186,7 @@ namespace mpl::demo {
                     auto start = std::chrono::high_resolution_clock::now();
                     auto lambda_running_for = std::chrono::duration_cast<std::chrono::seconds>(start - start_time_);
                     if (lambda_running_for.count() > time_limit_ ||
-                            comm_.isDone() || 
+                            /* (comm_.isDone() && work_queue_.size() != 0) || */ 
                                 total_valid_samples_ >= graph_size_) {
                         done_ = true;
                         return;

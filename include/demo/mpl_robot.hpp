@@ -451,19 +451,28 @@ namespace mpl::demo {
         using Graph = typename mpl::UndirectedGraph<Vertex, Edge>;
         using TimedGraph = typename Coordinator::TimedGraph;
         Scenario scenario = initFetchScenario<Scalar>(app_options);
+        if (app_options.timeLimit() == std::numeric_limits<double>::infinity()) {
+            // In this case we just need to consume the whole graph
+            JI_LOG(INFO) << "Current time limit: inf";
+            Graph graph;
+            getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, 100 * 1000); // Time limit specified in seconds
+            auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, 0);
+            auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals);
+            return;
+        }
         int evaluate_every_millis = 3000;
         long int current_time_limit = app_options.timeLimit() * 1000;
         while (current_time_limit > 0) {
             JI_LOG(INFO) << "Current time limit: " << current_time_limit;
             Graph graph;
             getGraphAtTime<Graph, TimedGraph, Vertex, Edge>(coord.getGraph(), graph, current_time_limit); // Time limit specified in seconds
-            auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, coord.getGlobalNumUniformSamples(current_time_limit));
+            auto startsAndGoals = connectStartsAndGoals<Scenario, Graph, Vertex>(scenario, app_options, graph, 0);
             auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals);
             current_time_limit -= evaluate_every_millis;
-            //break; // TODO: will only evaluate at final
+            break; // TODO: will only evaluate at final
         }
-        //auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord, graph);
-        //auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options);
+        /* auto startsAndGoals = connectStartsAndGoals(scenario, app_options, coord, graph); */
+        /* auto paths = findPathsFromStartToGoals(graph, scenario, startsAndGoals, app_options); */
     }
 
     template <class Coordinator, class Scalar>

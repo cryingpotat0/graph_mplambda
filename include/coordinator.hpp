@@ -337,7 +337,7 @@ namespace mpl {
                     /* JI_LOG(INFO) << "end" << start_id << " graph_size" << app_options.graphSize(); */
                 }
 
-                for (int i=0; i < app_options.jobs(); ++i) {
+                for (int i=0; i < 2 * app_options.jobs(); ++i) {
                     work_queue.pop(); // the lambdas take care of the initial work
                 }
 
