@@ -30,6 +30,11 @@ namespace mpl {
         using Graph = UndirectedGraph<Vertex_t, Edge_t>;
         using Subspace_t = typename mpl::Subspace<Bound, State, Scalar>;
 
+        long int valid_check_duration{0};
+        long int connect_vertex_duration{0};
+        long int nn_search_duration{0};
+        long int edge_validity_duration{0};
+
     private:
 
         struct KeyFn {
@@ -124,13 +129,26 @@ namespace mpl {
         }
 
         void addSample(State& s) {
+            auto start = std::chrono::high_resolution_clock::now();
             Vertex_t v{generateVertexID(), s};
-            if (!scenario.isValid(s)) return;
+            auto validity = scenario.isValid(s);
+            auto stop = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+            valid_check_duration += duration.count();
+            /* JI_LOG(INFO) << "Time to check validity is " << duration << " ms"; */
+            if (!validity) {
+                return;
+            }
             new_vertices.push_back(v);
 
 
             // add valid edges
+            start = std::chrono::high_resolution_clock::now();
             connectVertex(v);
+            stop = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+            /* JI_LOG(INFO) << "Time to connect vertex is " << duration << " ms"; */
+            connect_vertex_duration += duration.count();
 
             // add to nearest neighbor structure
             nn.insert(v);
@@ -192,14 +210,23 @@ namespace mpl {
         
         void connectVertex(Vertex_t& v) {
             auto k = std::numeric_limits<std::size_t>::max();
+            auto start = std::chrono::high_resolution_clock::now();
             nbh.clear();
             nn.nearest(nbh, v.state(), k, rPRM);
+            auto stop = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+            nn_search_duration += duration.count();
+
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition
+                start = std::chrono::high_resolution_clock::now();
                 if (scenario.isValid(v.state(), other.state())) {
                     Edge_t e{dist, v.id_, other.id_};
                     new_edges.push_back(std::move(e));
                 }
+                stop = std::chrono::high_resolution_clock::now();
+                duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                edge_validity_duration += duration.count();
             }
         }
     };

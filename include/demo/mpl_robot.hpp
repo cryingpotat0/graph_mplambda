@@ -565,10 +565,12 @@ namespace mpl::demo {
         auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0); // Use -1 as the standard prefix
         planner.setSeed(random_seed);
         planner.clearVertices(); planner.clearEdges();
+        auto start = std::chrono::high_resolution_clock::now();
         while (planner.getNewVertices().size() < num_vertices) {
             planner.addRandomSample();
         }
-
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
         for (auto& v: planner.getNewVertices()) {
             graph.addVertex(v);
         }
@@ -579,6 +581,11 @@ namespace mpl::demo {
 
         JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
         JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
+        JI_LOG(INFO) << "Total validity check time " << planner.valid_check_duration << " ms";
+        JI_LOG(INFO) << "Total nn search time " << planner.nn_search_duration << " ms";
+        JI_LOG(INFO) << "Total edge validity time " << planner.edge_validity_duration << " ms";
+        JI_LOG(INFO) << "Total vertex connection time " << planner.connect_vertex_duration << " ms";
+        JI_LOG(INFO) << "Total time " << duration.count() << " ms";
     }
 }
 
