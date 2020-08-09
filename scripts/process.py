@@ -272,6 +272,7 @@ def lambda_start_end_time_processing():
         num_samples = int(num_samples_str.split("=")[1])
         data_by_lambda = {} # lambda_id -> (start_time, end_time)
 
+        if num_samples != 10: continue
         if args.time_limit_experiments:
             time_limit = float(time_limit_or_graph_size_str.split("=")[1])
         else:

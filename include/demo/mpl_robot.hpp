@@ -556,6 +556,26 @@ namespace mpl::demo {
         //saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
 
     }
+
+    template <class Scenario, class Graph>
+    void generateSequentialGraph(Scenario& scenario, AppOptions& app_options, Graph& graph, int random_seed, std::uint64_t num_vertices) {
+        using State = typename Scenario::State;
+        using Scalar = double; // TODO: don't hardcode this
+
+        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0); // Use -1 as the standard prefix
+        planner.clearVertices(); planner.clearEdges();
+        while (planner.getNewVertices().size() < num_vertices) {
+            planner.addRandomSample();
+        }
+
+        for (auto& v: planner.getNewVertices()) {
+            graph.addVertex(v);
+        }
+
+        for (auto& e: planner.getNewEdges()) {
+            graph.addEdge(e);
+        }
+    }
 }
 
 #endif 

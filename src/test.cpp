@@ -4,7 +4,6 @@
 #include <prm_planner.hpp>
 #include <jilog.hpp>
 #include <demo/se3_rigid_body_scenario.hpp>
-using namespace mpl::demo;
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <demo/app_options.hpp>
@@ -13,6 +12,7 @@ using namespace mpl::demo;
 #include <interval_tree.hpp>
 #include <time.h>
 #include <vector>
+using namespace mpl::demo;
 
 
 /*
@@ -208,6 +208,25 @@ void rngStateGenerationTest(AppOptions& app_options) {
     //}
 }
 
+void generateSequentialGraphTest(AppOptions& app_options) {
+
+    using Scalar = double;
+    using Scenario = FetchScenario<Scalar>;
+    using Distance = Scenario::Distance;
+    using State = typename Scenario::State;
+    using Vertex = mpl::Vertex<State>;
+    using Vertex_ID = typename Vertex::ID;
+    using Edge = mpl::Edge<typename Vertex::ID, Distance>;
+    using Graph = mpl::UndirectedGraph<Vertex, Edge>;
+    Scenario scenario = initFetchScenario<Scalar>(app_options);
+    Graph g;
+    generateSequentialGraph(scenario, app_options, g, 0, app_options.graphSize());
+    JI_LOG(INFO) << "Done generating graph";
+    std::ofstream file("graph_test.txt");
+    g.serialize(file);
+
+}
+
 int main(int argc, char* argv[]) {
     mpl::demo::AppOptions app_options(argc, argv);
     //isApproxTest();
@@ -216,7 +235,8 @@ int main(int argc, char* argv[]) {
     //multi_agent_png_test(app_options);
     //interval_tree_test();
     //multi_agent_time_intersection_test();
-    findSE3GoalsWithConds(app_options);
+    /* findSE3GoalsWithConds(app_options); */
+    generateSequentialGraphTest(app_options);
     return 0;
 }
 

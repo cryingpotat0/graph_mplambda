@@ -179,7 +179,7 @@ namespace mpl::demo {
 
 
         double timeLimit_{std::numeric_limits<double>::infinity()};
-        std::uint64_t graphSize_{0};
+        std::uint64_t graphSize_{std::numeric_limits<std::uint64_t>::infinity()};
         double checkResolution_{0};
 
         bool singlePrecision_{false};
@@ -514,9 +514,10 @@ namespace mpl::demo {
         }
 
         double timeLimit() const {
-            if (graphSize_ != 0 && timeLimit_ != std::numeric_limits<double>::infinity()) {
+            if (graphSize_ != std::numeric_limits<std::uint64_t>::infinity() &&
+                    timeLimit_ != std::numeric_limits<double>::infinity()) {
                 JI_LOG(INFO) << "Time limit is " << timeLimit_ << " graph size is " << graphSize_;
-                throw std::invalid_argument("--graph-size must be 0 if time-limit is provided");
+                throw std::invalid_argument("--graph-size must be inf if time-limit is provided");
             }
             return timeLimit_;
         }
