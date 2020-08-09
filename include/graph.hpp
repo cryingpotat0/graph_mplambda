@@ -10,6 +10,7 @@
 #include <iterator>
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <unordered_set>
 #include <queue>
 #include <util.hpp>
@@ -323,12 +324,14 @@ namespace mpl {
                 }
                 
                 void serialize(std::ofstream &file) {
+                    std::map<VertexID, Vertex> vertex_properties_sorted(vertex_properties.begin(), vertex_properties.end());
+                    std::map<EdgeID, Edge> edge_properties_sorted(edge_properties.begin(), edge_properties.end());
                     file << "vertices\n";
-                    for (auto& [id, vertex]: vertex_properties) {
+                    for (auto& [id, vertex]: vertex_properties_sorted) {
                         vertex.serialize(file);
                     }
                     file << "edges\n";
-                    for (auto& [id, edge]: edge_properties) {
+                    for (auto& [id, edge]: edge_properties_sorted) {
                         edge.serialize(file);
                     }
                     //file.close();

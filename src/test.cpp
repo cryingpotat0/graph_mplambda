@@ -221,7 +221,8 @@ void generateSequentialGraphTest(AppOptions& app_options) {
     Scenario scenario = initFetchScenario<Scalar>(app_options);
     Graph g;
     generateSequentialGraph(scenario, app_options, g, 0, app_options.graphSize());
-    JI_LOG(INFO) << "Done generating graph";
+
+    JI_LOG(INFO) << "Done generating graph ";
     std::ofstream file("graph_test.txt");
     g.serialize(file);
 

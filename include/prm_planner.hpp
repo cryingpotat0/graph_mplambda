@@ -47,6 +47,7 @@ namespace mpl {
         std::uint16_t id_prefix_; // To create vertex IDs that work across computers
         RNG rng;
         Scalar rPRM;
+        std::vector<std::pair<Vertex_t, Scalar>> nbh;
 
 
     public:
@@ -123,8 +124,8 @@ namespace mpl {
         }
 
         void addSample(State& s) {
-            if (!scenario.isValid(s)) return;
             Vertex_t v{generateVertexID(), s};
+            if (!scenario.isValid(s)) return;
             new_vertices.push_back(v);
 
 
@@ -176,8 +177,8 @@ namespace mpl {
 
         template <class ConnectEdgeFn>
         void connectVertex(Vertex_t& v, ConnectEdgeFn&& connectEdgeFn) {
-            std::vector<std::pair<Vertex_t, Scalar>> nbh;
             auto k = std::numeric_limits<std::size_t>::max();
+            nbh.clear();
             nn.nearest(nbh, v.state(), k, rPRM);
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition
@@ -190,8 +191,8 @@ namespace mpl {
         }
         
         void connectVertex(Vertex_t& v) {
-            std::vector<std::pair<Vertex_t, Scalar>> nbh;
             auto k = std::numeric_limits<std::size_t>::max();
+            nbh.clear();
             nn.nearest(nbh, v.state(), k, rPRM);
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition

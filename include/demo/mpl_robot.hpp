@@ -563,6 +563,7 @@ namespace mpl::demo {
         using Scalar = double; // TODO: don't hardcode this
 
         auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0); // Use -1 as the standard prefix
+        planner.setSeed(random_seed);
         planner.clearVertices(); planner.clearEdges();
         while (planner.getNewVertices().size() < num_vertices) {
             planner.addRandomSample();
@@ -575,6 +576,9 @@ namespace mpl::demo {
         for (auto& e: planner.getNewEdges()) {
             graph.addEdge(e);
         }
+
+        JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
+        JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
     }
 }
 

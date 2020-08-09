@@ -172,8 +172,8 @@ namespace mpl::demo {
                         if (scenario_.isValid(s)) {
                             //JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_;
                             validSamples_.push_back(v);
-                            planner_.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
                             planner_.connectVertex(v);
+                            planner_.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
                             ++total_valid_samples_;
                         }
                     }
