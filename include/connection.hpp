@@ -35,8 +35,6 @@ namespace mpl {
 
         // Delayed vertex write variables
         std::vector<std::vector<typename Coordinator::Vertex>> vertices_to_send;
-        std::chrono::high_resolution_clock::time_point last_send_of_vertices;
-        double milliseconds_before_next_send;
 
         //        ID groupId_{0};
 
@@ -71,8 +69,6 @@ namespace mpl {
                 << " socket " << socket_;
             recvHello_ = true;
             lambdaId_ = pkt.id();
-            last_send_of_vertices = std::chrono::high_resolution_clock::now();
-
         }
 
         void process(packet::Done &&pkt) {
@@ -90,40 +86,18 @@ namespace mpl {
 
         template <class Vertex, class State>
             void process(packet::Vertices<Vertex, State> &&pkt) {
-                // JI_LOG(INFO) << "got VERTICES";
-                if (pkt.destination() == 0) {
-                    // JI_LOG(INFO) << "Received " << pkt.vertices().size() << " vertices from
-                    // lambda " << lambdaId_;
-                    coordinator_.update_num_samples(lambdaId_, pkt.vertices().size());
-                    coordinator_.addVertices(std::move(pkt.vertices()));
-                    if (coordinator_.work_queue_.empty()) {
-                        sendDone();
-                        return;
-                    }
-                    auto work_pkt = coordinator_.work_queue_.front();
-                    coordinator_.work_queue_.pop();
-                    
-                    JI_LOG(INFO) << "Sending work pkt " << "(" <<
-                        work_pkt.start_id() << "," << work_pkt.end_id() << 
-                        ") to lambda " << lambdaId_;
-                    /* packet::RandomSeedWork work_pkt(start_id, end_id); */
-                    coordinator_.writePacketToLambda(lambdaId_, lambdaId_, work_pkt);
-                } else {
-                    coordinator_.writePacketToLambda(lambdaId_, pkt.destinationLambdaId(),
-                            std::move(pkt));
-                    // auto destinationLambdaId = pkt.destinationLambdaId();
-                    // auto other_connection =
-                    // coordinator_.getConnection(destinationLambdaId); if (other_connection !=
-                    // nullptr) {
-                    //    JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to
-                    //    lambda " << destinationLambdaId << " from " << lambdaId_;
-                    //    other_connection->write(std::move(pkt));
-                    //} else {
-                    //    JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices
-                    //    to lambda " << destinationLambdaId << " from " << lambdaId_;
-                    //    coordinator_.buffered_data_[destinationLambdaId].push_back(std::move(pkt));
-                    //}
+                /* coordinator_.update_num_samples(lambdaId_, pkt.vertices().size()); */
+                if (coordinator_.work_queue.empty()) {
+                    sendDone();
+                    return;
                 }
+                auto work_pkt = coordinator_.work_queue.front();
+                coordinator_.work_queue.pop();
+
+                JI_LOG(INFO) << "Sending work pkt " << "(" <<
+                    work_pkt.start_id() << "," << work_pkt.end_id() << 
+                    ") to lambda " << lambdaId_;
+                coordinator_.writePacketToLambda(lambdaId_, lambdaId_, work_pkt);
             }
 
         template <class Edge, class Distance>
@@ -133,39 +107,6 @@ namespace mpl {
                 coordinator_.addEdges(std::move(pkt.edges()));
             }
 
-        //        void process(packet::Problem&& pkt) {
-        //            JI_LOG(INFO) << "got Problem from " << socket_;
-        //
-        // if this connection is connected to a group, send DONE
-        // to that group before starting a new group.
-        //            if (groupId_) {
-        //                coordinator_.done(groupId_, this);
-        //                groupId_ = 0;
-        //            }
-        //
-        //            groupId_ = coordinator_.createGroup(this, pkt.algorithm());
-        //            coordinator_.launchLambdas(groupId_, std::move(pkt));
-        //        }
-
-        //        template <class State>
-        //        void process(packet::Path<State>&& pkt) {
-        //            JI_LOG(INFO) << "got Path " << sizeof(State);
-        //            for (auto& q : pkt.path())
-        //                JI_LOG(TRACE) << "  " << q;
-        //
-        //            if (groupId_ == 0) {
-        //                JI_LOG(WARN) << "got PATH without active group";
-        //            } else {
-        //                coordinator_.gotPath(groupId_, std::move(pkt), this);
-        //            }
-        // if (group_->second.algorithm() == 'r') {
-        //     // for RRT we only send the path to the initiator
-        //     group_->second.initiator()->write(std::move(pkt));
-        // } else {
-        //     // for C-FOREST we send broadcast to path
-        //     coordinator_.broadcast(std::move(pkt), group_, this);
-        // }
-        //        }
 
         public:
         explicit Connection(Coordinator &coordinator)
@@ -173,17 +114,9 @@ namespace mpl {
             socket_(coordinator.accept(reinterpret_cast<struct sockaddr *>(&addr_),
                         &addrLen_)) {
                 JI_LOG(TRACE) << "connection accepted";
-                milliseconds_before_next_send = coordinator.app_options.timeLimit() /
-                    10.0; // Arbitrary, try and send atleast 10
-                // sets of vertices between lambdas
             }
 
         ~Connection() {
-            //            if (groupId_) {
-            //                coordinator_.done(groupId_, this);
-            //                groupId_ = 0;
-            //            }
-
             JI_LOG(TRACE) << "closing connection";
             if (socket_ != -1 && ::close(socket_) == -1)
                 JI_LOG(WARN) << "connection close error: " << errno;
@@ -206,9 +139,7 @@ namespace mpl {
 
         void sendDone() { writeQueue_.push_back(packet::Done(0)); }
 
-        void degroup() {
-            //            groupId_ = 0;
-        }
+        void degroup() { }
 
         template <class Packet> void write(Packet &&packet) {
             writeQueue_.push_back(std::forward<Packet>(packet));

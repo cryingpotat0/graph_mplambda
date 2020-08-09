@@ -256,7 +256,8 @@ def lambda_start_end_time_processing():
             "algorithm": [],
             "lambda_start_time": [],
             "lambda_end_time": [],
-            "lambda_duration": []
+            "lambda_duration": [],
+            "num_samples": []
             }
     if args.time_limit_experiments:
         all_data["time_limit"] = []
@@ -300,6 +301,7 @@ def lambda_start_end_time_processing():
             all_data["lambda_start_time"].append(start_time)
             all_data["lambda_end_time"].append(end_time)
             all_data["lambda_duration"].append(end_time - start_time)
+            all_data["num_samples"].append(num_samples)
             if args.time_limit_experiments:
                 all_data["time_limit"].append(time_limit)
             else:
