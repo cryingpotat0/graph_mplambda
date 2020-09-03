@@ -72,7 +72,7 @@ def run_fetch_env_frame1(args, time_limit, graph_size, num_sample, folder_name, 
         coordinator = "localhost"
     else:
         lambda_type = "aws"
-        coordinator = "54.188.233.199"
+        coordinator = "54.202.173.51"
 
     if args.load_graph:
         graph_out = folder_name + "/graph-out.txt"
@@ -265,8 +265,8 @@ if __name__ == "__main__":
                     (2,1,0,0,0,0,0,0),  #6
                     (1,1,1,0,0,0,0,0),  #8
                     (1,1,1,1,0,0,0,0),  #16
-                    #(1,1,1,1,1,0,0,0),  #32
-                    #(1,1,1,1,1,1,0,0),  #64
+                    (1,1,1,1,1,0,0,0),  #32
+                    (1,1,1,1,1,1,0,0),  #64
                     #(1,1,1,1,1,1,1,0),  #128
 
                 ]

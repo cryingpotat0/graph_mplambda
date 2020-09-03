@@ -25,6 +25,10 @@ namespace mpl {
             buffers_.push_back(std::move(buf));
         }
 
+        inline void push_front(Buffer&& buf) {
+            buffers_.push_front(std::move(buf));
+        }
+
         void writeTo(int socket);
     };
 

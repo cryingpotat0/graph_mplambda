@@ -25,6 +25,7 @@ void mpl::WriteQueue::writeTo(int socket) {
 
     //JI_LOG(TRACE) << "wrote " << n << " bytes to " << socket;
     if (n == -1) {
+        JI_LOG(TRACE) << "failed writing";
         if (errno == EAGAIN)
             return;
 	JI_LOG(TRACE) << errno;
