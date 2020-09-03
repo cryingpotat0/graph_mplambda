@@ -27,7 +27,7 @@ void mpl::Comm::close() {
 void mpl::Comm::connected() {
     state_ = CONNECTED;
     JI_LOG(INFO) << "connected";
-    writeQueue_.push_back(packet::Hello(lambdaId_));
+    writeQueue_.push_front(packet::Hello(lambdaId_)); // Always send the hello packet first
 }
 
 void mpl::Comm::tryConnect() {
