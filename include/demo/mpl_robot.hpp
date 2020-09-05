@@ -556,6 +556,42 @@ namespace mpl::demo {
         //saveSolutionPaths<Coordinator, State>(coord, app_options, paths, graph);
 
     }
+
+    template <class Scenario, class Graph>
+    void generateSequentialGraph(Scenario& scenario, AppOptions& app_options, Graph& graph, int random_seed, std::uint64_t num_vertices) {
+        using State = typename Scenario::State;
+        using Scalar = double; // TODO: don't hardcode this
+
+        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0); // Use -1 as the standard prefix
+        planner.setSeed(random_seed);
+        planner.clearVertices(); planner.clearEdges();
+        auto start = std::chrono::high_resolution_clock::now();
+        std::uint64_t numSamples = 0;
+        while (planner.getNewVertices().size() < num_vertices) {
+            planner.addRandomSample();
+            planner.updatePrmRadius(numSamples++);
+        }
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+        for (auto& v: planner.getNewVertices()) {
+            graph.addVertex(v);
+        }
+
+        for (auto& e: planner.getNewEdges()) {
+            graph.addEdge(e);
+        }
+
+        JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
+        JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
+        for (auto& [k,v] : planner.profilingMap) {
+            JI_LOG(INFO) << "Time for " << k << " was " << v;
+        }
+        /* JI_LOG(INFO) << "Total validity check time " << planner.valid_check_duration << " ms"; */
+        /* JI_LOG(INFO) << "Total nn search time " << planner.nn_search_duration << " ms"; */
+        /* JI_LOG(INFO) << "Total edge validity time " << planner.edge_validity_duration << " ms"; */
+        /* JI_LOG(INFO) << "Total vertex connection time " << planner.connect_vertex_duration << " ms"; */
+        JI_LOG(INFO) << "Total time " << duration.count() << " ms";
+    }
 }
 
 #endif 

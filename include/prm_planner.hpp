@@ -8,6 +8,7 @@
 #include <string>
 #include <iostream>
 #include <time.h>
+#include <unordered_map>
 
 
 namespace mpl {
@@ -29,6 +30,10 @@ namespace mpl {
         using Edge_t = Edge<typename Vertex_t::ID, Distance>;
         using Graph = UndirectedGraph<Vertex_t, Edge_t>;
         using Subspace_t = typename mpl::Subspace<Bound, State, Scalar>;
+        std::unordered_map<std::string, double> profilingMap = {
+            {"collision_time", 0.0},
+            {"nearest_neighbor_time", 0.0}
+        };
 
     private:
 
@@ -192,16 +197,29 @@ namespace mpl {
         }
         
         void connectVertex(Vertex_t& v) {
+            auto start = std::chrono::high_resolution_clock::now();
             std::vector<std::pair<Vertex_t, Scalar>> nbh;
             auto k = std::numeric_limits<std::size_t>::max();
             nn.nearest(nbh, v.state(), k, rPRM);
+            auto stop = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+            profilingMap["nearest_neighbor_time"] += duration.count();
+
+            int nn_counter{0};
             for(auto &[other, dist] : nbh) {
+                ++nn_counter;
                 // Other ones must be valid and in the graph by definition
+                start = std::chrono::high_resolution_clock::now();
                 if (scenario.isValid(v.state(), other.state())) {
                     Edge_t e{dist, v.id_, other.id_};
                     new_edges.push_back(std::move(e));
                 }
+                stop = std::chrono::high_resolution_clock::now();
+                duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                profilingMap["collision_time"] += duration.count();
             }
+            JI_LOG(INFO) << "Num nn is " << nn_counter << " for vertex num " <<
+                new_vertices.size() << " and prmradius " << rPRM;
         }
     };
 }
