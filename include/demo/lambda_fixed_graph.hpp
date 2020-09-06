@@ -152,7 +152,7 @@ namespace mpl::demo {
                     while (total_valid_samples_ < start_id) {
                         /* JI_LOG(INFO) << "total_valid_samples_ " << */
                         /*     total_valid_samples_ << " start_id " << start_id; */
-                        auto s = planner.generateRandomSample();
+                        auto s = planner_.generateRandomSample();
                         ++total_samples_;
                         auto v = Vertex_t{planner_.generateVertexID(), s};
                         if (scenario_.isValid(s)) {
