@@ -257,7 +257,8 @@ def lambda_start_end_time_processing():
             "lambda_start_time": [],
             "lambda_end_time": [],
             "lambda_duration": [],
-            "num_samples": []
+            "num_samples": [],
+            "trial_num": []
             }
     if args.time_limit_experiments:
         all_data["time_limit"] = []
@@ -268,7 +269,7 @@ def lambda_start_end_time_processing():
         label = split_fil[-2]
         scenario = split_fil[-3]
         algorithm = split_fil[-4]
-        _, num_lambdas_str, time_limit_or_graph_size_str, _, num_samples_str = label.split("__")
+        _, num_lambdas_str, time_limit_or_graph_size_str, trial_num, num_samples_str = label.split("__")
         num_lambdas = int(num_lambdas_str.split("=")[1])
         num_samples = int(num_samples_str.split("=")[1])
         data_by_lambda = {} # lambda_id -> (start_time, end_time)
@@ -279,6 +280,7 @@ def lambda_start_end_time_processing():
             graph_size = int(time_limit_or_graph_size_str.split("=")[1])
 
         with open(fil, 'r') as f:
+            print("Processing {}".format(fil))
             for line in f.readlines():
                 new_lambda_match = NEW_LAMBDA_STARTED.match(line)
                 if new_lambda_match is not None:
@@ -290,10 +292,13 @@ def lambda_start_end_time_processing():
 
                 lambda_completed_match = LAMBDA_COMPLETED.match(line)
                 if lambda_completed_match is not None:
-                    lambda_id = int(lambda_completed_match.group(1))
-                    duration = int(lambda_completed_match.group(2))
-                    data_by_lambda[lambda_id][1] = duration
-                    continue
+                    try:
+                        lambda_id = int(lambda_completed_match.group(1))
+                        duration = int(lambda_completed_match.group(2))
+                        data_by_lambda[lambda_id][1] = duration
+                        continue
+                    except Exception:
+                        import ipdb; ipdb.set_trace()
         for lambda_id, (start_time, end_time) in data_by_lambda.items():
             all_data["num_lambdas"].append(num_lambdas)
             all_data["scenario"].append(scenario)
@@ -302,6 +307,7 @@ def lambda_start_end_time_processing():
             all_data["lambda_end_time"].append(end_time)
             all_data["lambda_duration"].append(end_time - start_time)
             all_data["num_samples"].append(num_samples)
+            all_data["trial_num"].append(trial_num)
             if args.time_limit_experiments:
                 all_data["time_limit"].append(time_limit)
             else:

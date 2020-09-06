@@ -338,6 +338,7 @@ namespace mpl {
                 }
 
                 for (int i=0; i < 2 * app_options.jobs(); ++i) {
+		    if (work_queue.empty()) break;
                     work_queue.pop(); // the lambdas take care of the initial work
                 }
 
