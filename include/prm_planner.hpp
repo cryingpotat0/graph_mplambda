@@ -52,17 +52,23 @@ namespace mpl {
         std::uint16_t id_prefix_; // To create vertex IDs that work across computers
         RNG rng;
         Scalar rPRM;
+        int kPRM;
+        std::vector<std::pair<Vertex_t, Scalar>> nbh;
+        bool radius_based{false};
 
 
     public:
 
-        explicit PRMPlanner(Scenario& scenario_, std::uint16_t id_prefix)
+        explicit PRMPlanner(Scenario& scenario_, std::uint16_t id_prefix, bool radius_based_)
                 : scenario(scenario_),
                   rPRM(scenario_.prmRadius()),
                   id_prefix_(id_prefix),
                   num_samples_(0),
-                  rng(time(NULL))
-        {}
+                  rng(time(NULL)),
+                  radius_based(radius_based_)
+        {
+            JI_LOG(INFO) << "Radius based: " << radius_based;
+        }
 
         void addValidSampleCallback(std::function<void(Vertex_t&)> f) {
             validSampleCallbacks.push_back(f);
@@ -73,12 +79,24 @@ namespace mpl {
         }
 
         void updatePrmRadius(std::uint64_t num_samples) {
+            if (!radius_based) throw std::logic_error("cannot updated prm radius for non-radius based");
             auto dimension = scenario.dimension();
             if (num_samples == 0) return;
             auto new_radius = scenario.prmRadius() * pow(log( num_samples) / (1.0 * num_samples), 1.0 / dimension);
             if (new_radius > 0 && new_radius < rPRM) {
                 JI_LOG(INFO) << "New rPRM is " << new_radius;
                 rPRM = new_radius;
+            }
+        }
+
+        void updateKPrm(std::uint64_t num_samples) {
+            if (radius_based) throw std::logic_error("cannot updated kPRM for radius based");
+            auto dimension = scenario.dimension();
+            if (num_samples == 0) return;
+            auto new_k = std::ceil(std::exp(1) * (1 + 1./dimension) * std::log(num_samples));
+            if (new_k > 0) {
+                JI_LOG(INFO) << "New kPRM is " << new_k;
+                kPRM = new_k;
             }
         }
 
@@ -183,9 +201,13 @@ namespace mpl {
 
         template <class ConnectEdgeFn>
         void connectVertex(Vertex_t& v, ConnectEdgeFn&& connectEdgeFn) {
-            std::vector<std::pair<Vertex_t, Scalar>> nbh;
-            auto k = std::numeric_limits<std::size_t>::max();
-            nn.nearest(nbh, v.state(), k, rPRM);
+            nbh.clear();
+            if (radius_based) {
+                auto k = std::numeric_limits<std::size_t>::max();
+                nn.nearest(nbh, v.state(), k, rPRM);
+            } else {
+                nn.nearest(nbh, v.state(), kPRM);
+            }
             for(auto &[other, dist] : nbh) {
                 // Other ones must be valid and in the graph by definition
                 Edge_t e{dist, v.id_, other.id_};
@@ -198,9 +220,13 @@ namespace mpl {
         
         void connectVertex(Vertex_t& v) {
             auto start = std::chrono::high_resolution_clock::now();
-            std::vector<std::pair<Vertex_t, Scalar>> nbh;
-            auto k = std::numeric_limits<std::size_t>::max();
-            nn.nearest(nbh, v.state(), k, rPRM);
+            nbh.clear();
+            if (radius_based) {
+                auto k = std::numeric_limits<std::size_t>::max();
+                nn.nearest(nbh, v.state(), k, rPRM);
+            } else {
+                nn.nearest(nbh, v.state(), kPRM);
+            }
             auto stop = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
             profilingMap["nearest_neighbor_time"] += duration.count();

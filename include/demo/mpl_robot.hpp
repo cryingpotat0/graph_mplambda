@@ -181,6 +181,7 @@ namespace mpl::demo {
         State goal = app_options.goal<State>();
         Bound min = app_options.globalMin<Bound>();
         Bound max = app_options.globalMax<Bound>();
+        JI_LOG(INFO) << "here";
         Scenario scenario(app_options.env(), app_options.robot(), goal, min, max, app_options.checkResolution(0.1));
         return scenario;
     }
@@ -562,7 +563,7 @@ namespace mpl::demo {
         using State = typename Scenario::State;
         using Scalar = double; // TODO: don't hardcode this
 
-        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0); // Use -1 as the standard prefix
+        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0, false); // Use -1 as the standard prefix
         planner.setSeed(random_seed);
         planner.clearVertices(); planner.clearEdges();
         auto start = std::chrono::high_resolution_clock::now();
@@ -570,6 +571,7 @@ namespace mpl::demo {
         while (planner.getNewVertices().size() < num_vertices) {
             planner.addRandomSample();
             planner.updatePrmRadius(numSamples++);
+            /* planner.updateKPrm(numSamples++); */
         }
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);

@@ -56,12 +56,12 @@ namespace mpl::util {
     }
 
     template <typename T>
-    inline std::string state_format(T& state) {
+    inline std::string state_format(const T& state) {
         return ToString(state.format(FullPrecisionCommaInitFormat));
     }
 
     template <>
-    inline std::string state_format(std::tuple<Eigen::Quaternion<double, 0>, Eigen::Matrix<double, 3, 1, 0, 3, 1> > &state) {
+    inline std::string state_format(const std::tuple<Eigen::Quaternion<double, 0>, Eigen::Matrix<double, 3, 1, 0, 3, 1> > &state) {
         auto& [quat, pos] = state;
         std::ostringstream oStream;
         oStream << quat.w() << ","

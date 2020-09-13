@@ -53,7 +53,7 @@ namespace mpl {
 
             inline void serialize(std::ofstream &file) {
                 file << "id=" << id_.first << "," << id_.second << ";" 
-                    << "state=" << state_.format(mpl::util::FullPrecisionCommaInitFormat) 
+                    << "state=" << mpl::util::state_format(state_) 
                     << "\n"; 
             }
 

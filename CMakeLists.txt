@@ -13,10 +13,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ######## Find CCD the hard way
 find_package(PkgConfig)
 if (PKGCONFIG_FOUND)
-  pkg_check_modules(FCL fcl>=0.6)
-  pkg_check_modules(CCD ccd>=2.0)
-  pkg_check_modules(PNG libpng)
-  pkg_check_modules(ASSIMP assimp)
+    pkg_check_modules(FCL fcl>=0.6)
+    pkg_check_modules(CCD ccd>=2.0)
+    pkg_check_modules(PNG libpng)
+    pkg_check_modules(ASSIMP assimp)
 else()
     find_package(FCL REQUIRED)
     find_package(CCD CONFIG)
@@ -39,22 +39,22 @@ endif()
 
 
 if (${APPLE})
-	add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp )
-	target_link_libraries(mpl_coordinator PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${PNG_LIBRARIES})
+    add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp )
+    target_link_libraries(mpl_coordinator PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${PNG_LIBRARIES})
 
-	add_executable(mpl_test src/test.cpp src/comm.cpp src/write_queue.cpp )
-	target_link_libraries(mpl_test PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${PNG_LIBRARIES})
+    add_executable(mpl_test src/test.cpp src/comm.cpp src/write_queue.cpp )
+    target_link_libraries(mpl_test PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${PNG_LIBRARIES})
 else ()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAS_AWS_SDK")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAS_AWS_SDK")
-    
+
     find_package(aws-lambda-runtime REQUIRED)
     find_package(AWSSDK COMPONENTS s3 lambda)
     add_executable(mpl_fixed_graph_aws src/mpl_lambda_aws.cpp  src/comm.cpp src/write_queue.cpp)
     target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${ASSIMP_LIBRARIES} ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} )
     #target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${ASSIMP_LIBRARIES} ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} /usr/local/lib/libIrrXML.a)
     #target_link_libraries(mpl_fixed_graph_aws PUBLIC Eigen3::Eigen Threads::Threads ${FCL_LIBRARIES} ${CCD_LIBRARIES} AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES})
-    
+
     # the following line adds "aws-lambda-package-mpl_lambda_aws" as a
     # target which creates a .zip file with everything we need to
     # upload a function to aws.
@@ -62,8 +62,8 @@ else ()
 
     # this is the command to run in order to create the full lambda zip:
     add_custom_target(mpl_fixed_graph_aws_zip
-    	COMMAND zip -ur9 mpl_fixed_graph_aws.zip resources
-    	DEPENDS aws-lambda-package-mpl_fixed_graph_aws)
+        COMMAND zip -ur9 mpl_fixed_graph_aws.zip resources
+        DEPENDS aws-lambda-package-mpl_fixed_graph_aws)
 
     # After creating the lambda zip, we can upload it using:
     add_custom_target(update-function-code
@@ -86,10 +86,12 @@ include_directories(include ../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIR
 #link_directories(${FCL_LIBRARY_DIRS} ${ASSIMP_LIBRARY_DIRS})
 #include_directories(include ../../nigh/src ${FCL_INCLUDE_DIRS} ${ASSIMP_INCLUDE_DIRS})
 #
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources/png_planning_input.png ${CMAKE_CURRENT_SOURCE_DIR}/resources/house_layout.png 
-		${CMAKE_CURRENT_SOURCE_DIR}/resources/AUTOLAB.dae
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/resources)
- add_custom_target(run_script_symlink ALL COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_experiments.py ${CMAKE_CURRENT_BINARY_DIR}/run_experiments.py)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources/png_planning_input.png
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/house_layout.png 
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/AUTOLAB.dae
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/se3/
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/resources)
+add_custom_target(run_script_symlink ALL COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_experiments.py ${CMAKE_CURRENT_BINARY_DIR}/run_experiments.py)
 #file(GLOB SE3RSRC
 #     "resources/se3/Twistycool*.dae" "resources/se3/alpha*.dae"
 #     "resources/se3/Apartment*.dae" "resources/se3/cubicles*.dae"

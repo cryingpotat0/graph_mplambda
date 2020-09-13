@@ -305,7 +305,7 @@ namespace mpl::demo {
                         )
                     : lambda_id(app_options.lambdaId()),
                     scenario(scenario_),
-                    planner(Planner(scenario_, 0)),
+                    planner(Planner(scenario_, 0, false)),
                     samples_per_run(app_options.numSamples()),
                     num_lambdas(app_options.jobs()), // TODO: make sure jobs is passed through to lambda
                     graph_size(app_options.graphSize())

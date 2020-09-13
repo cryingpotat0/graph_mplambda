@@ -184,7 +184,7 @@ void rngStateGenerationTest(AppOptions& app_options) {
     using Planner = typename mpl::PRMPlanner<Scenario, Scalar>;
     using RNG = std::mt19937_64;
     Scenario scenario = initSE3Scenario<Scalar>(app_options);
-    Planner planner(scenario, 0);
+    Planner planner(scenario, 0, false);
 
     auto start = app_options.start<State>();
     JI_LOG(INFO) << "Start " << start;
@@ -212,6 +212,7 @@ void rngStateGenerationTest(AppOptions& app_options) {
 void generateSequentialGraphTest(AppOptions& app_options) {
 
     using Scalar = double;
+    /* using Scenario = SE3RigidBodyScenario<Scalar>; */
     using Scenario = FetchScenario<Scalar>;
     using Distance = Scenario::Distance;
     using State = typename Scenario::State;
@@ -219,6 +220,7 @@ void generateSequentialGraphTest(AppOptions& app_options) {
     using Vertex_ID = typename Vertex::ID;
     using Edge = mpl::Edge<typename Vertex::ID, Distance>;
     using Graph = mpl::UndirectedGraph<Vertex, Edge>;
+    /* Scenario scenario = initSE3Scenario<Scalar>(app_options); */
     Scenario scenario = initFetchScenario<Scalar>(app_options);
     Graph g;
     generateSequentialGraph(scenario, app_options, g, 0, app_options.graphSize());
