@@ -327,6 +327,7 @@ namespace mpl {
 
             void divide_work() { 
                 JI_LOG(INFO) << "Num lambdas: " << app_options.jobs(); 
+	    start_time = std::chrono::high_resolution_clock::now(); // class variable
                 if (app_options.graphSize() ==
                         std::numeric_limits<std::uint64_t>::infinity()) return;
                 std::uint64_t start_id{0};
@@ -340,7 +341,6 @@ namespace mpl {
                 for (int i=0; i < app_options.jobs(); ++i) {
                     if (work_queue.size() < 0) break;
                     work_queue.pop(); // the lambdas take care of the initial work
-                    start_time = std::chrono::high_resolution_clock::now(); // class variable
                 }
 
 
@@ -359,7 +359,6 @@ namespace mpl {
                 int done_ = 0;
                 JI_LOG(INFO) << "loop started";
 
-                start_time = std::chrono::high_resolution_clock::now(); // class variable
                 for (;;) {
 
                     pfds.clear();
