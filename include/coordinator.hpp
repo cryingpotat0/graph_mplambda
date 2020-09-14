@@ -327,8 +327,8 @@ namespace mpl {
 
             void divide_work() { 
                 JI_LOG(INFO) << "Num lambdas: " << app_options.jobs(); 
-	    start_time = std::chrono::high_resolution_clock::now(); // class variable
-                if (app_options.graphSize() ==
+		start_time = std::chrono::high_resolution_clock::now(); // class variable
+		if (app_options.graphSize() ==
                         std::numeric_limits<std::uint64_t>::infinity()) return;
                 std::uint64_t start_id{0};
                 while (start_id < app_options.graphSize()) {
@@ -495,7 +495,7 @@ namespace mpl {
                 planner.setSeed(app_options.randomSeed());
                 auto vertex_properties = graph.getVertices();
                 auto adjacency_list = graph.getAdjacencyList();
-                while (corrected_graph.getVertices().size() <= max_vertex_id_) {
+                while (corrected_graph.getVertices().size() < app_options.graphSize()) {
                     //JI_LOG(INFO) << "Sizes " << corrected_graph.getVertices().size() << " " << max_vertex_id_;
                     auto s = planner.generateRandomSample();
                     if (!scenario_.isValid(s)) continue;
