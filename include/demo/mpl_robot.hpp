@@ -377,7 +377,7 @@ namespace mpl::demo {
 
         JI_LOG(INFO) << "Final global_num_samples " << global_num_uniform_samples;
         std::vector<std::pair<Vertex, Vertex>> start_goal_vertices;
-        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1); // Use -1 as the standard prefix
+        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1, false); // Use -1 as the standard prefix
         planner.clearVertices(); planner.clearEdges();
         planner.updatePrmRadius(global_num_uniform_samples);
         for (auto& [v_id, connections]: graph.getAdjacencyList()) {

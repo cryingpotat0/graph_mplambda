@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <poll.h>
 #include <arpa/inet.h>
+#include <chrono>
 
 mpl::Comm::~Comm() {
     close();
@@ -26,8 +27,9 @@ void mpl::Comm::close() {
 
 void mpl::Comm::connected() {
     state_ = CONNECTED;
-    JI_LOG(INFO) << "connected";
-    writeQueue_.push_back(packet::Hello(lambdaId_));
+    std::uint64_t time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()).time_since_epoch().count();
+    JI_LOG(INFO) << "connected " << time;
+    writeQueue_.push_back(packet::Hello(lambdaId_, time));
 }
 
 void mpl::Comm::tryConnect() {

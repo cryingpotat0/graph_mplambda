@@ -388,7 +388,6 @@ namespace mpl {
                     int done_ = 0;
                     JI_LOG(INFO) << "loop started";
 
-                    start_time = std::chrono::high_resolution_clock::now(); // class variable
                     for(;;) {
 
 
@@ -913,6 +912,7 @@ namespace mpl {
                 }
 
                 void divide_work() {
+                    start_time = std::chrono::high_resolution_clock::now(); // class variable
                     JI_LOG(INFO) << "Num lambdas: " << app_options.jobs();
                 }
 
@@ -994,8 +994,8 @@ namespace mpl {
                                         (lambdaId_to_connection_[cit->lambdaId()] == nullptr)) {
                                     lambdaId_to_connection_[cit->lambdaId()] = &(*cit);
                                     stop = std::chrono::high_resolution_clock::now();
-                                    auto duration_to_lambda = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
-                                    JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda.count() << " milliseconds";
+                                    auto duration_to_lambda = -std::chrono::time_point_cast<std::chrono::milliseconds>(start_time).time_since_epoch().count() + cit->helloStartTime();
+                                    JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda << " milliseconds";
                                     for (auto& buf: buffered_data_[cit->lambdaId()]) {
                                         JI_LOG(INFO) << "Writing buffered_data of num buffers " << buffered_data_[cit->lambdaId()].size();
                                         cit->write_buf(std::move(buf));
@@ -1060,7 +1060,7 @@ namespace mpl {
 
                     // Replace graph with correct states
                     TimedGraph corrected_graph;
-                    Planner planner(scenario_, 0);
+                    Planner planner(scenario_, 0, false);
                     planner.setSeed(app_options.randomSeed());
                     auto vertex_properties = graph.getVertices();
                     auto adjacency_list = graph.getAdjacencyList();

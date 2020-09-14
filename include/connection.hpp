@@ -32,7 +32,8 @@ namespace mpl {
         WriteQueue writeQueue_;
         ID lambdaId_{0};
         bool recvHello_{false};
-	bool recvDone_{false};
+        bool recvDone_{false};
+        std::uint64_t start_time_millis_{0};
 
         // Delayed vertex write variables
         std::vector<std::vector<typename Coordinator::Vertex>> vertices_to_send;
@@ -72,6 +73,7 @@ namespace mpl {
             recvHello_ = true;
             lambdaId_ = pkt.id();
             last_send_of_vertices = std::chrono::high_resolution_clock::now();
+            start_time_millis_ = pkt.start_time();
 
 //            groupId_ = coordinator_.addToGroup(pkt.id(), this);
             // this is a possible sign that the group already ended
@@ -192,6 +194,10 @@ namespace mpl {
 
         bool recvHello() {
             return recvHello_;
+        }
+
+        std::uint64_t helloStartTime() {
+            return start_time_millis_;
         }
 
         bool recvDone() {
