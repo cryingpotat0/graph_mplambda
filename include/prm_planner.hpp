@@ -35,10 +35,6 @@ namespace mpl {
             {"nearest_neighbor_time", 0.0}
         };
 
-        long int valid_check_duration{0};
-        long int connect_vertex_duration{0};
-        long int nn_search_duration{0};
-        long int edge_validity_duration{0};
 
     private:
 
@@ -73,6 +69,7 @@ namespace mpl {
                   radius_based(radius_based_)
         {
             JI_LOG(INFO) << "Radius based: " << radius_based;
+            JI_LOG(INFO) << "Init rPRM: " << rPRM;
         }
 
         void addValidSampleCallback(std::function<void(Vertex_t&)> f) {
@@ -91,6 +88,9 @@ namespace mpl {
             if (new_radius > 0 && new_radius < rPRM) {
                 JI_LOG(INFO) << "New rPRM is " << new_radius;
                 rPRM = new_radius;
+            } else {
+                JI_LOG(INFO) << "no update to rPRM";
+
             }
         }
 
@@ -151,13 +151,9 @@ namespace mpl {
         }
 
         void addSample(State& s) {
-            auto start = std::chrono::high_resolution_clock::now();
             Vertex_t v{generateVertexID(), s};
             auto validity = scenario.isValid(s);
-            auto stop = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-            valid_check_duration += duration.count();
-            /* JI_LOG(INFO) << "Time to check validity is " << duration << " ms"; */
+            /* JI_LOG(INFO) << "VERTEX " << v.id_; */
             if (!validity) {
                 return;
             }
@@ -165,12 +161,7 @@ namespace mpl {
 
 
             // add valid edges
-            start = std::chrono::high_resolution_clock::now();
             connectVertex(v);
-            stop = std::chrono::high_resolution_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-            /* JI_LOG(INFO) << "Time to connect vertex is " << duration << " ms"; */
-            connect_vertex_duration += duration.count();
 
             // add to nearest neighbor structure
             nn.insert(v);
@@ -260,8 +251,8 @@ namespace mpl {
                 duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
                 profilingMap["collision_time"] += duration.count();
             }
-            JI_LOG(INFO) << "Num nn is " << nn_counter << " for vertex num " <<
-                new_vertices.size() << " and prmradius " << rPRM;
+            /* JI_LOG(INFO) << "Num nn is " << nn_counter << " for vertex num " << */
+            /*     new_vertices.size() << " and prmradius " << rPRM; */
         }
     };
 }

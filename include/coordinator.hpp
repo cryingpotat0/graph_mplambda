@@ -496,12 +496,10 @@ namespace mpl {
                 auto vertex_properties = graph.getVertices();
                 auto adjacency_list = graph.getAdjacencyList();
                 while (corrected_graph.getVertices().size() < app_options.graphSize()) {
-                    //JI_LOG(INFO) << "Sizes " << corrected_graph.getVertices().size() << " " << max_vertex_id_;
                     auto s = planner.generateRandomSample();
-                    if (!scenario_.isValid(s)) continue;
                     auto id = planner.generateVertexID();
                     auto v = TimedVertex{id, s, 0};
-                    auto planner_v = Vertex{id, s}; planner.addExistingVertex(planner_v); // Need this for generateVertexID to work correctly
+                    if (!scenario_.isValid(s)) continue;
                     corrected_graph.addVertex(v);
                     auto others = adjacency_list.find(id);
                     if (others == adjacency_list.end()) continue;

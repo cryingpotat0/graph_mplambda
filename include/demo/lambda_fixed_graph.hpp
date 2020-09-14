@@ -145,8 +145,8 @@ namespace mpl::demo {
                 void processWorkPacket(std::pair<std::uint64_t, std::uint64_t> start_and_end_id) {
                     auto& [start_id, end_id] = start_and_end_id;
 
-                    JI_LOG(INFO) << "Doing work " << start_id << " " << end_id
-                        << " current location " << total_valid_samples_;
+                    /* JI_LOG(INFO) << "Doing work " << start_id << " " << end_id */
+                    /*     << " current location " << total_valid_samples_; */
                     // start_id indicates the start_num_of_valid_vertices
                     // end_id indicated the end_num_of_valid_vertices
                     while (total_valid_samples_ < start_id) {
@@ -155,6 +155,7 @@ namespace mpl::demo {
                         auto s = planner_.generateRandomSample();
                         ++total_samples_;
                         auto v = Vertex_t{planner_.generateVertexID(), s};
+                        /* JI_LOG(INFO) << "VERTEX " << v.id_; */
                         if (scenario_.isValid(s)) {
                             //JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_;
                             validSamples_.push_back(v);
@@ -166,19 +167,20 @@ namespace mpl::demo {
                     while (total_valid_samples_ < end_id) {
                         /* JI_LOG(INFO) << "total_valid_samples_ " << */
                         /*     total_valid_samples_ << " end_id " << end_id; */
-                        ++total_samples_;
                         auto s = planner_.generateRandomSample();
                         auto v = Vertex_t{planner_.generateVertexID(), s};
+                        /* JI_LOG(INFO) << "VERTEX " << v.id_; */
                         if (scenario_.isValid(s)) {
                             //JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_;
                             validSamples_.push_back(v);
-                            planner_.updatePrmRadius(total_samples_);
                             planner_.connectVertex(v);
                             planner_.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
                             ++total_valid_samples_;
                         }
+                        ++total_samples_;
+                        planner_.updatePrmRadius(total_samples_);
                     }
-                    JI_LOG(INFO) << "Done work " << start_id << " " << end_id;
+                    /* JI_LOG(INFO) << "Done work " << start_id << " " << end_id; */
                 }
 
                 void do_work() {
@@ -201,7 +203,7 @@ namespace mpl::demo {
                         /* connectSamples(); */
                         validSamples_.clear(); randomSamples_.clear();
                         comm_.template sendVertices<Vertex_t, State>(std::move(validSamples_), 0, 0); // destination=0 means send to coordinator. TODO: everyone sends vertices to coordinator for now, this is to deal with inconsistent sampling. This can be made more efficient.
-                        JI_LOG(INFO) << "total_valid_samples_ " << total_valid_samples_;
+                        /* JI_LOG(INFO) << "total_valid_samples_ " << total_valid_samples_; */
                     }
                     /* JI_LOG(INFO) << "Completed loop waiting for data"; */
 
