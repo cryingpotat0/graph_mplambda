@@ -39,19 +39,22 @@ namespace mpl::packet {
 
     class Hello {
         std::uint64_t id_;
+        std::uint64_t start_time_;
 
         public:
         static std::string name() {
             return "Hello";
         }
 
-        explicit Hello(std::uint64_t id)
-            : id_(id)
+
+        explicit Hello(std::uint64_t id, std::uint64_t start_time)
+                : id_(id), start_time_(start_time)
+
         {
         }
 
         explicit Hello(Type type, BufferView buf)
-            : id_(buf.get<std::uint64_t>())
+                : id_(buf.get<std::uint64_t>()), start_time_(buf.get<std::uint64_t>())
         {
         }
 
@@ -59,12 +62,17 @@ namespace mpl::packet {
             return id_;
         }
 
+        std::uint64_t start_time() const {
+            return start_time_;
+        }
+
         operator Buffer () const {
-            Size size = 16;
+            Size size = 24;
             Buffer buf{size};
             buf.put(HELLO);
             buf.put(size);
             buf.put(id_);
+            buf.put(start_time_);
             buf.flip();
             return buf;
         }

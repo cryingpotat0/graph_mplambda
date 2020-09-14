@@ -364,7 +364,7 @@ namespace mpl::demo {
         >> pathsFromStartToGoals; // ((start, goal) -> (found, path))
         pathsFromStartToGoals.resize(app_options.getStartsAndGoals<MultiAgentState>().size());
 
-        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1); // Use -1 as the standard prefix
+        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1, false); // Use -1 as the standard prefix
         planner.clearVertices(); planner.clearEdges();
         planner.updatePrmRadius(global_num_uniform_samples);
         for (auto& [v_id, connections]: graph.getAdjacencyList()) {

@@ -338,8 +338,9 @@ namespace mpl {
                 }
 
                 for (int i=0; i < app_options.jobs(); ++i) {
-	 	    if (work_queue.size() < 0) break;
+                    if (work_queue.size() < 0) break;
                     work_queue.pop(); // the lambdas take care of the initial work
+                    start_time = std::chrono::high_resolution_clock::now(); // class variable
                 }
 
 
@@ -419,43 +420,29 @@ namespace mpl {
                         assert(pit != pfds.end());
 
                         if (cit->process(*pit)) {
-                            // JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " <<
-                            // cit->recvHello();
+                            //JI_LOG(INFO) << "lambda " << cit->lambdaId() << " recv hello " << cit->recvHello();
                             if (cit->recvDone()) {
                                 lambdaId_to_connection_[cit->lambdaId()] = nullptr;
                                 stop = std::chrono::high_resolution_clock::now();
-                                auto duration_to_lambda =
-                                    std::chrono::duration_cast<std::chrono::milliseconds>(
-                                            stop - start_time);
-                                JI_LOG(INFO) << "Lambda completed " << cit->lambdaId()
-                                    << " new size " << lambdaId_to_connection_.size()
-                                    << " duration " << duration_to_lambda.count()
-                                    << " milliseconds";
+                                auto duration_to_lambda = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+                                JI_LOG(INFO) << "Lambda completed " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda.count() << " milliseconds";
                                 cit = connections_.erase(cit);
-                                if (connections_.size() == 0)
-                                    done_ = 1;
+                                if (connections_.size() == 0) done_ = 1;
                                 continue;
                             }
                             if (cit->recvHello() &&
                                     (lambdaId_to_connection_[cit->lambdaId()] == nullptr)) {
                                 lambdaId_to_connection_[cit->lambdaId()] = &(*cit);
                                 stop = std::chrono::high_resolution_clock::now();
-                                auto duration_to_lambda =
-                                    std::chrono::duration_cast<std::chrono::milliseconds>(
-                                            stop - start_time);
-                                JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size "
-                                    << lambdaId_to_connection_.size() << " duration "
-                                    << duration_to_lambda.count() << " milliseconds";
-                                for (auto &buf : buffered_data_[cit->lambdaId()]) {
-                                    JI_LOG(INFO) << "Writing buffered_data of num buffers "
-                                        << buffered_data_[cit->lambdaId()].size();
+                                auto duration_to_lambda = -std::chrono::time_point_cast<std::chrono::milliseconds>(start_time).time_since_epoch().count() + cit->helloStartTime();
+                                JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda << " milliseconds";
+                                for (auto& buf: buffered_data_[cit->lambdaId()]) {
+                                    JI_LOG(INFO) << "Writing buffered_data of num buffers " << buffered_data_[cit->lambdaId()].size();
                                     cit->write_buf(std::move(buf));
                                 }
                                 buffered_data_[cit->lambdaId()].clear();
                             } else {
-                                // JI_LOG(INFO) << "Existing lambda " << cit->lambdaId() << " new
-                                // size " << lambdaId_to_connection_.size() << " " <<
-                                // (lambdaId_to_connection_[cit->lambdaId()] == nullptr);
+                                //JI_LOG(INFO) << "Existing lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " " << (lambdaId_to_connection_[cit->lambdaId()] == nullptr);
                             }
                             ++cit;
                         } else {
@@ -499,37 +486,29 @@ namespace mpl {
                 connections_.clear();
 
                 auto stop = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        stop - start_time);
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
                 JI_LOG(INFO) << "Loop finished in " << duration;
-                //JI_LOG(INFO) << "Max vertex id " << max_vertex_id_;
+                JI_LOG(INFO) << "Max vertex id " << max_vertex_id_;
 
                 // Replace graph with correct states
                 TimedGraph corrected_graph;
-                Planner planner(scenario_, 0);
+                Planner planner(scenario_, 0, true);
                 planner.setSeed(app_options.randomSeed());
                 auto vertex_properties = graph.getVertices();
                 auto adjacency_list = graph.getAdjacencyList();
-                while (corrected_graph.getVertices().size() < app_options.graphSize()) {
-                    // JI_LOG(INFO) << "Sizes " << corrected_graph.getVertices().size() << " "
-                    // << max_vertex_id_;
+                while (corrected_graph.getVertices().size() <= max_vertex_id_) {
+                    //JI_LOG(INFO) << "Sizes " << corrected_graph.getVertices().size() << " " << max_vertex_id_;
                     auto s = planner.generateRandomSample();
+                    if (!scenario_.isValid(s)) continue;
                     auto id = planner.generateVertexID();
                     auto v = TimedVertex{id, s, 0};
-                    if (!scenario_.isValid(s))
-                        continue;
-                    auto planner_v = Vertex{id, s};
-                    planner.addExistingVertex(
-                            planner_v); // Need this for generateVertexID to work correctly
+                    auto planner_v = Vertex{id, s}; planner.addExistingVertex(planner_v); // Need this for generateVertexID to work correctly
                     corrected_graph.addVertex(v);
                     auto others = adjacency_list.find(id);
-                    if (others == adjacency_list.end())
-                        continue;
-                    for (auto &u : others->second) {
-                        auto &curr_edge = graph.getEdge(id, u);
-                        corrected_graph.addEdge(TimedEdge{curr_edge.distance(), curr_edge.u(),
-                                curr_edge.v(),
-                                curr_edge.timestamp_millis()});
+                    if (others == adjacency_list.end()) continue;
+                    for (auto& u : others->second) {
+                        auto& curr_edge = graph.getEdge(id, u);
+                        corrected_graph.addEdge(TimedEdge{curr_edge.distance(), curr_edge.u(), curr_edge.v(), curr_edge.timestamp_millis()});
                     }
                 }
                 graph = corrected_graph;
@@ -614,20 +593,20 @@ namespace mpl {
             }
 
             template <class Packet>
-            void writePacketToLambda(int sourceLambdaId, int destinationLambdaId,
-                    Packet &&pkt) {
-                /* JI_LOG(ERROR) << "Should not send vertices for this algorithm"; */
-                auto other_connection = getConnection(destinationLambdaId);
-                if (other_connection != nullptr) {
-                    // JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to
-                    // lambda " << destinationLambdaId << " from " << sourceLambdaId;
-                    other_connection->write(std::move(pkt));
-                } else {
-                    // JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to
-                    // lambda " << destinationLambdaId << " from " << sourceLambdaId;
-                    buffered_data_[destinationLambdaId].push_back(std::move(pkt));
+                void writePacketToLambda(int sourceLambdaId, int destinationLambdaId,
+                        Packet &&pkt) {
+                    /* JI_LOG(ERROR) << "Should not send vertices for this algorithm"; */
+                    auto other_connection = getConnection(destinationLambdaId);
+                    if (other_connection != nullptr) {
+                        // JI_LOG(INFO) << "Writing " << pkt.vertices().size() << " vertices to
+                        // lambda " << destinationLambdaId << " from " << sourceLambdaId;
+                        other_connection->write(std::move(pkt));
+                    } else {
+                        // JI_LOG(INFO) << "Buffering " << pkt.vertices().size() << " vertices to
+                        // lambda " << destinationLambdaId << " from " << sourceLambdaId;
+                        buffered_data_[destinationLambdaId].push_back(std::move(pkt));
+                    }
                 }
-            }
 
             const std::vector<Subspace_t> getSubspaces() const {
                 std::vector<Subspace_t> subspaces;

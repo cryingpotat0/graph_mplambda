@@ -105,7 +105,7 @@ namespace mpl::demo {
 
 
         S prmRadius() {
-            return 1;
+            return 1; // TODO: this is incorrect
         }
 
         template <class RNG>

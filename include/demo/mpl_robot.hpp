@@ -181,6 +181,7 @@ namespace mpl::demo {
         State goal = app_options.goal<State>();
         Bound min = app_options.globalMin<Bound>();
         Bound max = app_options.globalMax<Bound>();
+        JI_LOG(INFO) << "here";
         Scenario scenario(app_options.env(), app_options.robot(), goal, min, max, app_options.checkResolution(0.1));
         return scenario;
     }
@@ -376,7 +377,7 @@ namespace mpl::demo {
 
         JI_LOG(INFO) << "Final global_num_samples " << global_num_uniform_samples;
         std::vector<std::pair<Vertex, Vertex>> start_goal_vertices;
-        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1); // Use -1 as the standard prefix
+        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, -1, false); // Use -1 as the standard prefix
         planner.clearVertices(); planner.clearEdges();
         planner.updatePrmRadius(global_num_uniform_samples);
         for (auto& [v_id, connections]: graph.getAdjacencyList()) {
@@ -562,12 +563,15 @@ namespace mpl::demo {
         using State = typename Scenario::State;
         using Scalar = double; // TODO: don't hardcode this
 
-        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0); // Use -1 as the standard prefix
+        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0, false); // Use -1 as the standard prefix
         planner.setSeed(random_seed);
         planner.clearVertices(); planner.clearEdges();
         auto start = std::chrono::high_resolution_clock::now();
+        std::uint64_t numSamples = 0;
         while (planner.getNewVertices().size() < num_vertices) {
             planner.addRandomSample();
+            planner.updatePrmRadius(numSamples++);
+            /* planner.updateKPrm(numSamples++); */
         }
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -581,10 +585,9 @@ namespace mpl::demo {
 
         JI_LOG(INFO) << "Num vertices in graph " << graph.vertexCount();
         JI_LOG(INFO) << "Num edges in graph " << graph.edgeCount();
-        JI_LOG(INFO) << "Total validity check time " << planner.valid_check_duration << " ms";
-        JI_LOG(INFO) << "Total nn search time " << planner.nn_search_duration << " ms";
-        JI_LOG(INFO) << "Total edge validity time " << planner.edge_validity_duration << " ms";
-        JI_LOG(INFO) << "Total vertex connection time " << planner.connect_vertex_duration << " ms";
+        for (auto& [k,v] : planner.profilingMap) {
+            JI_LOG(INFO) << "Time for " << k << " was " << v;
+        }
         JI_LOG(INFO) << "Total time " << duration.count() << " ms";
     }
 }
