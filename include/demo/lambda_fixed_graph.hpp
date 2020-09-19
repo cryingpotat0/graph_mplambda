@@ -71,6 +71,8 @@ namespace mpl::demo {
                         comm_.connect(app_options.coordinator());
                         comm_.template process<Edge_t, Distance, Vertex_t, State>();
                         start_time_ = std::chrono::high_resolution_clock::now();
+                        std::uint64_t time = std::chrono::time_point_cast<std::chrono::milliseconds>(start_time_).time_since_epoch().count();
+                        comm_.setStartTime(time);
 
                         JI_LOG(INFO) << "Using seed: " << app_options.randomSeed();
                         JI_LOG(INFO) << "Num jobs: " << app_options.jobs();

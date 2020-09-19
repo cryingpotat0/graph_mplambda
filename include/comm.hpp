@@ -29,6 +29,7 @@ namespace mpl {
         WriteQueue writeQueue_;
 
         std::uint64_t lambdaId_{0};
+        std::uint64_t start_time_{0};
 
         void close();
         void connected();
@@ -55,6 +56,10 @@ namespace mpl {
 
         inline operator bool () const {
             return socket_ != -1;
+        }
+
+        void setStartTime(std::uint64_t start_time) {
+            start_time_ = start_time;
         }
 
         void connect(const std::string& host);

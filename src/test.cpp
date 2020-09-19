@@ -220,7 +220,9 @@ void generateSequentialGraphTest(AppOptions& app_options) {
     using Edge = mpl::Edge<typename Vertex::ID, Distance>;
     using Graph = mpl::UndirectedGraph<Vertex, Edge>;
     /* Scenario scenario = initSE3Scenario<Scalar>(app_options); */
+            JI_LOG(INFO) << "here ";
     Scenario scenario = initFetchScenario<Scalar>(app_options);
+            JI_LOG(INFO) << "here ";
     Graph g;
     generateSequentialGraph(scenario, app_options, g, 0, app_options.graphSize());
 

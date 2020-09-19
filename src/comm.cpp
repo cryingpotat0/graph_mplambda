@@ -27,9 +27,8 @@ void mpl::Comm::close() {
 
 void mpl::Comm::connected() {
     state_ = CONNECTED;
-    std::uint64_t time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()).time_since_epoch().count();
-    JI_LOG(INFO) << "connected " << time;
-    writeQueue_.push_front(packet::Hello(lambdaId_, time));
+    JI_LOG(INFO) << "connected " << start_time_;
+    writeQueue_.push_front(packet::Hello(lambdaId_, start_time_));
 }
 
 void mpl::Comm::tryConnect() {

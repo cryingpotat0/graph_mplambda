@@ -75,6 +75,8 @@ else ()
     add_executable(mpl_coordinator src/coordinator.cpp src/comm.cpp src/write_queue.cpp)
     target_link_libraries(mpl_coordinator Threads::Threads AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES} ${PNG_LIBRARIES} ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${CCD_LIBRARIES})
 
+    add_executable(mpl_test src/test.cpp src/comm.cpp src/write_queue.cpp )
+    target_link_libraries(mpl_test PUBLIC ${FCL_LIBRARIES} ${ASSIMP_LIBRARIES} ${PNG_LIBRARIES})
 endif()
 
 add_executable(mpl_lambda_fixed_graph src/demo/lambda_fixed_graph.cpp src/comm.cpp src/write_queue.cpp)
