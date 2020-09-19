@@ -434,6 +434,7 @@ namespace mpl {
                                 lambdaId_to_connection_[cit->lambdaId()] = &(*cit);
                                 stop = std::chrono::high_resolution_clock::now();
                                 auto duration_to_lambda = -std::chrono::time_point_cast<std::chrono::milliseconds>(start_time).time_since_epoch().count() + cit->helloStartTime();
+                                JI_LOG(INFO) << "lambda reported start time " << cit->helloStartTime();
                                 JI_LOG(INFO) << "New lambda " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda << " milliseconds";
                                 for (auto& buf: buffered_data_[cit->lambdaId()]) {
                                     JI_LOG(INFO) << "Writing buffered_data of num buffers " << buffered_data_[cit->lambdaId()].size();
