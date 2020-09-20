@@ -151,7 +151,10 @@ namespace mpl {
 
         ID lambdaId() { return lambdaId_; }
 
-        void sendDone() { writeQueue_.push_back(packet::Done(0)); }
+        void sendDone() { 
+		writeQueue_.push_back(packet::Done(0)); 
+		JI_LOG(INFO) << "sent done to lambda " << lambdaId_;
+	}
 
         void degroup() { }
 
@@ -171,6 +174,7 @@ namespace mpl {
 
                 return true;
             } catch (const std::exception &ex) {
+		recvDone_ = true;
                 JI_LOG(WARN) << "exception processing connection: " << ex.what()
                     << " lambda id " << lambdaId_;
                 return false;

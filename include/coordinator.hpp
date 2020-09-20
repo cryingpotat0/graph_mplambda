@@ -458,6 +458,17 @@ namespace mpl {
                                 // it should be in the map
                                 lambdaId_to_connection_[cit->lambdaId()] = nullptr;
                             }
+			    if (cit->recvDone()) {
+				    lambdaId_to_connection_[cit->lambdaId()] = nullptr;
+				    stop = std::chrono::high_resolution_clock::now();
+				    auto duration_to_lambda = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
+				    JI_LOG(INFO) << "Lambda completed " << cit->lambdaId() << " new size " << lambdaId_to_connection_.size() << " duration " << duration_to_lambda.count() << " milliseconds";
+				    cit = connections_.erase(cit);
+				    if (connections_.size() == 0) done_ = 1;
+				    continue;
+			    }
+
+
                             cit = connections_.erase(cit);
                         }
                     }
