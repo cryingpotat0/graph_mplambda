@@ -563,16 +563,15 @@ namespace mpl::demo {
         using State = typename Scenario::State;
         using Scalar = double; // TODO: don't hardcode this
 
-        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0, true); // Use -1 as the standard prefix
+        auto planner = mpl::PRMPlanner<Scenario, Scalar>(scenario, 0, false); 
         planner.setSeed(random_seed);
         planner.clearVertices(); planner.clearEdges();
         auto start = std::chrono::high_resolution_clock::now();
         std::uint64_t numSamples = 0;
         while (planner.getNewVertices().size() < num_vertices) {
             planner.addRandomSample();
-            numSamples++;
-            planner.updatePrmRadius(numSamples);
-            /* planner.updateKPrm(numSamples++); */
+            /* planner.updatePrmRadius(numSamples++); */
+            planner.updateKPrm(numSamples++);
         }
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);

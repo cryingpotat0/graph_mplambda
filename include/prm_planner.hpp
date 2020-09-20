@@ -70,6 +70,8 @@ namespace mpl {
         {
             JI_LOG(INFO) << "Radius based: " << radius_based;
             JI_LOG(INFO) << "Init rPRM: " << rPRM;
+            kPRM = std::ceil(std::exp(1) * (1 + 1./scenario_.dimension()));
+            JI_LOG(INFO) << "Init kPRM: " << kPRM;
         }
 
         void addValidSampleCallback(std::function<void(Vertex_t&)> f) {
@@ -86,10 +88,10 @@ namespace mpl {
             if (num_samples == 0) return;
             auto new_radius = scenario.prmRadius() * pow(log( num_samples) / (1.0 * num_samples), 1.0 / dimension);
             if (new_radius > 0 && new_radius < rPRM) {
-                JI_LOG(INFO) << "New rPRM is " << new_radius;
+                JI_LOG(INFO) << "New rPRM is " << new_radius << " iteration " << num_samples;
                 rPRM = new_radius;
             } else {
-                JI_LOG(INFO) << "no update to rPRM";
+                JI_LOG(INFO) << "no update to rPRM" << " iteration " << num_samples;
 
             }
         }

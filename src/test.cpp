@@ -232,6 +232,58 @@ void generateSequentialGraphTest(AppOptions& app_options) {
 
 }
 
+void testCollisionTime() {
+
+    using Scalar = double;
+    using Scenario = FetchScenario<Scalar>;
+    using State = typename Scenario::State;
+    using Bound = typename Scenario::Bound;
+    using Frame = typename Scenario::Frame;
+    using GoalRadius = Eigen::Matrix<Scalar, 6, 1>;
+    using RNG = std::mt19937_64;
+    // TODO: hardcoded values in SE3, unused in code for now
+    AppOptions app_options;
+    app_options.correct_goal_ = "-1.07,0.16,0.88,0,0,0";
+    app_options.goalRadius_ = "0.01,0.01,0.01,0.01,0.01,3.141592653589793";
+    app_options.envFrame_ = "0.48,1.09,0.00,0,0,-1.570796326794897";
+    app_options.env_ = "resources/AUTOLAB.dae";
+    app_options.global_min_ = "0,-1.6056,-1.221,-3.141592653589793,-2.251,-3.141592653589793,-2.16,-3.141592653589793";
+    app_options.global_max_ = "0.38615,1.6056,1.518,3.141592653589793,2.251,3.141592653589793,2.16,3.141592653589793";
+
+    Frame envFrame = app_options.envFrame<Frame>();
+    Frame goal = app_options.correct_goal<Frame>();
+    GoalRadius goalRadius = app_options.goalRadius<GoalRadius>();
+    auto min = app_options.globalMin<Bound>();
+    auto max = app_options.globalMax<Bound>();
+
+    Scenario scenario(envFrame, app_options.env(), goal, goalRadius, min, max, app_options.checkResolution(0.1));
+
+
+    RNG rng(0);
+    auto start = std::chrono::high_resolution_clock::now();
+    int valid_duration_count = 0;
+    for (int i=0; i < 100; ++i) {
+        auto rand1 = scenario.randomSample(rng);
+        while (!scenario.isValid(rand1)) {
+            rand1 = scenario.randomSample(rng);
+        }
+
+        auto rand2 = scenario.randomSample(rng);
+        while (!scenario.isValid(rand2)) {
+            rand2 = scenario.randomSample(rng);
+        }
+        auto valid_start = std::chrono::high_resolution_clock::now();
+        JI_LOG(INFO) << "rand1 " << rand1 << " rand2 " << rand2;
+        scenario.isValid(rand1, rand2) ;
+        auto valid_stop = std::chrono::high_resolution_clock::now();
+        auto valid_duration = std::chrono::duration_cast<std::chrono::milliseconds>(valid_stop - valid_start);
+        valid_duration_count += valid_duration.count();
+    }
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    JI_LOG(INFO) << "Duration " << duration.count() << " valid_duration " << valid_duration_count;
+}
+
 int main(int argc, char* argv[]) {
     mpl::demo::AppOptions app_options(argc, argv);
     //isApproxTest();
@@ -242,6 +294,7 @@ int main(int argc, char* argv[]) {
     //multi_agent_time_intersection_test();
     /* findSE3GoalsWithConds(app_options); */
     generateSequentialGraphTest(app_options);
+    /* testCollisionTime(); */
     return 0;
 }
 

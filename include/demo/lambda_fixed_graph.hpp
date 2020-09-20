@@ -63,7 +63,7 @@ namespace mpl::demo {
                         )
                     : lambda_id_(app_options.lambdaId()),
                     scenario_(scenario),
-                    planner_(Planner(scenario_, 0, true)),
+                    planner_(Planner(scenario_, 0, false)),
                     samples_per_run_(app_options.numSamples()),
                     num_lambdas_(app_options.jobs()), // TODO: make sure jobs is passed through to lambda
                     graph_size_(app_options.graphSize()) {
@@ -154,8 +154,9 @@ namespace mpl::demo {
                     while (total_valid_samples_ < start_id) {
                         /* JI_LOG(INFO) << "total_valid_samples_ " << */
                         /*     total_valid_samples_ << " start_id " << start_id; */
+                        /* JI_LOG(INFO) << "total_valid_samples_ " << */
+                        /*     total_valid_samples_ << " start_id " << start_id << " total_samples_ " << total_samples_; */
                         auto s = planner_.generateRandomSample();
-                        ++total_samples_;
                         auto v = Vertex_t{planner_.generateVertexID(), s};
                         /* JI_LOG(INFO) << "VERTEX " << v.id_; */
                         if (scenario_.isValid(s)) {
@@ -164,11 +165,13 @@ namespace mpl::demo {
                             planner_.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
                             ++total_valid_samples_;
                         }
+                        /* planner_.updatePrmRadius(total_samples_++); */
+                        planner_.updateKPrm(total_samples_++);
                     }
 
                     while (total_valid_samples_ < end_id) {
                         /* JI_LOG(INFO) << "total_valid_samples_ " << */
-                        /*     total_valid_samples_ << " end_id " << end_id; */
+                        /*     total_valid_samples_ << " end_id " << end_id << " total_samples_ " << total_samples_; */
                         auto s = planner_.generateRandomSample();
                         auto v = Vertex_t{planner_.generateVertexID(), s};
                         /* JI_LOG(INFO) << "VERTEX " << v.id_; */
@@ -179,8 +182,8 @@ namespace mpl::demo {
                             planner_.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
                             ++total_valid_samples_;
                         }
-                        ++total_samples_;
-                        planner_.updatePrmRadius(total_samples_);
+                        /* planner_.updatePrmRadius(total_samples_++); */
+                        planner_.updateKPrm(total_samples_++);
                     }
                     /* JI_LOG(INFO) << "Done work " << start_id << " " << end_id; */
                 }
