@@ -12,6 +12,7 @@
 #include <interval_tree.hpp>
 #include <time.h>
 #include <vector>
+#include <util.hpp>
 using namespace mpl::demo;
 
 
@@ -284,6 +285,17 @@ void testCollisionTime() {
     JI_LOG(INFO) << "Duration " << duration.count() << " valid_duration " << valid_duration_count;
 }
 
+void testGenerateWorkQueue(AppOptions& app_options) {
+    auto queue = mpl::util::generateWorkQueue(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
+    JI_LOG(INFO) << "done queue gen";
+    auto size = queue.size();
+    for (int i=0; i < size; ++i) {
+        auto [start, end] = queue.front();
+        JI_LOG(INFO) << queue.front() << " i " << i << " diff " << end - start;
+        queue.pop();
+    }
+}
+
 int main(int argc, char* argv[]) {
     mpl::demo::AppOptions app_options(argc, argv);
     //isApproxTest();
@@ -293,8 +305,9 @@ int main(int argc, char* argv[]) {
     //interval_tree_test();
     //multi_agent_time_intersection_test();
     /* findSE3GoalsWithConds(app_options); */
-    generateSequentialGraphTest(app_options);
+    /* generateSequentialGraphTest(app_options); */
     /* testCollisionTime(); */
+    testGenerateWorkQueue(app_options);
     return 0;
 }
 

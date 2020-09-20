@@ -327,17 +327,25 @@ namespace mpl {
 
             void divide_work() { 
                 JI_LOG(INFO) << "Num lambdas: " << app_options.jobs(); 
-		start_time = std::chrono::high_resolution_clock::now(); // class variable
-		if (app_options.graphSize() ==
+                start_time = std::chrono::high_resolution_clock::now(); // class variable
+                if (app_options.graphSize() ==
                         std::numeric_limits<std::uint64_t>::infinity()) return;
-                std::uint64_t start_id{0};
-                while (start_id < app_options.graphSize()) {
-                    std::uint64_t end_id = start_id + app_options.numSamples();
-                    work_queue.push(packet::RandomSeedWork(start_id, end_id));
-                    start_id = end_id;
-                    /* JI_LOG(INFO) << "end" << start_id << " graph_size" << app_options.graphSize(); */
-                }
+                /* std::uint64_t start_id{0}; */
+                /* while (start_id < app_options.graphSize()) { */
+                /*     std::uint64_t end_id = start_id + app_options.numSamples(); */
+                /*     work_queue.push(packet::RandomSeedWork(start_id, end_id)); */
+                /*     start_id = end_id; */
+                /*     /1* JI_LOG(INFO) << "end" << start_id << " graph_size" << app_options.graphSize(); *1/ */
+                /* } */
 
+                auto tmp_queue = mpl::util::generateWorkQueue(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
+
+                auto size = tmp_queue.size();
+                for (int i=0; i < size; ++i) {
+                    auto [start, end] = tmp_queue.front();
+                    work_queue.push(packet::RandomSeedWork(start, end));
+                    tmp_queue.pop();
+                }
                 for (int i=0; i < app_options.jobs(); ++i) {
                     if (work_queue.size() < 0) break;
                     work_queue.pop(); // the lambdas take care of the initial work

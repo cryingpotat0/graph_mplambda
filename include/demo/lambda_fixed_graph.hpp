@@ -67,19 +67,40 @@ namespace mpl::demo {
                     samples_per_run_(app_options.numSamples()),
                     num_lambdas_(app_options.jobs()), // TODO: make sure jobs is passed through to lambda
                     graph_size_(app_options.graphSize()) {
+
+                        start_time_ = std::chrono::high_resolution_clock::now();
+
                         comm_.setLambdaId(lambda_id_);
+
+                        std::uint64_t time = std::chrono::time_point_cast<std::chrono::milliseconds>(start_time_).time_since_epoch().count();
+                        JI_LOG(INFO) << "Sending start time: " << time;
+                        comm_.setStartTime(time);
+
                         comm_.connect(app_options.coordinator());
                         comm_.template process<Edge_t, Distance, Vertex_t, State>();
-                        start_time_ = std::chrono::high_resolution_clock::now();
-                        std::uint64_t time = std::chrono::time_point_cast<std::chrono::milliseconds>(start_time_).time_since_epoch().count();
-                        comm_.setStartTime(time);
+
 
                         JI_LOG(INFO) << "Using seed: " << app_options.randomSeed();
                         JI_LOG(INFO) << "Num jobs: " << app_options.jobs();
                         planner_.setSeed(app_options.randomSeed());
-                        work_queue_.push(std::pair(lambda_id_ * samples_per_run_,
-                                    (lambda_id_ + 1) * samples_per_run_));
+                        initWorkQueue(app_options);
                     }
+
+                void initWorkQueue(AppOptions& app_options) {
+                    auto tmp_queue = mpl::util::generateWorkQueue(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
+                    for (int i=0; i < app_options.jobs(); ++i) {
+                        if (tmp_queue.size() < 0) {
+                            JI_LOG(ERROR) << "Queue too small";
+                            break;
+                        }
+                        auto val = tmp_queue.front();
+                        tmp_queue.pop();
+                        if (i == lambda_id_) {
+                            work_queue_.push(val);
+                            JI_LOG(INFO) << val << " put into work_queue_";
+                        }
+                    }
+                }
 
                 inline bool isDone() {
                     return comm_.isDone() || done_;

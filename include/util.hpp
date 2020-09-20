@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include <Eigen/Dense>
+#include <queue>
 
 using namespace Eigen;
 namespace mpl::util {
@@ -70,6 +71,39 @@ namespace mpl::util {
                 << quat.z() << ","
                 << ToString(pos.format(FullPrecisionCommaInitFormat));
         return oStream.str();
+    }
+
+
+    std::queue<std::pair<std::uint64_t, std::uint64_t>>
+        generateWorkQueue(std::uint64_t graph_size, std::uint64_t num_lambdas,
+                std::uint64_t num_samples) {
+            std::queue<std::pair<std::uint64_t, std::uint64_t>> work_queue;
+            // First sort out any edge cases with the initial packet
+            auto initial_packet_size = num_lambdas * num_samples;
+            initial_packet_size += graph_size % initial_packet_size; // put all the indivisible part here
+
+            auto a = initial_packet_size / num_lambdas;
+            auto c = initial_packet_size % num_lambdas;
+            auto start_id = 0;
+            JI_LOG(INFO) << " a " << a << " c " << c << " rem " << num_lambdas - c << " initial_packet_size " << initial_packet_size;
+            for (int i=0; i < c; ++i) {
+                work_queue.push({start_id, start_id + a + 1});
+                start_id += a + 1;
+            }
+
+            for (int i=0; i < num_lambdas - c; ++i) {
+                work_queue.push({start_id, start_id + a});
+                start_id += a;
+            }
+
+            while (start_id < graph_size) {
+                work_queue.push({start_id, start_id + num_samples});
+                start_id += num_samples;
+            }
+
+
+            return work_queue;
+
     }
 
 
