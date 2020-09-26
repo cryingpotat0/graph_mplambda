@@ -62,7 +62,7 @@ invocation_response my_handler(invocation_request const& request) try {
     set(options.global_max_, v, "global_max");
     set(options.algorithm_, v, "algorithm");
     set(options.env_, v, "env");
-    //set(options.robot_, v, "robot");
+    set(options.robot_, v, "robot");
     set(options.envFrame_, v, "env-frame");
     set(options.goalRadius_, v, "goal-radius");
     set(options.timeLimit_, v, "time-limit");

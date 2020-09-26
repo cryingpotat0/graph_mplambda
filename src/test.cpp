@@ -212,18 +212,16 @@ void rngStateGenerationTest(AppOptions& app_options) {
 void generateSequentialGraphTest(AppOptions& app_options) {
 
     using Scalar = double;
-    /* using Scenario = SE3RigidBodyScenario<Scalar>; */
-    using Scenario = FetchScenario<Scalar>;
+    using Scenario = SE3RigidBodyScenario<Scalar>;
+    /* using Scenario = FetchScenario<Scalar>; */
     using Distance = Scenario::Distance;
     using State = typename Scenario::State;
     using Vertex = mpl::Vertex<State>;
     using Vertex_ID = typename Vertex::ID;
     using Edge = mpl::Edge<typename Vertex::ID, Distance>;
     using Graph = mpl::UndirectedGraph<Vertex, Edge>;
-    /* Scenario scenario = initSE3Scenario<Scalar>(app_options); */
-            JI_LOG(INFO) << "here ";
-    Scenario scenario = initFetchScenario<Scalar>(app_options);
-            JI_LOG(INFO) << "here ";
+    Scenario scenario = initSE3Scenario<Scalar>(app_options);
+    /* Scenario scenario = initFetchScenario<Scalar>(app_options); */
     Graph g;
     generateSequentialGraph(scenario, app_options, g, 0, app_options.graphSize());
 
@@ -305,9 +303,9 @@ int main(int argc, char* argv[]) {
     //interval_tree_test();
     //multi_agent_time_intersection_test();
     /* findSE3GoalsWithConds(app_options); */
-    /* generateSequentialGraphTest(app_options); */
+    generateSequentialGraphTest(app_options);
     /* testCollisionTime(); */
-    testGenerateWorkQueue(app_options);
+    /* testGenerateWorkQueue(app_options); */
     return 0;
 }
 

@@ -97,6 +97,7 @@ namespace mpl {
                     "env-frame", app_options.envFrame_, 
                     "jobs", std::to_string(app_options.jobs_), 
                     "random_seed", std::to_string(app_options.randomSeed_), 
+                    "robot", app_options.robot_
                 };
 
 
@@ -588,7 +589,8 @@ namespace mpl {
             }
 
             void init_lambdas() {
-                app_options.randomSeed_ = 0; // time(NULL); // Random seed initialization
+                /* app_options.randomSeed_ = 0; // time(NULL); // Random seed initialization */
+                JI_LOG(INFO) << "Using seed " << app_options.randomSeed_;
                 if (app_options.lambdaType() == LambdaType::LAMBDA_PSEUDO) {
                     init_local_lambdas();
                 } else if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
