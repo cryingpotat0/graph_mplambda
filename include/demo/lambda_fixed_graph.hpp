@@ -95,7 +95,7 @@ namespace mpl::demo {
                         }
                         auto val = tmp_queue.front();
                         tmp_queue.pop();
-                        if (i == lambda_id_) {
+                        if (i == lambda_id_ || i == (lambda_id_ + num_lambdas_)) {
                             work_queue_.push(val);
                             JI_LOG(INFO) << val << " put into work_queue_";
                         }

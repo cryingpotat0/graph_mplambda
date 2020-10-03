@@ -7,6 +7,7 @@ parser.add_argument('--num_samples', default="1")
 parser.add_argument('--time_limits', default="")
 parser.add_argument('--graph_sizes', default="")
 parser.add_argument('--random_seeds', default="0")
+parser.add_argument('--num_lambdas', default="4")
 parser.add_argument('--algorithm', action='append', required=True)
 parser.add_argument('--scenario', action='append', required=True)
 parser.add_argument('--aws', dest='local', action='store_false', default=True)
@@ -25,6 +26,7 @@ if len(args.graph_sizes) > 0:
     args.graph_sizes = [int(graph_size) for graph_size in args.graph_sizes.split(",")]
 args.num_samples = [int(num_sample) for num_sample in args.num_samples.split(",")]
 args.random_seeds = [int(random_seed) for random_seed in args.random_seeds.split(",")]
+args.num_lambdas = [int(num_lambda) for num_lambda in args.num_lambdas.split(",")]
 
 
 if len(args.time_limits) != 0 and len(args.graph_sizes) != 0:
@@ -265,13 +267,13 @@ if __name__ == "__main__":
                 num_divisions = [
                     #(0,0,0,0,0,0,0,0),  #1
                     #(1,0,0,0,0,0,0,0),  #2
-                    (1,1,0,0,0,0,0,0),  #4
+                    #(1,1,0,0,0,0,0,0),  #4
                     #(2,1,0,0,0,0,0,0),  #6
-                    (1,1,1,0,0,0,0,0),  #8
+                    #(1,1,1,0,0,0,0,0),  #8
                     #(1,1,1,1,0,0,0,0),  #16
                     #(1,1,1,1,1,0,0,0),  #32
                     #(1,1,1,1,1,1,0,0),  #64
-                    #(1,1,1,1,1,1,1,0),  #128
+                    (1,1,1,1,1,1,1,0),  #128
 
                 ]
             root = "outputs/{}/{}".format(algorithm, scenario)
@@ -306,19 +308,19 @@ if __name__ == "__main__":
                     for random_seed in args.random_seeds:
                         for num_sample in args.num_samples:
                             for trial in range(args.num_trials):
-                                for num_division_tup in num_divisions:
-                                    num_lambda = reduce(lambda a,b: (a) * (b), [val + 1 for val in num_division_tup])
-                                    num_division = reduce(lambda a,b: "{},{}".format(a,b), num_division_tup)
-                                    file_name = "{root}/num_divisions={num_divisions}__num_lambda={num_lambda}__graph_size={graph_size}__trial={trial}__num_samples={num_samples}__random_seed={random_seed}".format(num_divisions=num_division, trial=trial, graph_size=graph_size, num_lambda=num_lambda, num_samples=num_sample, root=root, random_seed=random_seed)
+                                for num_lambda in args.num_lambdas:
+                                    #num_lambda = reduce(lambda a,b: (a) * (b), [val + 1 for val in num_division_tup])
+                                    #num_division = reduce(lambda a,b: "{},{}".format(a,b), num_division_tup)
+                                    file_name = "{root}/num_divisions={num_divisions}__num_lambda={num_lambda}__graph_size={graph_size}__trial={trial}__num_samples={num_samples}__random_seed={random_seed}".format(num_divisions="NA", trial=trial, graph_size=graph_size, num_lambda=num_lambda, num_samples=num_sample, root=root, random_seed=random_seed)
                                     #if os.path.exists(file_name): continue
-                                    if algorithm == "prm_fixed_graph":
-                                        num_division_val = num_division
-                                    else:
-                                        num_division_val = num_lambda
+                                    #if algorithm == "prm_fixed_graph":
+                                    #    num_division_val = num_division
+                                    #else:
+                                    #    num_division_val = num_lambda
                                     if scenario == "fetch1":
-                                        run_fetch_env_frame1(args, time_limit, graph_size, num_sample, file_name, num_division_val, algorithm, random_seed)
+                                        run_fetch_env_frame1(args, time_limit, graph_size, num_sample, file_name, num_lambda, algorithm, random_seed)
                                     if scenario == "fetch2":
-                                        run_fetch_env_frame2(args, time_limit, graph_size, num_sample, file_name, num_division_val, algorithm, random_seed)
+                                        run_fetch_env_frame2(args, time_limit, graph_size, num_sample, file_name, num_lambda, algorithm, random_seed)
                                     elif scenario == "png":
                                         run_png(args, time_limit, graph_size, num_sample, file_name, num_division_val, algorithm, random_seed)
 

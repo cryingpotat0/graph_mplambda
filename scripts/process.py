@@ -257,7 +257,9 @@ def lambda_start_end_time_processing():
             "lambda_start_time": [],
             "lambda_end_time": [],
             "lambda_duration": [],
-            "num_samples": []
+            "num_samples": [],
+            "random_seed": [],
+            "trial_num": []
             }
     if args.time_limit_experiments:
         all_data["time_limit"] = []
@@ -268,9 +270,11 @@ def lambda_start_end_time_processing():
         label = split_fil[-2]
         scenario = split_fil[-3]
         algorithm = split_fil[-4]
-        _, num_lambdas_str, time_limit_or_graph_size_str, _, num_samples_str = label.split("__")
+        _, num_lambdas_str, time_limit_or_graph_size_str, trial_num_str, num_samples_str, random_seed_str = label.split("__")
         num_lambdas = int(num_lambdas_str.split("=")[1])
         num_samples = int(num_samples_str.split("=")[1])
+        random_seed = int(random_seed_str.split("=")[1])
+        trial_num = int(trial_num_str.split("=")[1])
         data_by_lambda = {} # lambda_id -> (start_time, end_time)
 
         if args.time_limit_experiments:
@@ -302,6 +306,8 @@ def lambda_start_end_time_processing():
             all_data["lambda_end_time"].append(end_time)
             all_data["lambda_duration"].append(end_time - start_time)
             all_data["num_samples"].append(num_samples)
+            all_data["random_seed"].append(random_seed)
+            all_data["trial_num"].append(trial_num)
             if args.time_limit_experiments:
                 all_data["time_limit"].append(time_limit)
             else:

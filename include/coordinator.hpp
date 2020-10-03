@@ -347,7 +347,7 @@ namespace mpl {
                     work_queue.push(packet::RandomSeedWork(start, end));
                     tmp_queue.pop();
                 }
-                for (int i=0; i < app_options.jobs(); ++i) {
+                for (int i=0; i < 2 * app_options.jobs(); ++i) {
                     if (work_queue.size() < 0) break;
                     work_queue.pop(); // the lambdas take care of the initial work
                 }
