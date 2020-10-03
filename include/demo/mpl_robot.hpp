@@ -571,7 +571,7 @@ namespace mpl::demo {
         while (planner.getNewVertices().size() < num_vertices) {
             planner.addRandomSample();
             /* planner.updatePrmRadius(numSamples++); */
-            planner.updateKPrm(numSamples++);
+            planner.updateKPrm(planner.getNewVertices().size());
         }
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);

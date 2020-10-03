@@ -88,7 +88,7 @@ namespace mpl::demo {
 
                 void initWorkQueue(AppOptions& app_options) {
                     auto tmp_queue = mpl::util::generateWorkQueue(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
-                    for (int i=0; i < app_options.jobs(); ++i) {
+                    for (int i=0; i < 2 * app_options.jobs(); ++i) {
                         if (tmp_queue.size() < 0) {
                             JI_LOG(ERROR) << "Queue too small";
                             break;
@@ -187,7 +187,8 @@ namespace mpl::demo {
                             ++total_valid_samples_;
                         }
                         /* planner_.updatePrmRadius(total_samples_++); */
-                        planner_.updateKPrm(total_samples_++);
+                        total_samples_++;
+                        planner_.updateKPrm(total_valid_samples_);
                     }
 
                     while (total_valid_samples_ < end_id) {
@@ -204,7 +205,8 @@ namespace mpl::demo {
                             ++total_valid_samples_;
                         }
                         /* planner_.updatePrmRadius(total_samples_++); */
-                        planner_.updateKPrm(total_samples_++);
+                        total_samples_++;
+                        planner_.updateKPrm(total_valid_samples_);
                     }
                     /* JI_LOG(INFO) << "Done work " << start_id << " " << end_id; */
                 }
