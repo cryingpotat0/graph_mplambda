@@ -76,7 +76,7 @@ namespace mpl::util {
     std::queue<std::pair<std::uint64_t, std::uint64_t>>
         generateWorkQueueEqualWorkAmt(std::uint64_t graph_size, std::uint64_t num_lambdas,
                 std::uint64_t num_samples) {
-            std::queue<std::pair<std::uint64_t, std::uint64_t>> work_queue;
+            std::deque<std::pair<std::uint64_t, std::uint64_t>> work_queue;
 
             double total_work = (graph_size - 1) * std::log(graph_size);
             auto work_per_lambda = total_work / num_lambdas;
@@ -86,11 +86,44 @@ namespace mpl::util {
                 while (current_work < work_per_lambda && end_pos < graph_size) {
                     current_work += std::log(++end_pos);
                 }
-                work_queue.push({start_pos, end_pos});
+                work_queue.push_front({start_pos, end_pos});
                 start_pos = end_pos;
             }
+            int work_queue_size = work_queue.size();
+            if (work_queue_size < num_lambdas) {
+                auto frac_of_packets_to_redistribute = 0.4;
+                int num_packets_to_redistribute = frac_of_packets_to_redistribute * work_queue_size;
+                int start_id_for_redistribution = 0;
+                for (int i=0; i < num_packets_to_redistribute; ++i) {
+                    auto& [start_id, end_id] = work_queue.front();
+                    start_id_for_redistribution = start_id;
+                    work_queue.pop_front();
+                }
+                int work_per_redistributed_lambda = (graph_size - start_id_for_redistribution) / (num_lambdas - work_queue_size + num_packets_to_redistribute) + 1;
+                int start_pos = start_id_for_redistribution;
+                int end_pos = start_id_for_redistribution + work_per_redistributed_lambda;
+                JI_LOG(INFO) << "num_packets_to_redistribute " << num_packets_to_redistribute << 
+                    " start_id_for_redistribution " << start_id_for_redistribution <<
+                    " work per redistributed lambda " << work_per_redistributed_lambda;
+                while (end_pos < graph_size) {
+                    work_queue.push_front({start_pos, end_pos});
+                    start_pos = end_pos;
+                    end_pos += work_per_redistributed_lambda;
+                }
+                if (start_pos < graph_size) {
+                    work_queue.push_front({start_pos, graph_size});
+                }
+            }
 
-            return work_queue;
+            assert(work_queue.size() == num_lambdas);
+
+            std::queue<std::pair<std::uint64_t, std::uint64_t>> return_work_queue;
+            while (!work_queue.empty()) {
+                return_work_queue.push(work_queue.back());
+                work_queue.pop_back();
+            }
+
+            return return_work_queue;
     }
 
     std::queue<std::pair<std::uint64_t, std::uint64_t>>
