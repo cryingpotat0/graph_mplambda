@@ -87,8 +87,8 @@ namespace mpl::demo {
                     }
 
                 void initWorkQueue(AppOptions& app_options) {
-                    auto tmp_queue = mpl::util::generateWorkQueue(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
-                    for (int i=0; i < 2 * app_options.jobs(); ++i) {
+                    auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
+                    for (int i=0; i < app_options.jobs(); ++i) {
                         if (tmp_queue.size() < 0) {
                             JI_LOG(ERROR) << "Queue too small";
                             break;

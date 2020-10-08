@@ -73,6 +73,25 @@ namespace mpl::util {
         return oStream.str();
     }
 
+    std::queue<std::pair<std::uint64_t, std::uint64_t>>
+        generateWorkQueueEqualWorkAmt(std::uint64_t graph_size, std::uint64_t num_lambdas,
+                std::uint64_t num_samples) {
+            std::queue<std::pair<std::uint64_t, std::uint64_t>> work_queue;
+
+            double total_work = (graph_size - 1) * std::log(graph_size);
+            auto work_per_lambda = total_work / num_lambdas;
+            int start_pos = 0, end_pos = 0;
+            while (end_pos < graph_size) {
+                double current_work = 0;
+                while (current_work < work_per_lambda && end_pos < graph_size) {
+                    current_work += std::log(++end_pos);
+                }
+                work_queue.push({start_pos, end_pos});
+                start_pos = end_pos;
+            }
+
+            return work_queue;
+    }
 
     std::queue<std::pair<std::uint64_t, std::uint64_t>>
         generateWorkQueue(std::uint64_t graph_size, std::uint64_t num_lambdas,
@@ -103,7 +122,6 @@ namespace mpl::util {
 
 
             return work_queue;
-
     }
 
 

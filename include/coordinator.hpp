@@ -339,7 +339,7 @@ namespace mpl {
                 /*     /1* JI_LOG(INFO) << "end" << start_id << " graph_size" << app_options.graphSize(); *1/ */
                 /* } */
 
-                auto tmp_queue = mpl::util::generateWorkQueue(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
+                auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
 
                 auto size = tmp_queue.size();
                 for (int i=0; i < size; ++i) {
@@ -347,7 +347,7 @@ namespace mpl {
                     work_queue.push(packet::RandomSeedWork(start, end));
                     tmp_queue.pop();
                 }
-                for (int i=0; i < 2 * app_options.jobs(); ++i) {
+                for (int i=0; i < app_options.jobs(); ++i) {
                     if (work_queue.size() < 0) break;
                     work_queue.pop(); // the lambdas take care of the initial work
                 }
