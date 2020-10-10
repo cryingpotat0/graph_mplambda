@@ -87,19 +87,29 @@ namespace mpl::demo {
                     }
 
                 void initWorkQueue(AppOptions& app_options) {
-                    auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
-                    for (int i=0; i < app_options.jobs(); ++i) {
-                        if (tmp_queue.size() < 0) {
-                            JI_LOG(ERROR) << "Queue too small";
-                            break;
-                        }
-                        auto val = tmp_queue.front();
-                        tmp_queue.pop();
-                        if (i == lambda_id_ || i == (lambda_id_ + num_lambdas_)) {
-                            work_queue_.push(val);
-                            JI_LOG(INFO) << val << " put into work_queue_";
-                        }
+                    auto val = app_options.FirstWorkPacket<std::pair<std::uint64_t, std::uint64_t>>();
+                    JI_LOG(INFO) << val << " put into work_queue_";
+                    work_queue_.push(val);
+
+                    if (app_options.second_packet_ != "") {
+                        auto val = app_options.SecondWorkPacket<std::pair<std::uint64_t, std::uint64_t>>();
+                        JI_LOG(INFO) << val << " put into work_queue_";
+                        work_queue_.push(val);
                     }
+                    /* work_queue_.push(app_options.SecondWorkPacket()); */
+                    /* auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples()); */
+                    /* for (int i=0; i < app_options.jobs(); ++i) { */
+                    /*     if (tmp_queue.size() < 0) { */
+                    /*         JI_LOG(ERROR) << "Queue too small"; */
+                    /*         break; */
+                    /*     } */
+                    /*     auto val = tmp_queue.front(); */
+                    /*     tmp_queue.pop(); */
+                    /*     if (i == lambda_id_ || i == (lambda_id_ + num_lambdas_)) { */
+                    /*         work_queue_.push(val); */
+                    /*         JI_LOG(INFO) << val << " put into work_queue_"; */
+                    /*     } */
+                    /* } */
                 }
 
                 inline bool isDone() {

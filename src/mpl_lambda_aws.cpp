@@ -73,6 +73,8 @@ invocation_response my_handler(invocation_request const& request) try {
     set(options.jobs_, v, "jobs");
     set(options.num_samples_, v, "num_samples");
     set(options.graphSize_, v, "graph-size");
+    set(options.first_packet_, v, "first_packet");
+    set(options.second_packet_, v, "second_packet");
     options.starts_ = createVectorOfStrings(v, "start");
     options.goals_ = createVectorOfStrings(v, "goal");
     options.start_ = options.starts_[0];

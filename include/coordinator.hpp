@@ -84,7 +84,14 @@ namespace mpl {
             std::shared_ptr<Aws::Lambda::LambdaClient> lambdaClient_;
 #endif
 
-            std::vector<std::string> setup_lambda_args(std::string lambdaId) {
+            std::string getWorkPacket() {
+                if (work_queue.size() <= 0) return "";
+                auto pkt = work_queue.front();
+                work_queue.pop();
+                return std::to_string(pkt.start_id()) + "," + std::to_string(pkt.end_id());
+            }
+
+            std::vector<std::string> setup_lambda_args(std::string lambdaId, std::string first_packet, std::string second_packet) {
                 std::vector<std::string> args = {
                     "scenario", app_options.scenario(), 
                     "global_min", app_options.global_min_, 
@@ -97,7 +104,9 @@ namespace mpl {
                     "env-frame", app_options.envFrame_, 
                     "jobs", std::to_string(app_options.jobs_), 
                     "random_seed", std::to_string(app_options.randomSeed_), 
-                    "robot", app_options.robot_
+                    "robot", app_options.robot_,
+                    "first_packet", first_packet,
+                    "second_packet", second_packet,
                 };
 
 
@@ -129,7 +138,9 @@ namespace mpl {
                     // "cforest");
 
                     auto lambdaId = std::to_string(i);
-                    auto args = setup_lambda_args(lambdaId);
+                    auto first_packet = getWorkPacket();
+                    auto second_packet = getWorkPacket();
+                    auto args = setup_lambda_args(lambdaId, first_packet, second_packet);
                     args.push_back("start");
                     std::string starts;
                     for (int i = 0; i < app_options.starts_.size(); ++i) {
@@ -180,6 +191,8 @@ namespace mpl {
             void init_local_lambdas() {
                 for (int i = 0; i < app_options.jobs(); ++i) {
                     // if (i != 3) continue;
+                    auto first_packet = getWorkPacket();
+                    auto second_packet = getWorkPacket();
                     int p[2];
                     if (::pipe(p) == -1)
                         throw std::system_error(errno, std::system_category(), "Pipe");
@@ -192,7 +205,7 @@ namespace mpl {
 
                     std::string program = "./mpl_lambda_fixed_graph";
                     auto lambdaId = std::to_string(i);
-                    auto args = setup_lambda_args(lambdaId);
+                    auto args = setup_lambda_args(lambdaId, first_packet, second_packet);
                     for (int i=0; i < args.size(); i += 2) {
                         args[i] = "--" + args[i];
                     }
@@ -347,10 +360,10 @@ namespace mpl {
                     work_queue.push(packet::RandomSeedWork(start, end));
                     tmp_queue.pop();
                 }
-                for (int i=0; i < app_options.jobs(); ++i) {
-                    if (work_queue.size() < 0) break;
-                    work_queue.pop(); // the lambdas take care of the initial work
-                }
+                /* for (int i=0; i < app_options.jobs(); ++i) { */
+                /*     if (work_queue.size() < 0) break; */
+                /*     work_queue.pop(); // the lambdas take care of the initial work */
+                /* } */
 
 
                 /* int work_amt = work_queue.size(); */

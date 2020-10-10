@@ -42,6 +42,20 @@ namespace mpl::demo {
     };
 
     template <>
+    struct OptionParser<std::uint64_t> {
+        static double parse(const std::string& name, const char *arg, char **endp)
+        {
+            if (!*arg)
+                throw std::invalid_argument(name + " is required");
+
+            float v = std::strtoull(arg, endp, 0);
+            if (*endp == arg)
+                throw std::invalid_argument("bad value for " + name + ": " + arg);
+            return v;
+        }
+    };
+
+    template <>
     struct OptionParser<double> {
         static double parse(const std::string& name, const char *arg, char **endp)
         {
@@ -92,6 +106,17 @@ namespace mpl::demo {
             return { a, OptionParser<B>::parse(name, *endp + 1, endp) };
         }
     };
+
+    template <class A, class B>
+    struct OptionParser<std::pair<A, B>> {
+        static std::pair<A, B> parse(const std::string& name, const char *arg, char **endp) {
+            A a = OptionParser<A>::parse(name, arg, endp);
+            if (**endp != ',')
+                throw std::invalid_argument("expected comma");
+            return { a, OptionParser<B>::parse(name, *endp + 1, endp) };
+        }
+    };
+    
 
     template <class S, int mode>
     struct OptionParser<Eigen::Transform<S, 3, mode>> {
@@ -165,6 +190,8 @@ namespace mpl::demo {
         std::string start_ = "";
         std::string goal_ = "";
         std::string correct_goal_ = "";
+        std::string first_packet_ = "";
+        std::string second_packet_ = "";
         std::vector<std::string> starts_;
         std::vector<std::string> goals_;
 
@@ -250,6 +277,8 @@ namespace mpl::demo {
                     { "float", no_argument, NULL, 'f' },
                     { "load_graph", required_argument, NULL, 'R' },
                     { "random_seed", required_argument, NULL, 'Z' },
+                    { "first_packet", required_argument, NULL, 'F' },
+                    { "second_packet", required_argument, NULL, 'A' },
                     { NULL, 0, NULL, 0 }
             };
 
@@ -350,6 +379,12 @@ namespace mpl::demo {
                     case 'z':
                         correct_goal_ = optarg;
                         break;
+                    case 'F':
+                        first_packet_ = optarg;
+                        break;
+                    case 'A':
+                        second_packet_ = optarg;
+                        break;
                     default:
                         usage(argv[0]);
                         throw std::invalid_argument("see above");
@@ -449,6 +484,16 @@ namespace mpl::demo {
         template <class T>
         T goal() const {
             return parse<T>("goal", goal_);
+        }
+
+        template <class T>
+        T FirstWorkPacket() const {
+            return parse<T>("first_packet", first_packet_);
+        }
+
+        template <class T>
+        T SecondWorkPacket() const {
+            return parse<T>("second_packet", second_packet_);
         }
 
 
