@@ -57,6 +57,7 @@ namespace mpl {
             using TimedGraph = UndirectedGraph<TimedVertex, TimedEdge>;
             using Connection_t = Connection<CoordinatorCommonSeed>;
             std::queue<packet::RandomSeedWork> work_queue;
+            std::vector<std::queue<std::pair<std::uint64_t, std::uint64_t>>> work_vec;
 
 
         private:
@@ -84,11 +85,16 @@ namespace mpl {
             std::shared_ptr<Aws::Lambda::LambdaClient> lambdaClient_;
 #endif
 
-            std::string getWorkPacket() {
-                if (work_queue.size() <= 0) return "";
-                auto pkt = work_queue.front();
-                work_queue.pop();
-                return std::to_string(pkt.start_id()) + "," + std::to_string(pkt.end_id());
+            std::string getWorkPacket(int lambda_id) {
+                auto& queue = work_vec[lambda_id];
+                auto& [start, end] = queue.front();
+                queue.pop();
+                return std::to_string(start) + "," + std::to_string(end);
+
+                /* if (work_queue.size() <= 0) return ""; */
+                /* auto pkt = work_queue.front(); */
+                /* work_queue.pop(); */
+                /* return std::to_string(pkt.start_id()) + "," + std::to_string(pkt.end_id()); */
             }
 
             std::vector<std::string> setup_lambda_args(std::string lambdaId, std::string first_packet, std::string second_packet) {
@@ -138,8 +144,8 @@ namespace mpl {
                     // "cforest");
 
                     auto lambdaId = std::to_string(i);
-                    auto first_packet = getWorkPacket();
-                    auto second_packet = getWorkPacket();
+                    auto first_packet = getWorkPacket(i);
+                    auto second_packet = getWorkPacket(i);
                     auto args = setup_lambda_args(lambdaId, first_packet, second_packet);
                     args.push_back("start");
                     std::string starts;
@@ -191,8 +197,8 @@ namespace mpl {
             void init_local_lambdas() {
                 for (int i = 0; i < app_options.jobs(); ++i) {
                     // if (i != 3) continue;
-                    auto first_packet = getWorkPacket();
-                    auto second_packet = getWorkPacket();
+                    auto first_packet = getWorkPacket(i);
+                    auto second_packet = getWorkPacket(i);
                     int p[2];
                     if (::pipe(p) == -1)
                         throw std::system_error(errno, std::system_category(), "Pipe");
@@ -354,12 +360,17 @@ namespace mpl {
 
                 auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
 
+                work_vec = mpl::util::splitWorkQueue(tmp_queue, app_options.jobs());
+
                 auto size = tmp_queue.size();
                 for (int i=0; i < size; ++i) {
                     auto [start, end] = tmp_queue.front();
                     work_queue.push(packet::RandomSeedWork(start, end));
                     tmp_queue.pop();
                 }
+
+                // Work vec split
+
                 /* for (int i=0; i < app_options.jobs(); ++i) { */
                 /*     if (work_queue.size() < 0) break; */
                 /*     work_queue.pop(); // the lambdas take care of the initial work */

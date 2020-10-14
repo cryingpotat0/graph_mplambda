@@ -104,6 +104,38 @@ namespace mpl::util {
             return work_queue;
     }
 
+    
+    std::vector<std::queue<std::pair<std::uint64_t, std::uint64_t>>>
+        splitWorkQueue(std::queue<std::pair<std::uint64_t, std::uint64_t>>& inp, std::uint64_t num_lambdas) {
+            std::vector<std::queue<std::pair<std::uint64_t, std::uint64_t>>> work_vec;
+            work_vec.resize(num_lambdas);
+
+            auto a = inp.size() / num_lambdas;
+            auto c = inp.size() % num_lambdas;
+            for (int i=0; i < c; ++i) {
+                if (inp.empty()) break;
+                for (int j=0; j < a + 1; ++j) {
+                    if (inp.empty()) break;
+                    work_vec[i].push(inp.front());
+                    JI_LOG(INFO) << "i " << i << " inp " << inp.front();
+                    inp.pop();
+                }
+            }
+
+            for (int i=c; i < num_lambdas; ++i) {
+                if (inp.empty()) break;
+                for (int j=0; j < a; ++j) {
+                    if (inp.empty()) break;
+                    work_vec[i].push(inp.front());
+                    JI_LOG(INFO) << "i " << i << " inp " << inp.front();
+                    inp.pop();
+                }
+            }
+
+            return work_vec;
+
+        }
+
     std::queue<std::pair<std::uint64_t, std::uint64_t>>
         generateWorkQueueEqualWorkAmt(std::uint64_t graph_size, std::uint64_t num_lambdas,
                 std::uint64_t num_samples) {
