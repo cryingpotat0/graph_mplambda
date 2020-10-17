@@ -87,6 +87,7 @@ namespace mpl {
 
             std::string getWorkPacket(int lambda_id) {
                 auto& queue = work_vec[lambda_id];
+                if (queue.size() <= 0) return "";
                 auto& [start, end] = queue.front();
                 queue.pop();
                 return std::to_string(start) + "," + std::to_string(end);
