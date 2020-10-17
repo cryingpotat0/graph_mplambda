@@ -250,6 +250,71 @@ def run_png(args, time_limit, graph_size, num_sample, folder_name, num_division,
         subprocess.call("mv graph-out.txt {folder_name};".format(folder_name=folder_name), shell=True)
     subprocess.call("mv png_* {folder_name};".format(folder_name=folder_name), shell=True)
 
+def run_se3(args, time_limit, graph_size, num_sample, folder_name, num_division, algorithm, random_seed, se3_data):
+    # env-frame: 0.48...
+    min_val, max_val, env_val, robot_val, starts, goals = se3_data["min"], se3_data["max"], se3_data["env"], se3_data["robot"], se3_data["starts"], se3_data["goals"]
+    min_val = ",".join([str(val) for val in min_val])
+    max_val = ",".join([str(val) for val in max_val])
+    command = "PI=3.141592653589793 ;PI_2=1.570796326794897; make -j8; ./mpl_coordinator --scenario se3 --env {env_val} --robot {robot_val} --global_min {min_val} --global_max {max_val} ".format(env_val=env_val, robot_val=robot_val, min_val=min_val, max_val=max_val)
+    for start in starts:
+        command += " --start "
+        for i, s in enumerate(start):
+            command += str(s)
+            if i != len(start) - 1: command += ","
+    for goal in goals:
+        command += " --goal "
+        for i, g in enumerate(goal):
+            command += str(g)
+            if i != len(goal) - 1: command += ","
+    if args.local:
+        lambda_type = "local"
+        coordinator = "localhost"
+    else:
+        lambda_type = "aws"
+        coordinator = "54.202.173.51"
+
+    if args.load_graph:
+        graph_out = folder_name + "/graph-out.txt"
+        assert os.path.exists(graph_out), "Graph does not exist"
+        load_graph = graph_out
+    else:
+        if os.path.exists(folder_name):
+            print(folder_name, "already done")
+            return
+        os.makedirs(folder_name)
+        load_graph = '""' # empty string
+        
+    if algorithm == "prm_fixed_graph":
+        command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --num_divisions {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm, )
+    else:
+        command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --jobs {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm,)
+
+    if TIME_BASED:
+        command += " --time-limit {}".format(time_limit)
+    else:
+        command += " --graph-size {}".format(graph_size)
+
+    command += " --random_seed {}".format(random_seed)
+
+
+    print(command)
+    out_path = "{}/out.txt".format(folder_name)
+    if args.load_graph:
+        old_out_path = "{}/old_out.txt".format(folder_name)
+        if os.path.exists(old_out_path):
+            print("Old out already exists, not moving")
+        else:
+            os.rename(out_path, old_out_path)
+    # latest results are always in out.txt
+    #vnstat_out_path = "{}/vnstat_out.txt".format(folder_name)
+    #subprocess.Popen(['vnstat',  '-tr', str(time_limit)], stdout=open(vnstat_out_path, 'w'))
+    subprocess.call(command, shell=True, stderr=open(out_path, 'w')) 
+    print(out_path)
+    if not args.load_graph:
+        if args.local:
+            subprocess.call("mv lambda-* {folder_name}".format(folder_name=folder_name), shell=True)
+        subprocess.call("mv graph-out.txt {folder_name}".format(folder_name=folder_name), shell=True)
+
 if __name__ == "__main__":
     #time_limits = [5, 10, 20] #, 2, 3]
     #time_limits = [1, 5, 10, 20, 30] #[0.2, 0.5, ]#1]
@@ -323,6 +388,16 @@ if __name__ == "__main__":
                                         run_fetch_env_frame2(args, time_limit, graph_size, num_sample, file_name, num_lambda, algorithm, random_seed)
                                     elif scenario == "png":
                                         run_png(args, time_limit, graph_size, num_sample, file_name, num_division_val, algorithm, random_seed)
+                                    elif scenario == "se3_twistycool":
+                                        se3_data = {
+                                                "min": [53.46, -21.25, -476.86],
+                                                "max": [402.96,269.25,-91.0],
+                                                "env": "resources/Twistycool_env.dae",
+                                                "robot": "resources/Twistycool_robot.dae",
+                                                "starts": [[0,1,0,0,270,160,-200]],
+                                                "goals": [[0,1,0,0,270,160,-400]]
+                                                }
+                                        run_se3(args, time_limit, graph_size, num_sample, file_name, num_lambda, algorithm, random_seed, se3_data)
 
                                     print("-------------------------------------------------------------------------------------")
                                     time.sleep(2) 

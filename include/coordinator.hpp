@@ -86,16 +86,16 @@ namespace mpl {
 #endif
 
             std::string getWorkPacket(int lambda_id) {
-                auto& queue = work_vec[lambda_id];
-                if (queue.size() <= 0) return "";
-                auto& [start, end] = queue.front();
-                queue.pop();
-                return std::to_string(start) + "," + std::to_string(end);
+                /* auto& queue = work_vec[lambda_id]; */
+                /* if (queue.size() <= 0) return ""; */
+                /* auto& [start, end] = queue.front(); */
+                /* queue.pop(); */
+                /* return std::to_string(start) + "," + std::to_string(end); */
 
-                /* if (work_queue.size() <= 0) return ""; */
-                /* auto pkt = work_queue.front(); */
-                /* work_queue.pop(); */
-                /* return std::to_string(pkt.start_id()) + "," + std::to_string(pkt.end_id()); */
+                if (work_queue.size() <= 0) return "";
+                auto pkt = work_queue.front();
+                work_queue.pop();
+                return std::to_string(pkt.start_id()) + "," + std::to_string(pkt.end_id());
             }
 
             std::vector<std::string> setup_lambda_args(std::string lambdaId, std::string first_packet, std::string second_packet) {
@@ -361,7 +361,7 @@ namespace mpl {
 
                 auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
 
-                work_vec = mpl::util::splitWorkQueue(tmp_queue, app_options.jobs());
+                /* work_vec = mpl::util::splitWorkQueue(tmp_queue, app_options.jobs()); */
 
                 auto size = tmp_queue.size();
                 for (int i=0; i < size; ++i) {

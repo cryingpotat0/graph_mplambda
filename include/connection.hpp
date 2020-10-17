@@ -96,41 +96,41 @@ namespace mpl {
 
         template <class Vertex, class State>
             void process(packet::Vertices<Vertex, State> &&pkt) {
-                if (curr_id_loc >= coordinator_.work_vec.size()) {
-                    sendDone();
-                    return;
-                }
-
-                auto& curr_queue = coordinator_.work_vec[curr_id_loc];
-                while (curr_queue.empty() && curr_id_loc < coordinator_.work_vec.size()) {
-                    curr_queue = coordinator_.work_vec[curr_id_loc];
-                    curr_id_loc++;
-                }
-
-                if (curr_queue.empty()) {
-                    sendDone();
-                    return;
-                }
-
-                auto& [start, end] = curr_queue.front();
-                auto work_pkt = packet::RandomSeedWork(start, end);
-                curr_queue.pop();
-                JI_LOG(INFO) << "Sending work pkt " << "(" <<
-                    work_pkt.start_id() << "," << work_pkt.end_id() << 
-                    ") to lambda " << lambdaId_;
-                coordinator_.writePacketToLambda(lambdaId_, lambdaId_, work_pkt);
-                
-                /* if (coordinator_.work_queue.empty()) { */
+                /* if (curr_id_loc >= coordinator_.work_vec.size()) { */
                 /*     sendDone(); */
                 /*     return; */
                 /* } */
-                /* auto work_pkt = coordinator_.work_queue.front(); */
-                /* coordinator_.work_queue.pop(); */
 
+                /* auto& curr_queue = coordinator_.work_vec[curr_id_loc]; */
+                /* while (curr_queue.empty() && curr_id_loc < coordinator_.work_vec.size()) { */
+                /*     curr_queue = coordinator_.work_vec[curr_id_loc]; */
+                /*     curr_id_loc++; */
+                /* } */
+
+                /* if (curr_queue.empty()) { */
+                /*     sendDone(); */
+                /*     return; */
+                /* } */
+
+                /* auto& [start, end] = curr_queue.front(); */
+                /* auto work_pkt = packet::RandomSeedWork(start, end); */
+                /* curr_queue.pop(); */
                 /* JI_LOG(INFO) << "Sending work pkt " << "(" << */
                 /*     work_pkt.start_id() << "," << work_pkt.end_id() << */ 
                 /*     ") to lambda " << lambdaId_; */
                 /* coordinator_.writePacketToLambda(lambdaId_, lambdaId_, work_pkt); */
+                
+                if (coordinator_.work_queue.empty()) {
+                    sendDone();
+                    return;
+                }
+                auto work_pkt = coordinator_.work_queue.front();
+                coordinator_.work_queue.pop();
+
+                JI_LOG(INFO) << "Sending work pkt " << "(" <<
+                    work_pkt.start_id() << "," << work_pkt.end_id() << 
+                    ") to lambda " << lambdaId_;
+                coordinator_.writePacketToLambda(lambdaId_, lambdaId_, work_pkt);
             }
 
         template <class Edge, class Distance>
