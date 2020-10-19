@@ -173,7 +173,54 @@ namespace mpl::demo {
                 /*     auto stop = std::chrono::high_resolution_clock::now(); */
                 /*     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); */
                 /*     //JI_LOG(INFO) << "Lambda id " << lambda_id_ << ": time to connect is " << duration; */
-                /* } */
+ 
+                void processWorkPacketModulo(std::pair<std::uint64_t, std::uint64_t> start_and_end_id) {
+                    auto& [start_id, end_id] = start_and_end_id;
+
+                    /* JI_LOG(INFO) << "Doing work " << start_id << " " << end_id */
+                    /*     << " current location " << total_valid_samples_; */
+                    // start_id indicates the start_num_of_valid_vertices
+                    // end_id indicated the end_num_of_valid_vertices
+                    while (total_valid_samples_ < start_id) {
+                        /* JI_LOG(INFO) << "total_valid_samples_ " << */
+                        /*     total_valid_samples_ << " start_id " << start_id; */
+                        /* JI_LOG(INFO) << "total_valid_samples_ " << */
+                        /*     total_valid_samples_ << " start_id " << start_id << " total_samples_ " << total_samples_; */
+                        auto s = planner_.generateRandomSample();
+                        auto v = Vertex_t{planner_.generateVertexID(), s};
+                        /* JI_LOG(INFO) << "VERTEX " << v.id_; */
+                        if (scenario_.isValid(s)) {
+                            //JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_;
+                            validSamples_.push_back(v);
+                            planner_.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
+                            ++total_valid_samples_;
+                        }
+                        /* planner_.updatePrmRadius(total_samples_++); */
+                        total_samples_++;
+                        planner_.updateKPrm(total_valid_samples_);
+                    }
+
+                    while (total_valid_samples_ < end_id) {
+                        /* JI_LOG(INFO) << "total_valid_samples_ " << */
+                        /*     total_valid_samples_ << " end_id " << end_id << " total_samples_ " << total_samples_; */
+                        auto s = planner_.generateRandomSample();
+                        auto v = Vertex_t{planner_.generateVertexID(), s};
+                        if (scenario_.isValid(s)) {
+                            /* JI_LOG(INFO) << "VERTEX " << s << " VALIDNUMSAMPLES " << total_valid_samples_; */
+                            ++total_valid_samples_;
+                            validSamples_.push_back(v);
+                            if (total_valid_samples_ % num_lambdas_ == lambda_id_) {
+                                JI_LOG(INFO) << "VERTEX " << total_valid_samples_;
+                                planner_.connectVertex(v);
+                            }
+                            planner_.addExistingVertex(v); // Keeping track of vertices outside the lambda, only use it for nn checks
+                        }
+                        /* planner_.updatePrmRadius(total_samples_++); */
+                        total_samples_++;
+                        planner_.updateKPrm(total_valid_samples_);
+                    }
+                    /* JI_LOG(INFO) << "Done work " << start_id << " " << end_id; */
+                }               /* } */
 
                 void processWorkPacket(std::pair<std::uint64_t, std::uint64_t> start_and_end_id) {
                     auto& [start_id, end_id] = start_and_end_id;
@@ -235,7 +282,8 @@ namespace mpl::demo {
                     //    return;
                     //}
                     if (work_queue_.size() > 0) {
-                        processWorkPacket(work_queue_.front());
+                        //processWorkPacket(work_queue_.front());
+                        processWorkPacketModulo(work_queue_.front());
                         work_queue_.pop();
                         /* planner_.updatePrmRadius(total_samples_); */
                         /* connectSamples(); */

@@ -146,7 +146,7 @@ namespace mpl {
 
                     auto lambdaId = std::to_string(i);
                     auto first_packet = getWorkPacket(i);
-                    auto second_packet = getWorkPacket(i);
+                    auto second_packet = ""; //getWorkPacket(i);
                     auto args = setup_lambda_args(lambdaId, first_packet, second_packet);
                     args.push_back("start");
                     std::string starts;
@@ -199,7 +199,7 @@ namespace mpl {
                 for (int i = 0; i < app_options.jobs(); ++i) {
                     // if (i != 3) continue;
                     auto first_packet = getWorkPacket(i);
-                    auto second_packet = getWorkPacket(i);
+                    auto second_packet = ""; // getWorkPacket(i);
                     int p[2];
                     if (::pipe(p) == -1)
                         throw std::system_error(errno, std::system_category(), "Pipe");
@@ -359,7 +359,14 @@ namespace mpl {
                 /*     /1* JI_LOG(INFO) << "end" << start_id << " graph_size" << app_options.graphSize(); *1/ */
                 /* } */
 
-                auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
+                /* auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples()); */
+                /* auto tmp_queue = mpl::util::generateWorkQueue(app_options.graphSize(), app_options.jobs(), app_options.numSamples()); */
+
+                // Modulo work queue
+                std::queue<std::pair<std::uint64_t, std::uint64_t>> tmp_queue;
+                for (int i=0; i < app_options.jobs(); i++) {
+                    tmp_queue.push({0, app_options.graphSize()});
+                }
 
                 /* work_vec = mpl::util::splitWorkQueue(tmp_queue, app_options.jobs()); */
 
@@ -369,6 +376,7 @@ namespace mpl {
                     work_queue.push(packet::RandomSeedWork(start, end));
                     tmp_queue.pop();
                 }
+
 
                 // Work vec split
 
