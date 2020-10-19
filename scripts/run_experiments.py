@@ -89,10 +89,10 @@ def run_fetch_env_frame1(args, time_limit, graph_size, num_sample, folder_name, 
         os.makedirs(folder_name)
         load_graph = '""' # empty string
         
-    if algorithm == "prm_fixed_graph":
-        command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --num_divisions {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm, )
-    else:
-        command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --jobs {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm,)
+    #if algorithm == "prm_fixed_graph":
+    #    command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --num_divisions {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm, )
+    #else:
+    command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --jobs {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm="prm_common_seed",)
 
     if TIME_BASED:
         command += " --time-limit {}".format(time_limit)
@@ -176,10 +176,10 @@ def run_fetch_env_frame2(args, time_limit, graph_size, num_sample, folder_name, 
         load_graph = '""' # empty string
         
 
-    if algorithm == "prm_fixed_graph":
-        command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --num_divisions {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm, )
-    else:
-        command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --jobs {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm,)
+    #if algorithm == "prm_fixed_graph":
+    #    command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --num_divisions {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm, )
+    #else:
+    command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --jobs {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm="prm_common_seed",)
 
     if TIME_BASED:
         command += " --time-limit {}".format(time_limit)
@@ -284,10 +284,10 @@ def run_se3(args, time_limit, graph_size, num_sample, folder_name, num_division,
         os.makedirs(folder_name)
         load_graph = '""' # empty string
         
-    if algorithm == "prm_fixed_graph":
-        command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --num_divisions {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm, )
-    else:
-        command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --jobs {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm,)
+    #if algorithm == "prm_fixed_graph":
+    #    command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --num_divisions {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm=algorithm, )
+    #else:
+    command += " --lambda_type {lambda_type} --coordinator {coordinator} --num_samples {num_samples} --jobs {num_divisions} --algorithm {algorithm} --load_graph {load_graph}".format(num_samples=num_sample, num_divisions=num_division, lambda_type=lambda_type, coordinator=coordinator, load_graph=load_graph, algorithm="prm_common_seed",)
 
     if TIME_BASED:
         command += " --time-limit {}".format(time_limit)
@@ -396,6 +396,16 @@ if __name__ == "__main__":
                                                 "robot": "resources/Twistycool_robot.dae",
                                                 "starts": [[0,1,0,0,270,160,-200]],
                                                 "goals": [[0,1,0,0,270,160,-400]]
+                                                }
+                                        run_se3(args, time_limit, graph_size, num_sample, file_name, num_lambda, algorithm, random_seed, se3_data)
+                                    elif scenario == "se3_apartment":
+                                        se3_data = {
+                                                "min": [-73.76, -179.59, -0.03],
+                                                "max": [295.77,168.26,90.39],
+                                                "env": "resources/Apartment_env.dae",
+                                                "robot": "resources/Apartment_robot.dae",
+                                                "starts": [[0,0,0,-1,241.81,106.15,36.46]],
+                                                "goals": [[0,0,0,-1,241.81,106.15,36.46]]
                                                 }
                                         run_se3(args, time_limit, graph_size, num_sample, file_name, num_lambda, algorithm, random_seed, se3_data)
 

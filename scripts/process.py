@@ -265,7 +265,7 @@ def lambda_start_end_time_processing():
         all_data["time_limit"] = []
     else:
         all_data["graph_size"] = []
-    for fil in glob.glob(args.root + "*/*/*/out.txt"):
+    for fil in glob.glob(args.root + "/*/*/*/out.txt"):
         split_fil = fil.split("/")
         label = split_fil[-2]
         scenario = split_fil[-3]
