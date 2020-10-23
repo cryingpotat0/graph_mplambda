@@ -8,6 +8,7 @@
 #include <string>
 #include <iostream>
 #include <time.h>
+#include <omp.h>
 #include <unordered_map>
 
 
@@ -36,7 +37,6 @@ namespace mpl {
         };
 
 
-    private:
 
         struct KeyFn {
             const State& operator() (const Vertex_t& v) const {
@@ -72,6 +72,10 @@ namespace mpl {
             JI_LOG(INFO) << "Init rPRM: " << rPRM;
             kPRM = std::ceil(std::exp(1) * (1 + 1./scenario_.dimension()));
             JI_LOG(INFO) << "Init kPRM: " << kPRM;
+            #pragma omp parallel 
+            {
+                JI_LOG(INFO) << "OMP Num Threads: " << omp_get_num_threads();
+            }
         }
 
         void addValidSampleCallback(std::function<void(Vertex_t&)> f) {
@@ -102,7 +106,7 @@ namespace mpl {
             if (num_samples == 0) return;
             auto new_k = std::ceil(std::exp(1) * (1 + 1./dimension) * std::log(num_samples));
             if (new_k > 0) {
-                JI_LOG(INFO) << "New kPRM is " << new_k;
+                /* JI_LOG(INFO) << "New kPRM is " << new_k; */
                 kPRM = new_k;
             }
         }
@@ -159,6 +163,7 @@ namespace mpl {
             if (!validity) {
                 return;
             }
+            /* auto start = std::chrono::high_resolution_clock::now(); */
             new_vertices.push_back(v);
 
 
@@ -167,6 +172,9 @@ namespace mpl {
 
             // add to nearest neighbor structure
             nn.insert(v);
+            /* auto stop = std::chrono::high_resolution_clock::now(); */
+            /* auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); */
+            /* JI_LOG(INFO) << "Vertex num " << new_vertices.size() << " time to connect: " << duration.count(); */
             for (auto fn : validSampleCallbacks) {
                 fn(v);
             }
@@ -228,7 +236,7 @@ namespace mpl {
         }
         
         void connectVertex(Vertex_t& v) {
-            auto start = std::chrono::high_resolution_clock::now();
+            /* auto start = std::chrono::high_resolution_clock::now(); */
             nbh.clear();
             if (radius_based) {
                 auto k = std::numeric_limits<std::size_t>::max();
@@ -236,22 +244,24 @@ namespace mpl {
             } else {
                 nn.nearest(nbh, v.state(), kPRM);
             }
-            auto stop = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-            profilingMap["nearest_neighbor_time"] += duration.count();
+            /* auto stop = std::chrono::high_resolution_clock::now(); */
+            /* auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); */
+            /* profilingMap["nearest_neighbor_time"] += duration.count(); */
 
-            int nn_counter{0};
-            for(auto &[other, dist] : nbh) {
-                ++nn_counter;
+            #pragma omp parallel for schedule(dynamic)
+            for(int i=0; i < nbh.size(); ++i) {
+                auto &[other, dist] = nbh[i];
                 // Other ones must be valid and in the graph by definition
-                start = std::chrono::high_resolution_clock::now();
+                /* start = std::chrono::high_resolution_clock::now(); */
                 if (scenario.isValid(v.state(), other.state())) {
                     Edge_t e{dist, v.id_, other.id_};
+
+                    #pragma omp critical
                     new_edges.push_back(std::move(e));
                 }
-                stop = std::chrono::high_resolution_clock::now();
-                duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                profilingMap["collision_time"] += duration.count();
+                /* stop = std::chrono::high_resolution_clock::now(); */
+                /* duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); */
+                /* profilingMap["collision_time"] += duration.count(); */
             }
             /* JI_LOG(INFO) << "Num nn is " << nn_counter << " for vertex num " << */
             /*     new_vertices.size() << " and prmradius " << rPRM; */
