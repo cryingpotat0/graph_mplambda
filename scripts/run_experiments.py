@@ -408,6 +408,16 @@ if __name__ == "__main__":
                                                 "goals": [[0,0,0,-1,241.81,106.15,36.46]]
                                                 }
                                         run_se3(args, time_limit, graph_size, num_sample, file_name, num_lambda, algorithm, random_seed, se3_data)
+                                    elif scenario == "se3_cubicles":
+                                        se3_data = {
+                                                "min": [-508.88,-230.13,-123.75],
+                                                "max": [319.62,531.87,101.0],
+                                                "env": "resources/cubicles_env.dae",
+                                                "robot": "resources/cubicles_robot.dae",
+                                                "starts": [[0,1,0,0,-4.96,-40.62,70.57]],
+                                                "goals": [[0,1,0,0,200.0,-40.62,70.57]]
+                                                }
+                                        run_se3(args, time_limit, graph_size, num_sample, file_name, num_lambda, algorithm, random_seed, se3_data)
 
                                     print("-------------------------------------------------------------------------------------")
                                     time.sleep(2) 

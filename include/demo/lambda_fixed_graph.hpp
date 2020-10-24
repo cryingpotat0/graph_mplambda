@@ -282,8 +282,8 @@ namespace mpl::demo {
                     //    return;
                     //}
                     if (work_queue_.size() > 0) {
-                        //processWorkPacket(work_queue_.front());
-                        processWorkPacketModulo(work_queue_.front());
+                        processWorkPacket(work_queue_.front());
+                        //processWorkPacketModulo(work_queue_.front());
                         work_queue_.pop();
                         /* planner_.updatePrmRadius(total_samples_); */
                         /* connectSamples(); */

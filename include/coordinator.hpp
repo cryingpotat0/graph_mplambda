@@ -33,6 +33,8 @@
 #include <aws/lambda-runtime/runtime.h>
 #include <aws/lambda/LambdaClient.h>
 #include <aws/lambda/model/InvokeRequest.h>
+#include <aws/core/utils/threading/Executor.h>
+
 #endif
 
 namespace mpl {
@@ -82,7 +84,7 @@ namespace mpl {
             long unsigned int max_vertex_id_{0};
 #if HAS_AWS_SDK
             static constexpr const char *ALLOCATION_TAG = "mplLambdaAWS";
-            std::shared_ptr<Aws::Lambda::LambdaClient> lambdaClient_;
+            //std::shared_ptr<Aws::Lambda::LambdaClient> lambdaClient_;
 #endif
 
             std::string getWorkPacket(int lambda_id) {
@@ -132,66 +134,88 @@ namespace mpl {
 #if !HAS_AWS_SDK
                 throw std::invalid_argument("AWS SDK is not available");
 #else
+		JI_LOG(INFO) << "initializing lambda client";
+		Aws::SDKOptions options;
+		Aws::InitAPI(options);
+		Aws::Client::ClientConfiguration clientConfig;
+		clientConfig.region = "us-west-2";
+		//clientConfig.executor = Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>(ALLOCATION_TAG, 100);
+
+		std::vector<std::pair<std::string, std::string>> work_packets;
                 for (int i = 0; i < app_options.jobs(); ++i) {
-                    Aws::Lambda::Model::InvokeRequest invokeRequest;
-                    invokeRequest.SetFunctionName("mpl_fixed_graph_aws");
-                    invokeRequest.SetInvocationType(
-                            Aws::Lambda::Model::InvocationType::Event);
-                    std::shared_ptr<Aws::IOStream> payload =
-                        Aws::MakeShared<Aws::StringStream>("PayloadData");
-                    Aws::Utils::Json::JsonValue jsonPayload;
+			work_packets.emplace_back(std::make_pair(getWorkPacket(i), ""));
+		}
 
-                    // jsonPayload.WithString("algorithm", prob.algorithm() == 'r' ? "rrt" :
-                    // "cforest");
+		std::vector<std::thread> threads;
+                for (int i = 0; i < app_options.jobs(); ++i) {
+			auto [first_packet, second_packet] = work_packets[i];
+			threads.emplace_back([&, i, clientConfig, first_packet, second_packet] () { // Not passing these by value resutls in weird memory issues
+					Aws::Lambda::Model::InvokeRequest invokeRequest;
+					invokeRequest.SetFunctionName("mpl_fixed_graph_aws");
+					invokeRequest.SetInvocationType(
+							Aws::Lambda::Model::InvocationType::Event);
+					std::shared_ptr<Aws::IOStream> payload =
+					Aws::MakeShared<Aws::StringStream>("PayloadData");
+					Aws::Utils::Json::JsonValue jsonPayload;
 
-                    auto lambdaId = std::to_string(i);
-                    auto first_packet = getWorkPacket(i);
-                    auto second_packet = ""; //getWorkPacket(i);
-                    auto args = setup_lambda_args(lambdaId, first_packet, second_packet);
-                    args.push_back("start");
-                    std::string starts;
-                    for (int i = 0; i < app_options.starts_.size(); ++i) {
-                        starts += app_options.starts_[i];
-                        if (i != app_options.starts_.size() - 1)
-                            starts += ";";
-                    }
-                    args.push_back(starts);
+					// jsonPayload.WithString("algorithm", prob.algorithm() == 'r' ? "rrt" :
+					// "cforest");
 
-                    args.push_back("goal");
-                    std::string goals;
-                    for (int i = 0; i < app_options.goals_.size(); ++i) {
-                        goals += app_options.goals_[i];
-                        if (i != app_options.goals_.size() - 1)
-                            goals += ";";
-                    }
-                    args.push_back(goals);
+					auto lambdaId = std::to_string(i);
+					//auto first_packet = getWorkPacket(i);
+					//auto second_packet = ""; //getWorkPacket(i);
+					auto args = setup_lambda_args(lambdaId, first_packet, second_packet);
+					args.push_back("start");
+					std::string starts;
+					for (int i = 0; i < app_options.starts_.size(); ++i) {
+					starts += app_options.starts_[i];
+					if (i != app_options.starts_.size() - 1)
+						starts += ";";
+					}
+					args.push_back(starts);
 
-                    for (std::size_t i = 0; i + 1 < args.size(); i += 2) {
-                        const std::string &key = args[i];
-                        const std::string &val = args[i + 1];
-                        jsonPayload.WithString(Aws::String(key.c_str(), key.size()),
-                                Aws::String(val.c_str(), val.size()));
-                    }
+					args.push_back("goal");
+					std::string goals;
+					for (int i = 0; i < app_options.goals_.size(); ++i) {
+						goals += app_options.goals_[i];
+						if (i != app_options.goals_.size() - 1)
+							goals += ";";
+					}
+					args.push_back(goals);
 
-                    *payload << jsonPayload.View().WriteReadable();
-                    invokeRequest.SetBody(payload);
-                    invokeRequest.SetContentType("application/json");
+					for (std::size_t i = 0; i + 1 < args.size(); i += 2) {
+						const std::string &key = args[i];
+						const std::string &val = args[i + 1];
+						jsonPayload.WithString(Aws::String(key.c_str(), key.size()),
+								Aws::String(val.c_str(), val.size()));
+					}
 
-                    auto outcome = lambdaClient_->Invoke(invokeRequest);
-                    if (outcome.IsSuccess()) {
-                        auto &result = outcome.GetResult();
-                        Aws::IOStream &payload = result.GetPayload();
-                        Aws::String functionResult;
-                        std::getline(payload, functionResult);
-                        JI_LOG(INFO) << "Lambda result: " << functionResult;
-                    } else {
-                        auto &error = outcome.GetError();
-                        std::ostringstream msg;
-                        msg << "name: '" << error.GetExceptionName() << "', message: '"
-                            << error.GetMessage() << "'";
-                        throw std::runtime_error(msg.str());
-                    }
+					*payload << jsonPayload.View().WriteReadable();
+					invokeRequest.SetBody(payload);
+					invokeRequest.SetContentType("application/json");
+
+
+					auto lambdaClient_ = Aws::MakeShared<Aws::Lambda::LambdaClient>(ALLOCATION_TAG,
+							clientConfig);
+					auto outcome = lambdaClient_->Invoke(invokeRequest);
+					if (outcome.IsSuccess()) {
+						auto &result = outcome.GetResult();
+						Aws::IOStream &payload = result.GetPayload();
+						Aws::String functionResult;
+						std::getline(payload, functionResult);
+						JI_LOG(INFO) << "Lambda result: " << functionResult;
+					} else {
+						auto &error = outcome.GetError();
+						std::ostringstream msg;
+						msg << "name: '" << error.GetExceptionName() << "', message: '"
+							<< error.GetMessage() << "'";
+						throw std::runtime_error(msg.str());
+					}
+			});
                 }
+                for (int i = 0; i < app_options.jobs(); ++i) {
+			threads[i].join();
+		}
 #endif
             }
 
@@ -199,7 +223,7 @@ namespace mpl {
                 for (int i = 0; i < app_options.jobs(); ++i) {
                     // if (i != 3) continue;
                     auto first_packet = getWorkPacket(i);
-                    auto second_packet = ""; // getWorkPacket(i);
+                    auto second_packet = ""; //getWorkPacket(i);
                     int p[2];
                     if (::pipe(p) == -1)
                         throw std::system_error(errno, std::system_category(), "Pipe");
@@ -255,15 +279,16 @@ namespace mpl {
             CoordinatorCommonSeed(demo::AppOptions &app_options_, Scenario &scenario)
                 : app_options(app_options_), scenario_(scenario) {
 #if HAS_AWS_SDK
-                    if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
-                        JI_LOG(INFO) << "initializing lambda client";
-                        Aws::SDKOptions options;
-                        Aws::InitAPI(options);
-                        Aws::Client::ClientConfiguration clientConfig;
-                        clientConfig.region = "us-west-2";
-                        lambdaClient_ = Aws::MakeShared<Aws::Lambda::LambdaClient>(ALLOCATION_TAG,
-                                clientConfig);
-                    }
+                    //if (app_options.lambdaType() == LambdaType::LAMBDA_AWS) {
+                    //    JI_LOG(INFO) << "initializing lambda client";
+                    //    Aws::SDKOptions options;
+                    //    Aws::InitAPI(options);
+                    //    Aws::Client::ClientConfiguration clientConfig;
+                    //    clientConfig.region = "us-west-2";
+		    //    clientConfig.executor = Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>(ALLOCATION_TAG, 100);
+                    //    lambdaClient_ = Aws::MakeShared<Aws::Lambda::LambdaClient>(ALLOCATION_TAG,
+                    //            clientConfig);
+                    //}
 #endif
                 }
 
@@ -359,14 +384,14 @@ namespace mpl {
                 /*     /1* JI_LOG(INFO) << "end" << start_id << " graph_size" << app_options.graphSize(); *1/ */
                 /* } */
 
-                /* auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples()); */
-                /* auto tmp_queue = mpl::util::generateWorkQueue(app_options.graphSize(), app_options.jobs(), app_options.numSamples()); */
+                auto tmp_queue = mpl::util::generateWorkQueueEqualWorkAmt(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
+                //auto tmp_queue = mpl::util::generateWorkQueue(app_options.graphSize(), app_options.jobs(), app_options.numSamples());
 
                 // Modulo work queue
-                std::queue<std::pair<std::uint64_t, std::uint64_t>> tmp_queue;
-                for (int i=0; i < app_options.jobs(); i++) {
-                    tmp_queue.push({0, app_options.graphSize()});
-                }
+                //std::queue<std::pair<std::uint64_t, std::uint64_t>> tmp_queue;
+                //for (int i=0; i < app_options.jobs(); i++) {
+                //    tmp_queue.push({0, app_options.graphSize()});
+                //}
 
                 /* work_vec = mpl::util::splitWorkQueue(tmp_queue, app_options.jobs()); */
 
