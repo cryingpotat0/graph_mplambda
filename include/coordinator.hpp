@@ -63,6 +63,7 @@ namespace mpl {
 
 
         private:
+	    std::vector<std::thread> threads;
             std::vector<std::vector<Buffer>>
                 buffered_data_; // Any data to be written if lambda is not up yet
             demo::AppOptions app_options;
@@ -146,7 +147,6 @@ namespace mpl {
 			work_packets.emplace_back(std::make_pair(getWorkPacket(i), ""));
 		}
 
-		std::vector<std::thread> threads;
                 for (int i = 0; i < app_options.jobs(); ++i) {
 			auto [first_packet, second_packet] = work_packets[i];
 			threads.emplace_back([&, i, clientConfig, first_packet, second_packet] () { // Not passing these by value resutls in weird memory issues
@@ -213,9 +213,18 @@ namespace mpl {
 					}
 			});
                 }
-                for (int i = 0; i < app_options.jobs(); ++i) {
-			threads[i].join();
-		}
+		//auto stop = std::chrono::high_resolution_clock::now();
+		//auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+		//JI_LOG(INFO) << "Time to init threads " << duration.count() << " ms";
+
+
+		//start = std::chrono::high_resolution_clock::now();
+                //for (int i = 0; i < app_options.jobs(); ++i) {
+		//	threads[i].join();
+		//}
+		//stop = std::chrono::high_resolution_clock::now();
+		//duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+		//JI_LOG(INFO) << "Time to join threads " << duration.count() << " ms";
 #endif
             }
 
@@ -562,6 +571,10 @@ namespace mpl {
 
                 // Handle cleaning up lambdas
                 connections_.clear();
+		
+		for (int i=0; i < app_options.jobs(); ++i) {
+		   threads[i].join();
+		}
 
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
