@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <util.hpp>
 #include <vector>
+#include <thread>
 
 #if HAS_AWS_SDK
 #include <aws/core/Aws.h>
@@ -101,6 +102,12 @@ namespace mpl {
                 return std::to_string(pkt.start_id()) + "," + std::to_string(pkt.end_id());
             }
 
+            std::string calcDelayedStartTime() {
+                auto delayed_time = start_time + std::chrono::milliseconds(5000);
+                auto delayed_time_count = std::chrono::time_point_cast<std::chrono::milliseconds>(delayed_time).time_since_epoch().count();
+                return std::to_string(delayed_time_count);
+            }
+
             std::vector<std::string> setup_lambda_args(std::string lambdaId, std::string first_packet, std::string second_packet) {
                 std::vector<std::string> args = {
                     "scenario", app_options.scenario(), 
@@ -117,6 +124,7 @@ namespace mpl {
                     "robot", app_options.robot_,
                     "first_packet", first_packet,
                     "second_packet", second_packet,
+                    "delayed_start_time", calcDelayedStartTime(),
                 };
 
 
@@ -383,6 +391,7 @@ namespace mpl {
             void divide_work() { 
                 JI_LOG(INFO) << "Num lambdas: " << app_options.jobs(); 
                 start_time = std::chrono::high_resolution_clock::now(); // class variable
+                JI_LOG(INFO) << "Delayed start time: " << calcDelayedStartTime();
                 if (app_options.graphSize() ==
                         std::numeric_limits<std::uint64_t>::infinity()) return;
                 /* std::uint64_t start_id{0}; */

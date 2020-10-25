@@ -182,6 +182,7 @@ namespace mpl::demo {
         std::uint64_t problemId_;
         std::uint64_t lambdaId_;
         std::uint64_t randomSeed_{0};
+        std::uint64_t delayed_start_time_{0};
 
         std::string env_;
         std::string robot_;
@@ -279,10 +280,11 @@ namespace mpl::demo {
                     { "random_seed", required_argument, NULL, 'Z' },
                     { "first_packet", required_argument, NULL, 'F' },
                     { "second_packet", required_argument, NULL, 'A' },
+                    { "delayed_start_time", required_argument, NULL, 'Q' },
                     { NULL, 0, NULL, 0 }
             };
 
-            for (int ch ; (ch = getopt_long(argc, argv, "S:a:c:C:j:e:E:r:g:G:s:m:M:I:t:T:d:f:R:Z", longopts, NULL)) != -1 ; ) {
+            for (int ch ; (ch = getopt_long(argc, argv, "S:a:c:C:j:e:E:r:g:G:s:m:M:I:t:T:d:f:R:Z:F:A:Q", longopts, NULL)) != -1 ; ) {
                 char *endp;
 
                 switch (ch) {
@@ -361,6 +363,11 @@ namespace mpl::demo {
                         graphSize_ = std::strtoull(optarg, &endp, 0);
                         if (endp == optarg || *endp || graphSize_ < 0)
                             throw std::invalid_argument("bad value for --graph-size");
+                        break;
+                    case 'Q':
+                        delayed_start_time_ = std::strtoull(optarg, &endp, 0);
+                        if (endp == optarg || *endp || graphSize_ < 0)
+                            throw std::invalid_argument("bad value for --delayed_start_time");
                         break;
                     case 'd':
                         checkResolution_ = std::strtod(optarg, &endp);
@@ -577,6 +584,10 @@ namespace mpl::demo {
 
         int numSamples() const {
             return num_samples_;
+        }
+
+        std::uint64_t delayedStartTime() const {
+            return delayed_start_time_;
         }
 
         double checkResolution(double defaultIfZero) const {

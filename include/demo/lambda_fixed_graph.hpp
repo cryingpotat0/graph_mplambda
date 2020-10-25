@@ -68,11 +68,21 @@ namespace mpl::demo {
                     num_lambdas_(app_options.jobs()), // TODO: make sure jobs is passed through to lambda
                     graph_size_(app_options.graphSize()) {
 
-                        start_time_ = std::chrono::high_resolution_clock::now();
 
                         comm_.setLambdaId(lambda_id_);
 
+                        start_time_ = std::chrono::high_resolution_clock::now();
                         std::uint64_t time = std::chrono::time_point_cast<std::chrono::milliseconds>(start_time_).time_since_epoch().count();
+
+                        JI_LOG(INFO) << "Delayed start time: " << app_options.delayedStartTime();
+                        if (app_options.delayedStartTime() != 0) {
+                            JI_LOG(INFO) << "Delaying" << app_options.delayedStartTime();
+                            while (time < app_options.delayedStartTime()) {
+                                start_time_ = std::chrono::high_resolution_clock::now();
+                                time = std::chrono::time_point_cast<std::chrono::milliseconds>(start_time_).time_since_epoch().count();
+                            }
+                        }
+
                         JI_LOG(INFO) << "Sending start time: " << time;
                         comm_.setStartTime(time);
 
