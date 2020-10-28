@@ -51,7 +51,7 @@ namespace mpl::demo {
                 Planner planner_;
                 std::chrono::high_resolution_clock::time_point start_time_;
                 bool done_{false};
-                double time_limit_{100.0}; // Set safety maximum limit so we don't get charged on AWS
+                double time_limit_{200.0}; // Set safety maximum limit so we don't get charged on AWS
                 int graph_size_{std::numeric_limits<int>::infinity()};
 
                 LocalLambdaCommonSeed();

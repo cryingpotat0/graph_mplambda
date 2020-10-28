@@ -103,12 +103,15 @@ namespace mpl {
             }
 
             std::string calcDelayedStartTime() {
-                auto delayed_time = start_time + std::chrono::milliseconds(5000);
+		int delay_diff = 15000;
+		JI_LOG(INFO) << "Using delay start of " << delay_diff;
+                auto delayed_time = start_time + std::chrono::milliseconds(delay_diff);
                 auto delayed_time_count = std::chrono::time_point_cast<std::chrono::milliseconds>(delayed_time).time_since_epoch().count();
                 return std::to_string(delayed_time_count);
             }
 
             std::vector<std::string> setup_lambda_args(std::string lambdaId, std::string first_packet, std::string second_packet) {
+		JI_LOG(INFO) << "Args " << lambdaId << " " << first_packet << " " << second_packet;
                 std::vector<std::string> args = {
                     "scenario", app_options.scenario(), 
                     "global_min", app_options.global_min_, 
@@ -152,8 +155,12 @@ namespace mpl {
 
 		std::vector<std::pair<std::string, std::string>> work_packets;
                 for (int i = 0; i < app_options.jobs(); ++i) {
-			work_packets.emplace_back(std::make_pair(getWorkPacket(i), ""));
+			auto first_packet = getWorkPacket(i);
+			auto second_packet = ""; //getWorkPacket(i);
+			work_packets.emplace_back(std::make_pair(first_packet, second_packet));
 		}
+
+		JI_LOG(INFO) << "Work packets " << work_packets;
 
                 for (int i = 0; i < app_options.jobs(); ++i) {
 			auto [first_packet, second_packet] = work_packets[i];
@@ -170,8 +177,6 @@ namespace mpl {
 					// "cforest");
 
 					auto lambdaId = std::to_string(i);
-					//auto first_packet = getWorkPacket(i);
-					//auto second_packet = ""; //getWorkPacket(i);
 					auto args = setup_lambda_args(lambdaId, first_packet, second_packet);
 					args.push_back("start");
 					std::string starts;
@@ -240,7 +245,7 @@ namespace mpl {
                 for (int i = 0; i < app_options.jobs(); ++i) {
                     // if (i != 3) continue;
                     auto first_packet = getWorkPacket(i);
-                    auto second_packet = ""; //getWorkPacket(i);
+                    auto second_packet = ""; // getWorkPacket(i);
                     int p[2];
                     if (::pipe(p) == -1)
                         throw std::system_error(errno, std::system_category(), "Pipe");
@@ -416,6 +421,7 @@ namespace mpl {
                 auto size = tmp_queue.size();
                 for (int i=0; i < size; ++i) {
                     auto [start, end] = tmp_queue.front();
+		    //JI_LOG(INFO) << "start end" << start << " " << end;
                     work_queue.push(packet::RandomSeedWork(start, end));
                     tmp_queue.pop();
                 }
@@ -580,11 +586,10 @@ namespace mpl {
 
                 // Handle cleaning up lambdas
                 connections_.clear();
-		
-		for (int i=0; i < app_options.jobs(); ++i) {
-		   threads[i].join();
+                for (int i = 0; i < app_options.jobs(); ++i) {
+			threads[i].join();
 		}
-
+		
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start_time);
                 JI_LOG(INFO) << "Loop finished in " << duration;
